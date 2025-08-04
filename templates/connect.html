@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect - Hubble</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="/">Hubble</a>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="#" class="nav-link">
+                        <i class="fas fa-comments"></i>
+                        Chat
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link">
+                        <i class="fas fa-chart-bar"></i>
+                        Dashboards
+                    </a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a href="#" class="nav-link">
+                        <i class="fas fa-database"></i>
+                        Data
+                        <i class="fas fa-chevron-down"></i>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a href="/explore" class="dropdown-link">Explore</a></li>
+                        <li><a href="/connect" class="dropdown-link">Connect</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link">
+                        <i class="fas fa-book"></i>
+                        Docs
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link">
+                        <i class="fas fa-question-circle"></i>
+                        Help
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            <h1 class="main-title">Connect Data</h1>
+            <div class="content">
+                <p>Welcome to the Connect page. Here you can connect to various data sources and manage your data connections.</p>
+                <p>This page allows you to establish connections to databases, APIs, and other data sources to bring your data into Hubble.</p>
+                
+                <div class="connectors-section">
+                    <h2>Available Connectors</h2>
+                    <div class="connector-card">
+                        <div class="connector-header">
+                            <i class="fab fa-facebook"></i>
+                            <h3>Facebook Ads</h3>
+                        </div>
+                        <p>Connect your Facebook Ads account to sync campaign data, ad performance metrics, and audience insights.</p>
+                        <button class="connect-btn" onclick="openFivetranConnectCard('facebook_ads')">
+                            <i class="fas fa-link"></i>
+                            Connect Facebook Ads
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Fivetran Connect Card Modal -->
+    <div id="fivetranModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Connect to Facebook Ads</h3>
+                <span class="close" onclick="closeFivetranModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="fivetranConnectCard"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fivetran configuration from server
+        const fivetranAccountId = '{{ fivetran_account_id }}';
+        const connectors = {{ connectors | tojson }};
+        
+        function openFivetranConnectCard(connectorType) {
+            // Initialize Fivetran Connect Card
+            const connectorId = connectors[connectorType].connector_id;
+            
+            // Create the Connect Card iframe
+            const connectCardUrl = `https://fivetran.com/connect-cards/${fivetranAccountId}/${connectorId}`;
+            
+            const iframe = document.createElement('iframe');
+            iframe.src = connectCardUrl;
+            iframe.style.width = '100%';
+            iframe.style.height = '600px';
+            iframe.style.border = 'none';
+            iframe.style.borderRadius = '8px';
+            
+            const container = document.getElementById('fivetranConnectCard');
+            container.innerHTML = '';
+            container.appendChild(iframe);
+            
+            // Show modal
+            document.getElementById('fivetranModal').style.display = 'block';
+        }
+        
+        function closeFivetranModal() {
+            document.getElementById('fivetranModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside of it
+        window.onclick = function(event) {
+            const modal = document.getElementById('fivetranModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html> 
