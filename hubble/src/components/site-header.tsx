@@ -2,7 +2,6 @@
 
 import Link from "next/link"
 import { OrgSwitcher } from "@/components/org-switcher"
-import { WorkspaceSwitcher } from "@/components/workspace-switcher"
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs"
 import { shadcn } from "@clerk/themes"
 
@@ -13,14 +12,12 @@ export function SiteHeader() {
         <Link href="/" className="text-sm font-semibold">hubble</Link>
         <span className="px-2 text-muted-foreground">/</span>
         <OrgSwitcher />
-        <span className="px-2 text-muted-foreground">/</span>
-        <WorkspaceSwitcher />
         <div className="ml-auto flex items-center gap-2">
           <SignedOut>
             <SignInButton mode="modal"/>
           </SignedOut>
           <SignedIn>
-            <UserButton afterSignOutUrl="/" appearance={{ baseTheme: shadcn }} />
+            <UserButton appearance={{ theme: shadcn }} />
           </SignedIn>
         </div>
       </div>

@@ -8,12 +8,23 @@ import {
 import * as React from "react"
 import { ChatMessageList } from "@/components/chat/ChatMessageList"
 import { ChatInput } from "@/components/chat/ChatInput"
-import { useChatState } from "@/hooks/useChatState"
+import { useChat } from "@ai-sdk/react"
+import { TextStreamChatTransport } from "ai"
 import { ChatSidebar } from "@/components/chat/ChatSidebar"
 import { Separator } from "@/components/ui/separator"
 
 export default function Page() {
-  const { messages, input, setInput, isTyping, submit } = useChatState()
+  const [input, setInput] = React.useState("")
+  const { messages, status, sendMessage } = useChat({
+    transport: new TextStreamChatTransport({ api: "/api/chat" }),
+  })
+
+  function onSubmit() {
+    const trimmed = input.trim()
+    if (!trimmed) return
+    sendMessage({ text: trimmed })
+    setInput("")
+  }
 
   return (
     <SidebarProvider>
@@ -23,13 +34,13 @@ export default function Page() {
           <ChatSidebar side="left" />
           <Separator orientation="vertical" />
           <div className="bg-muted/50 flex-1 min-h-0 min-w-0 rounded-xl flex flex-col">
-            <ChatMessageList messages={messages} isTyping={isTyping} />
+            <ChatMessageList messages={messages} isTyping={status === "submitted" || status === "streaming"} />
             <div className="border-t p-3">
               <ChatInput
                 value={input}
                 onChange={setInput}
-                onSubmit={submit}
-                disabled={!input.trim() || isTyping}
+                onSubmit={onSubmit}
+                disabled={!input.trim() || status !== "ready"}
               />
             </div>
           </div>

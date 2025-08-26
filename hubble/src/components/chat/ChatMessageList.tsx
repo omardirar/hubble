@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { ChatMessage } from "@/components/chat/ChatMessage"
-import type { ChatMessage as ChatMessageType } from "@/hooks/useChatState"
+import type { UIMessage, UIMessagePart, UIDataTypes, UITools } from "ai"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Loader2 } from "lucide-react"
 import { useHydrated } from "@/hooks/useHydrated"
@@ -11,7 +11,7 @@ export function ChatMessageList({
   messages,
   isTyping,
 }: {
-  messages: ChatMessageType[]
+  messages: UIMessage[]
   isTyping: boolean
 }) {
   const endRef = React.useRef<HTMLDivElement | null>(null)
@@ -20,6 +20,13 @@ export function ChatMessageList({
     endRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, isTyping])
 
+  function textFromParts(parts: UIMessagePart<UIDataTypes, UITools>[]): string {
+    return parts
+      .map((p) => (p.type === "text" ? p.text : ""))
+      .filter(Boolean)
+      .join("")
+  }
+
   return (
     <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
       {!hydrated && (
@@ -27,9 +34,11 @@ export function ChatMessageList({
       )}
       {hydrated && (
         <>
-      {messages.map((m) => (
-        <ChatMessage key={m.id} role={m.role} content={m.content} />
-      ))}
+      {messages
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .map((m) => (
+          <ChatMessage key={m.id} role={m.role as "user" | "assistant"} content={textFromParts(m.parts)} />
+        ))}
 
       {isTyping && (
         <div className="flex items-start gap-3">
