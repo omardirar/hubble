@@ -1,11 +1,6 @@
 import { SignJWT, importPKCS8, type KeyLike } from "jose"
 import { createPrivateKey } from "crypto"
-
-function getEnv(name: string): string {
-  const v = process.env[name]
-  if (!v) throw new Error(`Missing required env var: ${name}`)
-  return v
-}
+import { config } from "./config"
 
 async function importPrivateKeyFromPEM(pem: string): Promise<KeyLike> {
   if (pem.includes("BEGIN PRIVATE KEY")) {
@@ -25,9 +20,9 @@ export async function signDbJwtRS256({
   sub: string
   db: string
 }): Promise<string> {
-  const issuer = getEnv("MCP_JWT_ISSUER")
-  const audience = getEnv("MCP_JWT_AUDIENCE")
-  const pem = getEnv("MCP_JWT_PRIVATE_KEY")
+  const issuer = config.mcpJwtIssuer
+  const audience = config.mcpJwtAudience
+  const pem = config.mcpJwtPrivateKey
 
   const privateKey = await importPrivateKeyFromPEM(pem)
 
