@@ -4,7 +4,9 @@ import * as React from "react"
 import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation"
 import { Message, MessageContent } from "@/components/ai-elements/message"
 import { Response } from "@/components/ai-elements/response"
-import type { UIMessage } from "ai"
+import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from "@/components/ai-elements/tool"
+import { isToolOrDynamicToolUIPart, getToolOrDynamicToolName } from "ai"
+import type { UIMessage, ToolUIPart, DynamicToolUIPart } from "ai"
 
 export function ChatConversation({ messages, isTyping }: { messages: UIMessage[]; isTyping: boolean }) {
   return (
@@ -29,6 +31,26 @@ export function ChatConversation({ messages, isTyping }: { messages: UIMessage[]
                   if (part.type === "text") {
                     return (
                       <Response key={`${m.id}-${i}`}>{part.text}</Response>
+                    )
+                  }
+                  if (isToolOrDynamicToolUIPart(part)) {
+                    const p = part as ToolUIPart | DynamicToolUIPart
+                    const toolName = String(getToolOrDynamicToolName(p))
+                    const output = p.state === "output-available"
+                      ? (typeof p.output === "string"
+                        ? p.output
+                        : <pre className="p-3 whitespace-pre-wrap text-xs">{JSON.stringify(p.output, null, 2)}</pre>)
+                      : undefined
+                    const errorText = p.state === "output-error" ? p.errorText : undefined
+
+                    return (
+                      <Tool key={`${m.id}-tool-${p.toolCallId}`}>
+                        <ToolHeader type={toolName} state={p.state} />
+                        <ToolContent>
+                          <ToolInput input={p.input} />
+                          <ToolOutput output={output} errorText={errorText} />
+                        </ToolContent>
+                      </Tool>
                     )
                   }
                   return null
