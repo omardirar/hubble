@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Prettier check
+        run: npm run format:check
+
+      - name: Build
+        run: npm run build
+        env:
+          # Provide safe defaults for build-time env to avoid failing build
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "test"
+          CLERK_SECRET_KEY: "test"
+          MCP_MOTHERDUCK_URL: "https://example.com/motherduck"
+          MCP_JWT_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\nMII...test\n-----END PRIVATE KEY-----"
+          MCP_JWT_ISSUER: "ci"
+          MCP_JWT_AUDIENCE: "ci"
+          ANTHROPIC_API_KEY: "test"
+
