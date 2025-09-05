@@ -11,8 +11,7 @@ Milestones at a glance
 
 Goals: Reduce immediate risk, secure configuration, and add guardrails.
 
-- [ ] Replace hard-coded Sentry DSN with env var and document it — sentry.server.config.ts (labels: tech-debt, area:config, P2; assignees: me; due: 2025-09-17)
-- [ ] Replace hard-coded Sentry DSN with env var and document it — sentry.edge.config.ts (labels: tech-debt, area:config, P2; assignees: me; due: 2025-09-17)
+- [ ] Remove Sentry integration (done)
 - [ ] Add per-user rate limiting (e.g., Upstash Redis) in chat API — src/app/api/chat/route.ts (labels: area:api, security, P1; assignees: me; due: 2025-09-17)
 - [ ] Provide a .env.example with placeholder variables matching env.d.ts — README.md (labels: docs, area:config, P2; assignees: me; due: 2025-09-17)
 - [ ] Implement per-user limiter and document env/setup — README.md (labels: area:api, security, P1; assignees: me; due: 2025-09-17)
@@ -29,8 +28,6 @@ Goals: Establish reliable tests for critical auth/tenant/LLM flows.
 
 Goals: Improve structure and developer experience.
 
-- [ ] Parameterize tracesSampleRate via env; add guidance in README — sentry.server.config.ts (labels: area:config, docs, P2; assignees: me; due: 2025-10-29)
-- [ ] Parameterize tracesSampleRate via env; add guidance in README — sentry.edge.config.ts (labels: area:config, docs, P2; assignees: me; due: 2025-10-29)
 - [ ] Extract ChatService to separate file for unit testing stream orchestration — src/app/api/chat/route.ts (labels: tech-debt, testing, area:api, P1; assignees: me; due: 2025-10-29)
 - [ ] Document global header visibility and add ADR for layout decisions — src/app/layout.tsx (labels: docs, area:ui, P3; assignees: me; due: 2025-10-29)
 - [ ] Add sequence diagram for Chat flow — README.md (labels: docs, area:api, P3; assignees: me; due: 2025-10-29)

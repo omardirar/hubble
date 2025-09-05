@@ -17,6 +17,5 @@
 - Clerk middleware: defined `publicRoutes` and simplified matcher.
 - Sidebar: prevented shortcut from triggering in inputs and added `SameSite=Lax` to state cookie.
 - Tenant: validated `orgId`/db name format.
-- Sentry (server/edge): toggled `enableLogs` and `debug` off by default, on when `LOG_LEVEL=debug`.
-- Removed unreachable return from `sentry-example-api` route.
+- Removed Sentry integration and configs.
 - Lint script now enforces zero warnings: `eslint . --max-warnings=0`.
