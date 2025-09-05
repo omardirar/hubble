@@ -33,9 +33,6 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
-# hosting
-# (was: .vercel)
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
@@ -43,5 +40,5 @@ next-env.d.ts
 # clerk configuration (can include secrets)
 /.clerk/
 
-# (removed) Sentry Config File
-# .env.sentry-build-plugin
+# open-next build output (Cloudflare Workers)
+/.open-next/
