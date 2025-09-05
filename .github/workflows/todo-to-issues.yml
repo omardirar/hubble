@@ -1,0 +1,18 @@
+name: TODOs to Issues
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: TODO to Issue
+        uses: alstr/todo-to-issue-action@v5
+# Optional (recommended): insert issue URLs back into TODOs and auto-close on removal
+# To enable, extend permissions and add INSERT_ISSUE_URLS/CLOSE_ISSUES inputs, then commit link insertions back to the branch.
+
