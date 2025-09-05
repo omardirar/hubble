@@ -11,7 +11,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-export function OrgSwitcher({ items = ["Acme Inc", "Acme Corp", "Evil Corp"], href = "#" }: { items?: string[]; href?: string }) {
+export function OrgSwitcher({
+  items = ["Acme Inc", "Acme Corp", "Evil Corp"],
+  href = "#",
+}: {
+  items?: string[]
+  href?: string
+}) {
   const [active, setActive] = React.useState(items[0] ?? "")
 
   return (
@@ -36,5 +42,3 @@ export function OrgSwitcher({ items = ["Acme Inc", "Acme Corp", "Evil Corp"], hr
     </div>
   )
 }
-
-

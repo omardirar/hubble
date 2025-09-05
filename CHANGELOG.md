@@ -1,9 +1,11 @@
 ## 0.1.a1 - 2025-09-03
 
 ### Added
+
 - CHANGELOG introduced.
 
 ### Changed
+
 - Fixed `:root` selector in `src/app/globals.css` to restore theming.
 - Hardened `/api/chat`:
   - Unified Anthropic model selection via `ANTHROPIC_MODEL` with fallback.
@@ -18,5 +20,3 @@
 - Sentry (server/edge): toggled `enableLogs` and `debug` off by default, on when `LOG_LEVEL=debug`.
 - Removed unreachable return from `sentry-example-api` route.
 - Lint script now enforces zero warnings: `eslint . --max-warnings=0`.
-
-

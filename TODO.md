@@ -1,4 +1,3 @@
-
 Remaining tasks
 
 - Add rate limiting to `/api/chat` (per-user; Upstash Redis) and 429 handling.

@@ -11,8 +11,8 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { z } from "zod"
 
-type Closeable = { close?: () => Promise<void> }
-function hasClose(value: unknown): value is { close: () => Promise<void> } {
+type Closeable = { close: () => Promise<void> }
+function hasClose(value: unknown): value is Closeable {
   return typeof (value as { close?: unknown })?.close === "function"
 }
 async function tryClose(value: unknown) {
@@ -38,11 +38,14 @@ export async function POST(req: NextRequest) {
   //  evidence: src/app/api/chat/route.ts:16-25 — no rate limiter present
 
   // Validate request body
-  const bodySchema = z
-    .object({
-      messages: z.array(z.any()).max(50).default([]),
-      db: z.string().max(128).regex(/^[\w-]+$/).optional(),
-    })
+  const bodySchema = z.object({
+    messages: z.array(z.any()).max(50).default([]),
+    db: z
+      .string()
+      .max(128)
+      .regex(/^[\w-]+$/)
+      .optional(),
+  })
 
   // TODO: Tighten message schema to validated UIMessage shape; cap total tokens
   //  labels: area:api, testing, P2
@@ -56,7 +59,7 @@ export async function POST(req: NextRequest) {
     const rawBody: unknown = await req.json().catch(() => ({}))
     const parsed = bodySchema.safeParse(rawBody)
     if (parsed.success) {
-      messages = (parsed.data.messages as unknown[]) as UIMessage[]
+      messages = parsed.data.messages as unknown[] as UIMessage[]
       clientHint = parsed.data.db
     }
   } catch {
@@ -76,9 +79,7 @@ export async function POST(req: NextRequest) {
     dbName = await resolveDbForOrg(orgId, clientHint)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.error(
-      JSON.stringify({ traceId, userId, orgId, event: "db_resolve_error", msg })
-    )
+    console.error(JSON.stringify({ traceId, userId, orgId, event: "db_resolve_error", msg }))
     return Response.json({ error: "Forbidden" }, { status: 403 })
   }
 
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
 
     mcpClient = new Client(
       { name: "hubble-chat", version: "1.0.0" },
-      { capabilities: {} as import("@modelcontextprotocol/sdk/types.js").ClientCapabilities }
+      { capabilities: {} as import("@modelcontextprotocol/sdk/types.js").ClientCapabilities },
     )
     transport = new StreamableHTTPClientTransport(new URL(mcpUrl), {
       requestInit: {
@@ -127,10 +128,15 @@ export async function POST(req: NextRequest) {
           const tTool = dynamicTool({
             description: tDesc,
             inputSchema: jsonSchema(
-              (t as { inputSchema?: unknown })?.inputSchema ?? { type: "object", properties: {}, required: [] }
+              (t as { inputSchema?: unknown })?.inputSchema ?? {
+                type: "object",
+                properties: {},
+                required: [],
+              },
             ),
             execute: async (args: unknown) => {
-              const safeArgs: Record<string, unknown> = args && typeof args === "object" ? (args as Record<string, unknown>) : {}
+              const safeArgs: Record<string, unknown> =
+                args && typeof args === "object" ? (args as Record<string, unknown>) : {}
               const result = await mcpClient!.callTool({ name: tName, arguments: safeArgs })
               const texts: string[] = []
               const contentArray = (result as { content?: unknown })?.content
@@ -152,7 +158,7 @@ export async function POST(req: NextRequest) {
             },
           })
           return [tName, tTool]
-        })
+        }),
       )
 
       // TODO: Extract ChatService to separate file for unit testing stream orchestration
@@ -179,8 +185,12 @@ export async function POST(req: NextRequest) {
 
       return result.toUIMessageStreamResponse()
     } finally {
-      try { await tryClose(mcpClient) } catch {}
-      try { await tryClose(transport) } catch {}
+      try {
+        await tryClose(mcpClient)
+      } catch {}
+      try {
+        await tryClose(transport)
+      } catch {}
     }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err)
@@ -213,5 +223,3 @@ export async function POST(req: NextRequest) {
     return result.toUIMessageStreamResponse({ status: 502 })
   }
 }
-
-

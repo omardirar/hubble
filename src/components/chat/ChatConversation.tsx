@@ -1,14 +1,24 @@
 "use client"
 
 import * as React from "react"
-import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation"
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation"
 import { Message, MessageContent } from "@/components/ai-elements/message"
 import { Response } from "@/components/ai-elements/response"
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from "@/components/ai-elements/tool"
 import { isToolOrDynamicToolUIPart, getToolOrDynamicToolName } from "ai"
 import type { UIMessage, ToolUIPart, DynamicToolUIPart } from "ai"
 
-export function ChatConversation({ messages, isTyping }: { messages: UIMessage[]; isTyping: boolean }) {
+export function ChatConversation({
+  messages,
+  isTyping,
+}: {
+  messages: UIMessage[]
+  isTyping: boolean
+}) {
   return (
     <Conversation>
       <ConversationContent>
@@ -29,18 +39,21 @@ export function ChatConversation({ messages, isTyping }: { messages: UIMessage[]
               >
                 {m.parts.map((part, i) => {
                   if (part.type === "text") {
-                    return (
-                      <Response key={`${m.id}-${i}`}>{part.text}</Response>
-                    )
+                    return <Response key={`${m.id}-${i}`}>{part.text}</Response>
                   }
                   if (isToolOrDynamicToolUIPart(part)) {
                     const p = part as ToolUIPart | DynamicToolUIPart
                     const toolName = String(getToolOrDynamicToolName(p))
-                    const output = p.state === "output-available"
-                      ? (typeof p.output === "string"
-                        ? p.output
-                        : <pre className="p-3 whitespace-pre-wrap text-xs">{JSON.stringify(p.output, null, 2)}</pre>)
-                      : undefined
+                    const output =
+                      p.state === "output-available" ? (
+                        typeof p.output === "string" ? (
+                          p.output
+                        ) : (
+                          <pre className="p-3 text-xs whitespace-pre-wrap">
+                            {JSON.stringify(p.output, null, 2)}
+                          </pre>
+                        )
+                      ) : undefined
                     const errorText = p.state === "output-error" ? p.errorText : undefined
 
                     return (
@@ -69,5 +82,3 @@ export function ChatConversation({ messages, isTyping }: { messages: UIMessage[]
     </Conversation>
   )
 }
-
-

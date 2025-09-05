@@ -60,11 +60,11 @@ Optional:
 
 - `ANTHROPIC_MODEL` (default model)
 - `LOG_LEVEL`
-// TODO: Provide a .env.example with placeholder variables matching env.d.ts
-//  labels: docs, area:config, P2
-//  assignees: me
-//  milestone: M0 - Safety Net
-//  evidence: README.md:49-63 — variables documented but no .env.example present
+  // TODO: Provide a .env.example with placeholder variables matching env.d.ts
+  // labels: docs, area:config, P2
+  // assignees: me
+  // milestone: M0 - Safety Net
+  // evidence: README.md:49-63 — variables documented but no .env.example present
 
 ### Flow
 
@@ -73,11 +73,11 @@ Optional:
 3. Sign RS256 JWT embedding `db` and user `sub`.
 4. Initialize MCP client (HTTP stream) with per-request headers.
 5. Discover tools; call `streamText` with Anthropic; stream to the browser (`useChat`).
-// TODO: Add sequence diagram for Chat flow (Clerk → DB resolve → JWT → MCP → AI)
-//  labels: docs, area:api, P3
-//  assignees: me
-//  milestone: M2 - Refactors
-//  evidence: README.md:64-71 — textual flow only, no diagram
+   // TODO: Add sequence diagram for Chat flow (Clerk → DB resolve → JWT → MCP → AI)
+   // labels: docs, area:api, P3
+   // assignees: me
+   // milestone: M2 - Refactors
+   // evidence: README.md:64-71 — textual flow only, no diagram
 
 ### Errors
 
@@ -85,17 +85,17 @@ Optional:
 - 403 Forbidden (no org / mismatch / no mapping) → JSON
 - 502 Bad Gateway (MCP/tool discovery/model) → streamed safe error message
 - 500 Internal Error → generic safe message
-// TODO: Define consistent error response shape and map in UI error states
-//  labels: area:api, area:ui, P2
-//  assignees: me
-//  milestone: M1 - Baseline Tests
-//  evidence: README.md:72-78 — error states listed but no schema contract
+  // TODO: Define consistent error response shape and map in UI error states
+  // labels: area:api, area:ui, P2
+  // assignees: me
+  // milestone: M1 - Baseline Tests
+  // evidence: README.md:72-78 — error states listed but no schema contract
 
 ### Rate limiting (recommended)
 
 Add a per-user limiter (e.g., Upstash Redis) at the start of the route; return 429 when exceeded.
 // TODO: Implement per-user limiter in API and document env/setup
-//  labels: area:api, security, P1
-//  assignees: me
-//  milestone: M0 - Safety Net
-//  evidence: README.md:79-82 — recommendation only, not implemented
+// labels: area:api, security, P1
+// assignees: me
+// milestone: M0 - Safety Net
+// evidence: README.md:79-82 — recommendation only, not implemented

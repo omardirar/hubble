@@ -2,15 +2,36 @@
 
 import * as React from "react"
 import { Button } from "@/components/ui/button"
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuAction } from "@/components/ui/sidebar"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuAction,
+} from "@/components/ui/sidebar"
 import { Plus } from "lucide-react"
 import { useChatList } from "@/hooks/useChatList"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, Trash } from "lucide-react"
 import { useHydrated } from "@/hooks/useHydrated"
- 
 
-export function ChatSidebar({ onNewChat, side = "right" }: { onNewChat?: (id: string) => void; side?: "left" | "right" }) {
+export function ChatSidebar({
+  onNewChat,
+  side = "right",
+}: {
+  onNewChat?: (id: string) => void
+  side?: "left" | "right"
+}) {
   const { sessions, addSession, removeSession } = useChatList()
   const hydrated = useHydrated()
 
@@ -22,7 +43,12 @@ export function ChatSidebar({ onNewChat, side = "right" }: { onNewChat?: (id: st
   }
 
   return (
-    <Sidebar variant="inset" collapsible="none" side={side} className="h-[calc(100svh-var(--site-header-height))]">
+    <Sidebar
+      variant="inset"
+      collapsible="none"
+      side={side}
+      className="h-[calc(100svh-var(--site-header-height))]"
+    >
       <SidebarHeader>
         <Button onClick={handleNewChat}>
           <Plus className="size-4" /> New Chat
@@ -37,20 +63,20 @@ export function ChatSidebar({ onNewChat, side = "right" }: { onNewChat?: (id: st
                 Array.from({ length: 4 }).map((_, i) => (
                   <SidebarMenuItem key={i}>
                     <div className="flex h-8 items-center gap-2 rounded-md px-2">
-                      <div className="size-4 rounded-md bg-accent" />
-                      <div className="h-4 w-3/4 rounded-md bg-accent" />
+                      <div className="bg-accent size-4 rounded-md" />
+                      <div className="bg-accent h-4 w-3/4 rounded-md" />
                     </div>
                   </SidebarMenuItem>
                 ))
               ) : recents.length === 0 ? (
                 <SidebarMenuItem>
-                  <div className="px-2 py-1 text-xs text-muted-foreground">No chats yet</div>
+                  <div className="text-muted-foreground px-2 py-1 text-xs">No chats yet</div>
                 </SidebarMenuItem>
               ) : (
                 recents.map((s) => (
                   <SidebarMenuItem key={s.id}>
                     <SidebarMenuButton asChild>
-                      <button className="w-full flex items-center justify-between">
+                      <button className="flex w-full items-center justify-between">
                         <span className="truncate">{s.title}</span>
                       </button>
                     </SidebarMenuButton>
@@ -63,10 +89,7 @@ export function ChatSidebar({ onNewChat, side = "right" }: { onNewChat?: (id: st
                         </DropdownMenuTrigger>
                       </SidebarMenuAction>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => removeSession(s.id)}
-                        >
+                        <DropdownMenuItem variant="destructive" onClick={() => removeSession(s.id)}>
                           <Trash className="size-4" /> Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -81,5 +104,3 @@ export function ChatSidebar({ onNewChat, side = "right" }: { onNewChat?: (id: st
     </Sidebar>
   )
 }
-
-

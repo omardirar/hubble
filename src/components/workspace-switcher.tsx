@@ -11,7 +11,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-export function WorkspaceSwitcher({ items = ["Workspace A", "Workspace B"], href = "/workspace" }: { items?: string[]; href?: string }) {
+export function WorkspaceSwitcher({
+  items = ["Workspace A", "Workspace B"],
+  href = "/workspace",
+}: {
+  items?: string[]
+  href?: string
+}) {
   const [active, setActive] = React.useState(items[0] ?? "")
 
   return (
@@ -36,5 +42,3 @@ export function WorkspaceSwitcher({ items = ["Workspace A", "Workspace B"], href
     </div>
   )
 }
-
-

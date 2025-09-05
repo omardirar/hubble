@@ -2,10 +2,10 @@
 
 Milestones at a glance
 
-- M0 - Safety Net  (due: 2025-09-17)
-- M1 - Baseline Tests  (due: 2025-10-01)
-- M2 - Refactors  (due: 2025-10-29)
-- M3 - Perf & DX  (due: 2025-11-26)
+- M0 - Safety Net (due: 2025-09-17)
+- M1 - Baseline Tests (due: 2025-10-01)
+- M2 - Refactors (due: 2025-10-29)
+- M3 - Perf & DX (due: 2025-11-26)
 
 ## M0 - Safety Net
 
@@ -47,5 +47,3 @@ Goals: Performance profiling, a11y, and developer tooling.
 ## How Issues are Generated
 
 This repo uses `alstr/todo-to-issue-action@v5` to convert inline TODOs into GitHub issues. On push to `main` (or via manual dispatch), the workflow scans the codebase for TODOs and creates/updates issues. Ensure the repository has “Read and write permissions” enabled under Settings → Actions → Workflow permissions so the workflow can create issues.
-
-

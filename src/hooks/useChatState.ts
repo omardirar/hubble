@@ -11,17 +11,14 @@ export type ChatMessage = {
 }
 
 export function useChatState(storageKey: string = "chat_messages") {
-  const [messages, setMessages] = useLocalStorage<ChatMessage[]>(
-    storageKey,
-    [
-      {
-        id: typeof crypto !== "undefined" ? crypto.randomUUID() : String(Date.now()),
-        role: "assistant",
-        content: "Hi! How can I help you today?",
-        createdAt: Date.now(),
-      },
-    ]
-  )
+  const [messages, setMessages] = useLocalStorage<ChatMessage[]>(storageKey, [
+    {
+      id: typeof crypto !== "undefined" ? crypto.randomUUID() : String(Date.now()),
+      role: "assistant",
+      content: "Hi! How can I help you today?",
+      createdAt: Date.now(),
+    },
+  ])
   const [input, setInput] = React.useState("")
   const [isTyping, setIsTyping] = React.useState(false)
 
@@ -41,8 +38,7 @@ export function useChatState(storageKey: string = "chat_messages") {
       const aiMsg: ChatMessage = {
         id: typeof crypto !== "undefined" ? crypto.randomUUID() : String(Date.now()),
         role: "assistant",
-        content:
-          "This is a placeholder response. Wire me up to your backend or model API.",
+        content: "This is a placeholder response. Wire me up to your backend or model API.",
         createdAt: Date.now(),
       }
       setMessages((prev) => [...prev, aiMsg])
@@ -63,5 +59,3 @@ export function useChatState(storageKey: string = "chat_messages") {
 
   return { messages, setMessages, input, setInput, isTyping, submit, clear }
 }
-
-

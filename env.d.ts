@@ -10,5 +10,3 @@ declare namespace NodeJS {
     LOG_LEVEL?: string
   }
 }
-
-

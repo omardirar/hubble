@@ -15,13 +15,9 @@ export default async function ProtectedLayout({ children }: { children: React.Re
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset className="h-[calc(100svh-var(--site-header-height))] min-h-0">
-          <div className="h-full min-h-0 p-6">
-            {children}
-          </div>
+          <div className="h-full min-h-0 p-6">{children}</div>
         </SidebarInset>
       </SidebarProvider>
     </>
   )
 }
-
-

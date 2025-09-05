@@ -2,7 +2,13 @@
 
 import * as React from "react"
 import { ChatConversation } from "@/components/chat/ChatConversation"
-import { PromptInput, PromptInputTextarea, PromptInputToolbar, PromptInputTools, PromptInputSubmit } from "@/components/ai-elements/prompt-input"
+import {
+  PromptInput,
+  PromptInputTextarea,
+  PromptInputToolbar,
+  PromptInputTools,
+  PromptInputSubmit,
+} from "@/components/ai-elements/prompt-input"
 import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport } from "ai"
 import { ChatSidebar } from "@/components/chat/ChatSidebar"
@@ -22,11 +28,14 @@ export default function Page() {
   }
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 gap-0 pr-0 pt-0">
+    <div className="flex h-full min-h-0 min-w-0 gap-0 pt-0 pr-0">
       <ChatSidebar side="left" />
       <Separator orientation="vertical" />
-      <div className="flex-1 flex flex-col">
-        <ChatConversation messages={messages} isTyping={status === "submitted" || status === "streaming"} />
+      <div className="flex flex-1 flex-col">
+        <ChatConversation
+          messages={messages}
+          isTyping={status === "submitted" || status === "streaming"}
+        />
         <div className="p-3">
           <PromptInput
             className=""
@@ -55,5 +64,3 @@ export default function Page() {
     </div>
   )
 }
-
-
