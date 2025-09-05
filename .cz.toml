@@ -1,0 +1,12 @@
+[tool.commitizen]
+name = "cz_gitmoji"
+
+# Source of truth for project version (read by `cz version -p`)
+version = "0.1.0"
+tag_format = "v$version"
+update_changelog_on_bump = true
+
+# Update version in package.json; regenerate lockfile separately
+version_files = [
+  'package.json:^\s*"version"\s*:\s*"(?P<version>[^\"]+)"'
+]
