@@ -32,7 +32,7 @@ jobs:
         run: npm run build
         env:
           # Provide safe defaults for build-time env to avoid failing build
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "test"
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_ZW5oYW5jZWQtc2x1Zy0yNy5jbGVyay5hY2NvdW50cy5kZXYk"
           CLERK_SECRET_KEY: "test"
           MCP_MOTHERDUCK_URL: "https://example.com/motherduck"
           MCP_JWT_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\nMII...test\n-----END PRIVATE KEY-----"

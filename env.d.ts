@@ -8,5 +8,6 @@ declare namespace NodeJS {
     // Optional
     ANTHROPIC_MODEL?: string
     LOG_LEVEL?: string
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?: string
   }
 }
