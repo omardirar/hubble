@@ -1,13 +1,40 @@
+---
 name: CI
 
-on:
+"on":
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
 jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Set PY
+        run: echo "PY=$(python -VV | sha256sum | cut -d' ' -f1)" >> $GITHUB_ENV
+
+      - name: Cache pre-commit
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit|${{ env.PY }}|${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Run pre-commit (all files)
+        uses: pre-commit/action@v3.0.1
+        with:
+          extra_args: --all-files
+
   build-and-lint:
+    needs: pre-commit
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -35,7 +62,7 @@ jobs:
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_ZW5oYW5jZWQtc2x1Zy0yNy5jbGVyay5hY2NvdW50cy5kZXYk"
           CLERK_SECRET_KEY: "test"
           MCP_MOTHERDUCK_URL: "https://example.com/motherduck"
-          MCP_JWT_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\nMII...test\n-----END PRIVATE KEY-----"
+          MCP_JWT_PRIVATE_KEY: "test"
           MCP_JWT_ISSUER: "ci"
           MCP_JWT_AUDIENCE: "ci"
           ANTHROPIC_API_KEY: "test"
