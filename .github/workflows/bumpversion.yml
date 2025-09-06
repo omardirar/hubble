@@ -38,10 +38,22 @@ jobs:
       - name: Check if there are commits to bump
         id: check-commits
         run: |
-          if cz check --rev-range HEAD~1..HEAD; then
+          # Get the last tag, or fallback to HEAD~10 if no tags exist
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD~10")
+          echo "Checking commits since: $LAST_TAG"
+
+          # Check if there are commits since the last tag that can be bumped
+          if cz check --rev-range $LAST_TAG..HEAD; then
             echo "has_commits=true" >> $GITHUB_OUTPUT
+            echo "Found commits eligible for version bump"
+
+            # Show what commits will be included
+            echo "Commits to be included in bump:"
+            git log --oneline $LAST_TAG..HEAD
           else
             echo "has_commits=false" >> $GITHUB_OUTPUT
+            echo "No commits found that are eligible for version bump"
+            echo "Make sure commits follow conventional commit format (feat:, fix:, etc.)"
           fi
       - name: Generate bump and changelog
         if: steps.check-commits.outputs.has_commits == 'true'
