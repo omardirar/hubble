@@ -50,7 +50,7 @@ jobs:
       - name: Update changelog
         if: steps.version.outputs.changed == 'true'
         run: |
-          cz -n cz_conventional_gitmoji changelog --unreleased --incremental
+          cz -n cz_gitmoji changelog --unreleased --incremental
           git add CHANGELOG.md
           git commit -m "📝 docs: update changelog for ${{ steps.version.outputs.current_version }}" || true
           git push
