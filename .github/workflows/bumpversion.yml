@@ -39,7 +39,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cz bump --yes --changelog --increment auto
+          cz bump --yes --changelog
           echo "REVISION=$(cz version --project)" >> $GITHUB_ENV
           git push --follow-tags
       - name: Release
