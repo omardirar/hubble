@@ -6,6 +6,9 @@ compatibility_flags = ["nodejs_compat"]
 [build]
 command = "opennextjs-cloudflare build"
 
+[observability.logs]
+enabled = true
+
 [vars]
 NEXT_DISABLE_INSTRUMENTATION = "1"
 

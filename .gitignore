@@ -4,6 +4,7 @@
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+/tmp/
 
 # externals
 /.wrangler/
