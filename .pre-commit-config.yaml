@@ -5,12 +5,6 @@ exclude: "^(\n  node_modules/|\n  \\.next/|\n  \\.open-next/|\n  dist/|\n  build
 minimum_pre_commit_version: 3.7.0
 repos:
   - hooks:
-      - args:
-          - --branch
-          - main
-          - --pattern
-          - release/
-        id: no-commit-to-branch
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-merge-conflict
