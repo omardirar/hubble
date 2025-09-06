@@ -1,122 +1,120 @@
+default_language_version:
+  python: python3
+exclude: "^(\n  node_modules/|\n  \\.next/|\n  \\.open-next/|\n  dist/|\n  build/|\n\
+  \  coverage/\n)\n"
+minimum_pre_commit_version: 3.7.0
 repos:
-  # Core safety and hygiene hooks
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
-    hooks:
-      - id: no-commit-to-branch
-        args: ["--branch", "main", "--pattern", "release/"]
+  - hooks:
+      - args:
+          - --branch
+          - main
+          - --pattern
+          - release/
+        id: no-commit-to-branch
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-merge-conflict
-      - id: check-added-large-files
-        args: ["--maxkb=500"]
+      - args:
+          - --maxkb=500
+        id: check-added-large-files
       - id: check-yaml
       - id: check-json
       - id: check-case-conflict
-      - id: detect-private-key
-        exclude: '^src/lib/jwt\.ts$'
-
-  # Spell checking (kept lightweight)
-  - repo: https://github.com/codespell-project/codespell
+      - exclude: ^src/lib/jwt\.ts$
+        id: detect-private-key
+    repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+  - hooks:
+      - args:
+          - -L
+          - crate
+        exclude: (?:^|/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$
+        id: codespell
+    repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
-    hooks:
-      - id: codespell
-        args: ["-L", "crate"]
-        exclude: '(?:^|/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$'
-
-  # Lint GitHub Actions workflows
-  - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.7
-    hooks:
+  - hooks:
       - id: actionlint
-
-  # YAML linting
-  - repo: https://github.com/adrienverge/yamllint
+    repo: https://github.com/rhysd/actionlint
+    rev: v1.7.7
+  - hooks:
+      - args:
+          - -d
+          - "{extends: default, rules: {line-length: {max: 120}}}"
+        id: yamllint
+    repo: https://github.com/adrienverge/yamllint
     rev: v1.37.1
-    hooks:
-      - id: yamllint
-        args: ["-d", "{extends: default, rules: {line-length: {max: 120}}}"]
-
-  # Markdown linting
-  - repo: https://github.com/igorshubovych/markdownlint-cli
+  - hooks:
+      - files: \.(md|mdx)$
+        id: markdownlint
+    repo: https://github.com/igorshubovych/markdownlint-cli
     rev: v0.45.0
-    hooks:
-      - id: markdownlint
-        files: '\.(md|mdx)$'
-
-  # Shell scripts: shellcheck + shfmt
-  - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.11.0.1
-    hooks:
+  - hooks:
       - id: shellcheck
-
-  - repo: https://github.com/scop/pre-commit-shfmt
+    repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+  - hooks:
+      - args:
+          - -i
+          - "2"
+          - -ci
+        id: shfmt
+    repo: https://github.com/scop/pre-commit-shfmt
     rev: v3.12.0-2
-    hooks:
-      - id: shfmt
-        args: ["-i", "2", "-ci"]
-
-  # JSON Schema checks (e.g., GitHub Actions, dependabot, etc.)
-  - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.33.3
-    hooks:
-      - id: check-jsonschema
+  - hooks:
+      - args:
+          - --builtin-schema
+          - github-workflows
+        files: .github/workflows/.*\.ya?ml$
+        id: check-jsonschema
         name: Check GitHub Actions workflows
-        files: '.github/workflows/.*\.ya?ml$'
-        args: ["--builtin-schema", "github-workflows"]
-      - id: check-jsonschema
+      - args:
+          - --schemafile
+          - https://json.schemastore.org/dependabot-2.0.json
+        files: \.github/dependabot\.ya?ml$
+        id: check-jsonschema
         name: Check Dependabot config
-        files: '\.github/dependabot\.ya?ml$'
-        args: ["--schemafile", "https://json.schemastore.org/dependabot-2.0.json"]
-
-  # EditorConfig enforcement
-  - repo: https://github.com/editorconfig-checker/editorconfig-checker.python
-    rev: 3.4.0
-    hooks:
+    repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.33.3
+  - hooks:
       - id: editorconfig-checker
-
-  # Commitizen commit message validation (Conventional Commits + gitmoji)
-  - repo: https://github.com/commitizen-tools/commitizen
+    repo: https://github.com/editorconfig-checker/editorconfig-checker.python
+    rev: 3.4.0
+  - hooks:
+      - additional_dependencies:
+          - cz-conventional-gitmoji
+        id: commitizen
+        stages:
+          - commit-msg
+    repo: https://github.com/commitizen-tools/commitizen
     rev: v4.8.4
-    hooks:
-      - id: commitizen
-        stages: [commit-msg]
-        additional_dependencies: ["cz-conventional-gitmoji"]
-
-  # Local Node-based hooks (use project devDependencies)
-  - repo: local
-    hooks:
-      # Prettier formatting check
-      - id: prettier
-        name: Prettier
+  - hooks:
+      - additional_dependencies: []
         entry: npx --yes prettier --write
+        id: prettier
         language: system
-        types_or: [javascript, jsx, ts, tsx, json, css, scss, markdown, yaml]
-        additional_dependencies: []
-
-      # ESLint (no warnings allowed)
-      - id: eslint
+        name: Prettier
+        types_or:
+          - javascript
+          - jsx
+          - ts
+          - tsx
+          - json
+          - css
+          - scss
+          - markdown
+          - yaml
+      - entry: npx --yes eslint --max-warnings=0
+        id: eslint
+        language: system
         name: ESLint
-        entry: npx --yes eslint --max-warnings=0
+        types_or:
+          - javascript
+          - jsx
+          - ts
+          - tsx
+      - entry: npx --yes tsc -p tsconfig.json --noEmit
+        id: typescript-typecheck
         language: system
-        types_or: [javascript, jsx, ts, tsx]
-
-      # TypeScript type-check (run once per commit)
-      - id: typescript-typecheck
         name: TypeScript type-check
-        entry: npx --yes tsc -p tsconfig.json --noEmit
-        language: system
         pass_filenames: false
-
-      # Commit message lint removed in favor of Commitizen with gitmoji
-
-# Exclude large/generated/vendor dirs
-exclude: |
-  ^(
-    node_modules/|
-    \.next/|
-    \.open-next/|
-    dist/|
-    build/|
-    coverage/
-  )
+    repo: local
