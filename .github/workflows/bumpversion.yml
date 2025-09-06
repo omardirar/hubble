@@ -62,7 +62,17 @@ jobs:
         run: |
           cz bump --yes --changelog
           echo "REVISION=$(cz version --project)" >> $GITHUB_ENV
+
+          # Verify the tag was created
+          echo "Created tag: $REVISION"
+          git tag --list | grep "$REVISION" || echo "Warning: Tag $REVISION not found locally"
+
+          # Push the tag
           git push --follow-tags
+
+          # Verify tag was pushed to remote
+          echo "Verifying tag was pushed to remote..."
+          git ls-remote --tags origin | grep "$REVISION" || echo "Warning: Tag $REVISION not found on remote"
       - name: Release
         if: steps.check-commits.outputs.has_commits == 'true'
         uses: softprops/action-gh-release@v2
