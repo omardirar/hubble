@@ -6,5 +6,14 @@ export const runtime = "edge"
 import packageJson from "../../../package.json"
 
 export async function GET() {
-  return Response.json({ version: packageJson.version })
+  const buildTime = new Date().toISOString()
+
+  return Response.json({
+    version: packageJson.version,
+    buildTime,
+    environment: process.env.NODE_ENV || "production",
+    // Include git info if available
+    gitCommit: process.env.VERCEL_GIT_COMMIT_SHA || "unknown",
+    gitBranch: process.env.VERCEL_GIT_COMMIT_REF || "unknown",
+  })
 }

@@ -18,8 +18,8 @@ workers_dev = true
 # routes = ["your-domain.com/*"]
 
 # Bindings: add only when referenced by the app. Examples:
-# [vars]
-# SOME_ENV = "value"
+[vars]
+VERSION = "0.1.1"
 
 # [[kv_namespaces]]
 # binding = "MY_KV"
