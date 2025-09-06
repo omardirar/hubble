@@ -35,7 +35,16 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Check if there are commits to bump
+        id: check-commits
+        run: |
+          if cz check --rev-range HEAD~1..HEAD; then
+            echo "has_commits=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_commits=false" >> $GITHUB_OUTPUT
+          fi
       - name: Generate bump and changelog
+        if: steps.check-commits.outputs.has_commits == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -43,6 +52,7 @@ jobs:
           echo "REVISION=$(cz version --project)" >> $GITHUB_ENV
           git push --follow-tags
       - name: Release
+        if: steps.check-commits.outputs.has_commits == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.REVISION }}
