@@ -1,4 +1,4 @@
-export const runtime = "edge"
+// Cloudflare adapter handles runtime; avoid forcing edge at route level per OpenNext docs
 
 // Import version from package.json at build time
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment

@@ -1,4 +1,4 @@
-export const runtime = "edge"
+// Cloudflare adapter handles runtime; avoid forcing edge at route level per OpenNext docs
 
 export async function GET() {
   return new Response("ok", {
