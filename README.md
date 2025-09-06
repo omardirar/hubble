@@ -33,6 +33,19 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 Refer to the Next.js deployment documentation for various platforms.
 
+## Git Hooks & Commitizen
+
+- Install hooks: `pre-commit install -t pre-commit -t commit-msg -t pre-push`
+- Author commits: `npm run commit` (Commitizen with gitmoji prompts)
+- Validation: commit messages are linted via Commitizen on `commit-msg`
+- Lint/format: Prettier, ESLint, and basic safety checks run on `pre-commit`
+- Type-check: TypeScript runs once per commit (no emit)
+
+Notes:
+
+- JS Commitizen (`cz-emoji`) is used for prompting, Python Commitizen validates.
+- Config files: `.pre-commit-config.yaml` and `.cz.toml` (version/tag settings).
+
 ## Chat API → MCP auth & DB scoping
 
 - Transport: HTTP stream

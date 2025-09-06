@@ -14,7 +14,7 @@
     "deploy:prod": "wrangler deploy --env production",
     "deploy:check": "wrangler deploy --dry-run --env preview",
     "commit": "cz",
-    "ci-commit": "HUSKY=0 cz --retry || true"
+    "ci-commit": "cz --retry || true"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.8",
