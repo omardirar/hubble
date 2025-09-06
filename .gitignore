@@ -15,6 +15,7 @@ next-env.d.ts
 # misc
 .DS_Store
 *.pem
+/dist/
 
 # debug
 npm-debug.log*
@@ -24,10 +25,3 @@ yarn-error.log*
 
 # env files
 .env*
-
-
-
-# clerk configuration (can include secrets)
-
-
-# Cloudflare Workers

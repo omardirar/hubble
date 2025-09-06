@@ -1,3 +1,28 @@
 import { defineCloudflareConfig } from "@opennextjs/cloudflare"
 
-export default defineCloudflareConfig()
+// Start from the adapter defaults, then override selective fields to reduce size
+const base = defineCloudflareConfig({
+  enableCacheInterception: false,
+}) as unknown as {
+  default?: Record<string, unknown>
+  middleware?: Record<string, unknown>
+} & Record<string, unknown>
+
+const config = {
+  ...base,
+  // Minify server bundle aggressively; try legacy bundled Next server to shrink size
+  default: {
+    ...(base.default ?? {}),
+    runtime: "node",
+    minify: true,
+    experimentalBundledNextServer: false,
+  },
+  // Keep middleware external and minified
+  middleware: {
+    ...(base.middleware ?? {}),
+    external: true,
+    minify: true,
+  },
+}
+
+export default config

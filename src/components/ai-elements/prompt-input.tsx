@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select"
 import TextareaAutosize from "react-textarea-autosize"
 import { cn } from "@/lib/utils"
-import type { ChatStatus } from "ai"
+type ChatStatus = "ready" | "submitted" | "streaming" | "error"
 import { Loader2Icon, SendIcon, SquareIcon, XIcon } from "lucide-react"
 import type { ComponentProps, HTMLAttributes, KeyboardEventHandler } from "react"
 import { Children } from "react"

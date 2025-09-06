@@ -1,5 +1,2 @@
-export async function register() {
-  // No-op: Sentry removed
-}
-
+export async function register() {}
 export const onRequestError = () => {}

@@ -6,6 +6,9 @@ compatibility_flags = ["nodejs_compat"]
 [build]
 command = "opennextjs-cloudflare build"
 
+[vars]
+NEXT_DISABLE_INSTRUMENTATION = "1"
+
 [assets]
 binding = "ASSETS"
 directory = ".open-next/assets"

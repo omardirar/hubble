@@ -1,7 +1,8 @@
 import { cn } from "@/lib/utils"
-import type { Experimental_GeneratedImage } from "ai"
 
-export type ImageProps = Experimental_GeneratedImage & {
+export type ImageProps = {
+  base64: string
+  mediaType: string
   className?: string
   alt?: string
 }
