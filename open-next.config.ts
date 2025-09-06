@@ -14,14 +14,14 @@ const config = {
   default: {
     ...(base.default ?? {}),
     runtime: "node",
-    minify: true,
+    minify: false,
     experimentalBundledNextServer: false,
   },
   // Keep middleware external and minified
   middleware: {
     ...(base.middleware ?? {}),
     external: true,
-    minify: true,
+    minify: false,
   },
 }
 

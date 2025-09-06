@@ -10,12 +10,10 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "preview:local": "opennextjs-cloudflare preview",
+    "preview:local": "opennextjs-cloudflare preview --minify",
     "deploy:preview": "wrangler deploy --env preview --minify",
     "deploy:prod": "wrangler deploy --env production --minify",
-    "deploy:check": "wrangler deploy --dry-run --env preview",
-    "commit": "cz",
-    "ci-commit": "cz --retry || true"
+    "deploy:check": "wrangler deploy --dry-run --env preview"
   },
   "dependencies": {
     "@clerk/elements": "^0.23.57",
@@ -83,10 +81,5 @@
     "tw-animate-css": "^1.3.7",
     "typescript": "^5",
     "wrangler": "^4.34.0"
-  },
-  "config": {
-    "commitizen": {
-      "path": "cz-emoji"
-    }
   }
 }
