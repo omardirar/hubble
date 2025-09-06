@@ -2,7 +2,6 @@
   "commitizen": {
     "name": "cz_gitmoji",
     "version_scheme": "pep440",
-    "version": "0.1.1",
     "tag_format": "$version",
     "update_changelog_on_bump": true,
     "version_files": ["package.json:^\\s*\"version\"\\s*:\\s*\"(?P<version>[^\\\"]+)\""],

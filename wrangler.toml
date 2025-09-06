@@ -17,9 +17,7 @@ workers_dev = true
 # To use a custom domain, comment the line above and set routes like:
 # routes = ["your-domain.com/*"]
 
-# Bindings: add only when referenced by the app. Examples:
-[vars]
-VERSION = "0.1.1"
+# Bindings: add only when referenced by the app.
 
 # [[kv_namespaces]]
 # binding = "MY_KV"

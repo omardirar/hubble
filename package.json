@@ -10,10 +10,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "preview:local": "opennextjs-cloudflare preview",
-    "deploy:preview": "node scripts/pre-deploy.mjs && wrangler deploy --env preview",
-    "deploy:prod": "node scripts/pre-deploy.mjs && wrangler deploy --env production",
+    "deploy:preview": "wrangler deploy --env preview",
+    "deploy:prod": "wrangler deploy --env production",
     "deploy:check": "wrangler deploy --dry-run --env preview",
-    "update-version": "node scripts/pre-deploy.mjs",
     "commit": "cz",
     "ci-commit": "cz --retry || true"
   },

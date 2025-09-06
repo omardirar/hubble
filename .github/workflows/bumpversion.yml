@@ -1,4 +1,4 @@
-name: Bump version
+name: Release on version change
 
 permissions:
   contents: write
@@ -10,10 +10,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  bump-version:
+  release:
     if: ${{ !contains(github.event.head_commit.message, 'bump:') }}
     runs-on: ubuntu-latest
-    name: "Bump version and create changelog with commitizen"
+    name: "Release: tag + changelog when package.json version changes"
     concurrency:
       group: bumpversion-${{ github.ref }}
       cancel-in-progress: true
@@ -35,49 +35,40 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-      - name: Check if there are commits to bump
-        id: check-commits
+      - name: Detect version change
+        id: version
         run: |
-          # Get the last tag, or fallback to HEAD~10 if no tags exist
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD~10")
-          echo "Checking commits since: $LAST_TAG"
-
-          # Check if there are commits since the last tag that can be bumped
-          if cz check --rev-range $LAST_TAG..HEAD; then
-            echo "has_commits=true" >> $GITHUB_OUTPUT
-            echo "Found commits eligible for version bump"
-
-            # Show what commits will be included
-            echo "Commits to be included in bump:"
-            git log --oneline $LAST_TAG..HEAD
+          CURRENT=$(jq -r .version package.json)
+          echo "current_version=$CURRENT" >> $GITHUB_OUTPUT
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          echo "last_tag=$LAST_TAG" >> $GITHUB_OUTPUT
+          if [ -n "$LAST_TAG" ] && [ "$LAST_TAG" = "$CURRENT" ]; then
+            echo "changed=false" >> $GITHUB_OUTPUT
           else
-            echo "has_commits=false" >> $GITHUB_OUTPUT
-            echo "No commits found that are eligible for version bump"
-            echo "Make sure commits follow conventional commit format (feat:, fix:, etc.)"
+            echo "changed=true" >> $GITHUB_OUTPUT
           fi
-      - name: Generate bump and changelog
-        if: steps.check-commits.outputs.has_commits == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tag and push
+        if: steps.version.outputs.changed == 'true'
         run: |
-          cz bump --yes --changelog
-          echo "REVISION=$(cz version --project)" >> $GITHUB_ENV
-
-          # Verify the tag was created
-          echo "Created tag: $REVISION"
-          git tag --list | grep "$REVISION" || echo "Warning: Tag $REVISION not found locally"
-
-          # Push the tag
-          git push --follow-tags
-
-          # Verify tag was pushed to remote
-          echo "Verifying tag was pushed to remote..."
-          git ls-remote --tags origin | grep "$REVISION" || echo "Warning: Tag $REVISION not found on remote"
+          git tag ${{ steps.version.outputs.current_version }}
+          git push origin ${{ steps.version.outputs.current_version }}
+      - name: Install Commitizen
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install commitizen cz-conventional-gitmoji
+      - name: Update changelog
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          cz changelog --unreleased --incremental
+          git add CHANGELOG.md
+          git commit -m "📝 docs: update changelog for ${{ steps.version.outputs.current_version }}" || true
+          git push
       - name: Release
-        if: steps.check-commits.outputs.has_commits == 'true'
+        if: steps.version.outputs.changed == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.REVISION }}
+          tag_name: ${{ steps.version.outputs.current_version }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
