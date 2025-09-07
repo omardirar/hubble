@@ -9,9 +9,6 @@ command = "opennextjs-cloudflare build"
 [observability.logs]
 enabled = true
 
-[vars]
-NEXT_DISABLE_INSTRUMENTATION = "1"
-
 [assets]
 binding = "ASSETS"
 directory = ".open-next/assets"
@@ -19,24 +16,11 @@ directory = ".open-next/assets"
 [env.preview]
 # Deploys to *.workers.dev by default for preview
 workers_dev = true
-secrets_store_secrets = [
-  { binding = "ANTHROPIC_API_KEY", store_id = "f37d78acf99641778b64ea4c0761c543", secret_name = "ANTHROPIC_API_KEY" },
-  { binding = "CLERK_SECRET_KEY", store_id = "f37d78acf99641778b64ea4c0761c543", secret_name = "CLERK_SECRET_KEY" },
-  { binding = "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", store_id = "f37d78acf99641778b64ea4c0761c543", secret_name = "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" },
-  { binding = "SUPABASE_ANON_KEY", store_id = "f37d78acf99641778b64ea4c0761c543", secret_name = "SUPABASE_ANON_KEY" },
-  { binding = "SUPABASE_URL", store_id = "f37d78acf99641778b64ea4c0761c543", secret_name = "SUPABASE_URL" }
-]
 
 [env.production]
 # Safe default to deploy to *.workers.dev until a custom route is configured
 workers_dev = true
-secrets_store_secrets = [
-  { binding = "ANTHROPIC_API_KEY", store_id = "f37d78acf99641778b64ea4c0761c543", secret_name = "ANTHROPIC_API_KEY" },
-  { binding = "CLERK_SECRET_KEY", store_id = "f37d78acf99641778b64ea4c0761c543", secret_name = "CLERK_SECRET_KEY" },
-  { binding = "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", store_id = "f37d78acf99641778b64ea4c0761c543", secret_name = "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" },
-  { binding = "SUPABASE_ANON_KEY", store_id = "f37d78acf99641778b64ea4c0761c543", secret_name = "SUPABASE_ANON_KEY" },
-  { binding = "SUPABASE_URL", store_id = "f37d78acf99641778b64ea4c0761c543", secret_name = "SUPABASE_URL" }
-]
+
 # To use a custom domain, comment the line above and set routes like:
 # routes = ["your-domain.com/*"]
 
