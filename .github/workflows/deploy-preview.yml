@@ -45,24 +45,6 @@ jobs:
         run: |
           echo "BRANCH_NAME=${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}" >> $GITHUB_ENV
 
-      # Deploy Worker-level secrets from GitHub Secrets (non-interactive)
-      - name: Set Worker secrets (preview)
-        if: env.CLOUDFLARE_API_TOKEN && env.CLOUDFLARE_ACCOUNT_ID
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          printf "%s" "${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}" | \
-            npx wrangler secret put NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY --env preview
-          printf "%s" "${CLERK_SECRET_KEY}" | \
-            npx wrangler secret put CLERK_SECRET_KEY --env preview
-          printf "%s" "${ANTHROPIC_API_KEY}" | \
-            npx wrangler secret put ANTHROPIC_API_KEY --env preview
-          printf "%s" "${SUPABASE_URL}" | \
-            npx wrangler secret put SUPABASE_URL --env preview
-          printf "%s" "${SUPABASE_ANON_KEY}" | \
-            npx wrangler secret put SUPABASE_ANON_KEY --env preview
-
       - name: Deploy to Cloudflare (preview)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
