@@ -33,11 +33,6 @@ export default function RootLayout({
 }>) {
   const publishableKey =
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY
-  if (!publishableKey) {
-    throw new Error(
-      "@clerk/nextjs: Missing publishableKey. Set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY via Cloudflare Secrets Store.",
-    )
-  }
   // TODO: Document global header visibility and how auth renders; add ADR for layout decisions
   //  labels: docs, area:ui, P3
   //  assignees: me
