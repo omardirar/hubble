@@ -1,6 +1,13 @@
 "use client"
 
 import * as React from "react"
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation"
+import { Message, MessageContent } from "@/components/ai-elements/message"
+import { Response } from "@/components/ai-elements/response"
 
 export function ChatConversation({
   messages,
@@ -10,24 +17,27 @@ export function ChatConversation({
   isTyping: boolean
 }) {
   return (
-    <div className="flex flex-col gap-2 p-3">
-      {messages.map((m) => (
-        <div
-          key={m.id}
-          className={
-            m.role === "user"
-              ? "bg-primary text-primary-foreground max-w-[80%] self-end rounded-md px-3 py-2"
-              : "bg-secondary text-foreground max-w-[80%] self-start rounded-md px-3 py-2"
-          }
-        >
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.text}</p>
-        </div>
-      ))}
-      {isTyping && (
-        <div className="bg-secondary text-foreground max-w-[80%] self-start rounded-md px-3 py-2">
-          <p className="text-sm">Typing…</p>
-        </div>
-      )}
-    </div>
+    <Conversation>
+      <ConversationContent>
+        {
+          // TODO: Add a "Load older messages" button that prepends older results later.
+        }
+        {messages.map((m) => (
+          <Message from={m.role} key={m.id}>
+            <MessageContent>
+              <Response>{m.text}</Response>
+            </MessageContent>
+          </Message>
+        ))}
+        {isTyping && (
+          <Message from="assistant">
+            <MessageContent>
+              <p className="text-sm">Typing…</p>
+            </MessageContent>
+          </Message>
+        )}
+      </ConversationContent>
+      <ConversationScrollButton aria-label="Scroll to bottom" />
+    </Conversation>
   )
 }
