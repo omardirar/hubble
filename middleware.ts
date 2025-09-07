@@ -22,9 +22,3 @@ export const config = {
     "/(api|trpc)(.*)",
   ],
 }
-
-// TODO: Add rate limiting middleware for APIs (429), see README guidance
-//  labels: area:api, security, P1
-//  assignees: me
-//  milestone: M0 - Safety Net
-//  evidence: src/middleware.ts — no limiter present
