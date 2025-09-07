@@ -31,18 +31,20 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-  const safePublishableKey =
-    publishableKey && /^pk_(test|live)_.+/.test(publishableKey)
-      ? publishableKey
-      : "pk_test_ZW5oYW5jZWQtc2x1Zy0yNy5jbGVyay5hY2NvdW50cy5kZXYk"
+  const publishableKey =
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY
+  if (!publishableKey) {
+    throw new Error(
+      "@clerk/nextjs: Missing publishableKey. Set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY via Cloudflare Secrets Store.",
+    )
+  }
   // TODO: Document global header visibility and how auth renders; add ADR for layout decisions
   //  labels: docs, area:ui, P3
   //  assignees: me
   //  milestone: M2 - Refactors
   //  evidence: src/app/layout.tsx — implicit header contract
   return (
-    <ClerkProvider publishableKey={safePublishableKey} appearance={{ baseTheme: shadcn }}>
+    <ClerkProvider publishableKey={publishableKey} appearance={{ baseTheme: shadcn }}>
       <html lang="en">
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
           <div className="h-svh overflow-hidden">
