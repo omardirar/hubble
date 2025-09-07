@@ -36,7 +36,7 @@ export default function ClientChatPage() {
   React.useEffect(() => {
     if (!conversationId) return
     let alive = true
-    fetch(`/api/messages/${conversationId}`)
+    fetch(`/api/chat/messages/${conversationId}`)
       .then(async (r) => {
         if (!r.ok) throw new Error(await r.text().catch(() => r.statusText))
         return r.json()
@@ -75,7 +75,7 @@ export default function ClientChatPage() {
       setDraftStatus("creating")
       const tsTitle = Math.floor(Date.now() / 1000).toString()
       // TODO: Generate AI title after first assistant reply and update conversation.title
-      const r = await fetch("/api/conversations", {
+      const r = await fetch("/api/chat/conversations", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ title: tsTitle }),
@@ -101,7 +101,7 @@ export default function ClientChatPage() {
     // Persist user message (idempotent). Only clear input on success
     try {
       const idem = crypto?.randomUUID?.() ?? `${Date.now()}`
-      const res = await fetch(`/api/messages/${targetConversationId}`, {
+      const res = await fetch(`/api/chat/messages/${targetConversationId}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ role: "user", text: trimmed, idempotencyKey: idem }),
@@ -114,7 +114,7 @@ export default function ClientChatPage() {
         console.log("message_sent", { conversationId: targetConversationId })
         // Refresh message list to ensure canonical order and sidebar recents
         try {
-          const r = await fetch(`/api/messages/${targetConversationId}`)
+          const r = await fetch(`/api/chat/messages/${targetConversationId}`)
           if (r.ok) {
             const rows = (await r.json()) as Array<{
               id: string
@@ -144,7 +144,7 @@ export default function ClientChatPage() {
     if (reply && reply.trim()) {
       try {
         const idem2 = crypto?.randomUUID?.() ?? `${Date.now()}-r`
-        await fetch(`/api/messages/${targetConversationId}`, {
+        await fetch(`/api/chat/messages/${targetConversationId}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ role: "assistant", text: reply, idempotencyKey: idem2 }),

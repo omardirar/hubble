@@ -20,7 +20,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ conversationId
   const token = await getToken({ template: "supabase" }).catch(() => null)
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
   const { conversationId: convoId } = await ctx.params
-  const url = `${supabaseUrl}/rest/v1/messages?select=id,role,content,created_at&conversation_id=eq.${encodeURIComponent(convoId)}&order=created_at.asc,id.asc`
+  const url = `${supabaseUrl}/rest/v1/messages?select=id,role,content,created_at&conversation_id=eq.${encodeURIComponent(
+    convoId,
+  )}&order=created_at.asc,id.asc`
   const res = await fetch(url, { headers: supabaseHeaders(token) })
   if (!res.ok) return Response.json({ error: res.statusText }, { status: res.status })
   const rows = (await res.json()) as Array<{ id: string; role: string; content: unknown }>
@@ -88,3 +90,5 @@ export async function POST(req: Request, ctx: { params: Promise<{ conversationId
   const row = await res.json()
   return Response.json(row)
 }
+
+// (legacy re-export removed)

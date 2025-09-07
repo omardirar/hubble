@@ -49,7 +49,7 @@ export function ChatSidebar({
   React.useEffect(() => {
     let alive = true
     const t = setTimeout(() => {
-      fetch("/api/conversations")
+      fetch("/api/chat/conversations")
         .then(async (r) => {
           if (!r.ok) throw new Error(await r.text().catch(() => r.statusText))
           return r.json()
