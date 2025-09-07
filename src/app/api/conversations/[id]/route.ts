@@ -15,11 +15,11 @@ function supabaseHeaders(token: string) {
   }
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { getToken } = await auth()
   const token = await getToken({ template: "supabase" }).catch(() => null)
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
-  const id = params.id
+  const { id } = await ctx.params
   const body = (await req.json().catch(() => ({}))) as { title?: string; archived?: boolean }
   const updates: Record<string, unknown> = {}
   if (typeof body.title === "string") updates.title = body.title
