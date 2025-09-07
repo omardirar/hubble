@@ -49,15 +49,15 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           printf "%s" "${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}" | \
-            npx wrangler secret put NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY --env production --yes
+            npx wrangler secret put NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY --env production
           printf "%s" "${CLERK_SECRET_KEY}" | \
-            npx wrangler secret put CLERK_SECRET_KEY --env production --yes
+            npx wrangler secret put CLERK_SECRET_KEY --env production
           printf "%s" "${ANTHROPIC_API_KEY}" | \
-            npx wrangler secret put ANTHROPIC_API_KEY --env production --yes
+            npx wrangler secret put ANTHROPIC_API_KEY --env production
           printf "%s" "${SUPABASE_URL}" | \
-            npx wrangler secret put SUPABASE_URL --env production --yes
+            npx wrangler secret put SUPABASE_URL --env production
           printf "%s" "${SUPABASE_ANON_KEY}" | \
-            npx wrangler secret put SUPABASE_ANON_KEY --env production --yes
+            npx wrangler secret put SUPABASE_ANON_KEY --env production
 
       - name: Deploy to Cloudflare (production)
         env:
