@@ -134,7 +134,7 @@ export function ChatSidebar({
                             const name = window.prompt("Rename conversation", s.title)
                             if (!name || !name.trim()) return
                             try {
-                              const r = await fetch(`/api/conversations/${s.id}`, {
+                              const r = await fetch(`/api/chat/conversations/${s.id}`, {
                                 method: "PATCH",
                                 headers: { "content-type": "application/json" },
                                 body: JSON.stringify({ title: name.trim() }),
@@ -154,7 +154,7 @@ export function ChatSidebar({
                         <DropdownMenuItem
                           onClick={async () => {
                             try {
-                              const r = await fetch(`/api/conversations/${s.id}`, {
+                              const r = await fetch(`/api/chat/conversations/${s.id}`, {
                                 method: "PATCH",
                                 headers: { "content-type": "application/json" },
                                 body: JSON.stringify({ archived: true }),
