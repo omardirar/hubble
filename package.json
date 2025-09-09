@@ -8,6 +8,7 @@
     "open-next:build": "opennextjs-cloudflare build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
+    "test": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "preview:local": "opennextjs-cloudflare preview --minify",
@@ -80,6 +81,9 @@
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.7",
     "typescript": "^5",
-    "wrangler": "^4.34.0"
+    "wrangler": "^4.34.0",
+    "vitest": "^1.6.0",
+    "@testing-library/react": "^14.2.1",
+    "jsdom": "^24.0.0"
   }
 }

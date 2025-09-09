@@ -49,6 +49,7 @@ export function ChatSidebar({
   React.useEffect(() => {
     let alive = true
     const t = setTimeout(() => {
+      // TODO: Factor out API calls into shared client for consistent error handling
       fetch("/api/chat/conversations")
         .then(async (r) => {
           if (!r.ok) throw new Error(await r.text().catch(() => r.statusText))
@@ -144,6 +145,7 @@ export function ChatSidebar({
                                 prev.map((c) => (c.id === s.id ? { ...c, title: name.trim() } : c)),
                               )
                             } catch (e) {
+                              // TODO: Provide clearer user feedback for rename failures
                               toast.error("Failed to rename")
                               console.error(e)
                             }
@@ -162,6 +164,7 @@ export function ChatSidebar({
                               if (!r.ok) throw new Error(await r.text().catch(() => r.statusText))
                               setServerConversations((prev) => prev.filter((c) => c.id !== s.id))
                             } catch (e) {
+                              // TODO: Provide clearer user feedback for archive failures
                               toast.error("Failed to archive")
                               console.error(e)
                             }

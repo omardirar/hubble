@@ -22,6 +22,8 @@ async function sendChat(text: string): Promise<string> {
 import { ChatSidebar } from "@/components/chat/ChatSidebar"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
+import { loadMessages } from "@/lib/chat"
+// TODO: Expand test coverage for useChatState and related components
 
 export default function ClientChatPage() {
   const [input, setInput] = React.useState("")
@@ -33,25 +35,13 @@ export default function ClientChatPage() {
   const [sidebarRefreshKey, setSidebarRefreshKey] = React.useState(0)
   const [, setDraftStatus] = React.useState<"empty" | "creating" | "ready">("empty")
 
-  React.useEffect(() => {
-    if (!conversationId) return
-    let alive = true
-    fetch(`/api/chat/messages/${conversationId}`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(await r.text().catch(() => r.statusText))
-        return r.json()
-      })
-      .then((rows: Array<{ id: string; role: "user" | "assistant" | "system"; text: string }>) => {
-        if (!alive) return
-        // TODO: in future, support "Load Older Messages" button
-        // that prepends older ones to this list
-        const filtered = rows.filter(
-          (m): m is { id: string; role: "user" | "assistant"; text: string } =>
-            m.role === "user" || m.role === "assistant",
-        )
+  const loadMessagesCallback = React.useCallback(
+    async (id: string, signal?: AbortSignal) => {
+      try {
+        const filtered = await loadMessages(id, signal)
         setMessages(filtered)
-      })
-      .catch((e: unknown) => {
+      } catch (e: unknown) {
+        if (e instanceof DOMException && e.name === "AbortError") return
         console.error(e)
         const status =
           typeof e === "object" && e !== null && "status" in e
@@ -60,11 +50,18 @@ export default function ClientChatPage() {
         if (status === 401 || status === 403) {
           toast.error("Check you're signed in and in the correct workspace.")
         }
-      })
-    return () => {
-      alive = false
-    }
-  }, [conversationId])
+      }
+    },
+    [],
+  )
+
+  React.useEffect(() => {
+    if (!conversationId) return
+    const controller = new AbortController()
+    loadMessagesCallback(conversationId, controller.signal)
+    return () => controller.abort()
+    // TODO: Add pagination or "load older" functionality for long threads
+  }, [conversationId, loadMessagesCallback])
 
   async function onSubmit() {
     const trimmed = input.trim()
@@ -112,22 +109,7 @@ export default function ClientChatPage() {
       } else {
         setInput("")
         console.log("message_sent", { conversationId: targetConversationId })
-        // Refresh message list to ensure canonical order and sidebar recents
-        try {
-          const r = await fetch(`/api/chat/messages/${targetConversationId}`)
-          if (r.ok) {
-            const rows = (await r.json()) as Array<{
-              id: string
-              role: "user" | "assistant" | "system"
-              text: string
-            }>
-            const filtered = rows.filter(
-              (m): m is { id: string; role: "user" | "assistant"; text: string } =>
-                m.role === "user" || m.role === "assistant",
-            )
-            setMessages(filtered)
-          }
-        } catch {}
+        await loadMessagesCallback(targetConversationId)
         // Refresh sidebar so active conversation jumps to the top
         setSidebarRefreshKey((k) => k + 1)
         console.log("sidebar_refreshed")
@@ -137,6 +119,7 @@ export default function ClientChatPage() {
       toast.error("Failed to send message")
     }
     const reply = await sendChat(trimmed)
+    // TODO: Stream assistant replies over WebSocket for real-time updates
     setMessages((prev) => [
       ...prev,
       { id: `${id}-r`, role: "assistant", text: reply || "(no reply)" },
