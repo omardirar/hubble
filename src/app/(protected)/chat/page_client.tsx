@@ -9,20 +9,25 @@ import {
   PromptInputTools,
   PromptInputSubmit,
 } from "@/components/ai-elements/prompt-input"
-async function sendChat(text: string): Promise<string> {
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ text }),
-  })
-  if (!res.ok) return ""
-  const data = (await res.json().catch(() => ({}))) as { reply?: string }
-  return data.reply ?? ""
-}
 import { ChatSidebar } from "@/components/chat/ChatSidebar"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import { loadMessages } from "@/lib/chat"
+import { apiFetch } from "@/lib/api"
+import { generateId } from "@/lib/utils"
+async function sendChat(text: string): Promise<string> {
+  try {
+    const res = await apiFetch("/api/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text }),
+    })
+    const data = (await res.json().catch(() => ({}))) as { reply?: string }
+    return data.reply ?? ""
+  } catch {
+    return ""
+  }
+}
 // TODO: Expand test coverage for useChatState and related components
 
 export default function ClientChatPage() {
@@ -69,51 +74,46 @@ export default function ClientChatPage() {
       setDraftStatus("creating")
       const tsTitle = Math.floor(Date.now() / 1000).toString()
       // TODO: Generate AI title after first assistant reply and update conversation.title
-      const r = await fetch("/api/chat/conversations", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title: tsTitle }),
-      })
-      if (r.ok) {
+      try {
+        const r = await apiFetch("/api/chat/conversations", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ title: tsTitle }),
+        })
         const c = (await r.json()) as { id: string }
         targetConversationId = c.id
         setConversationId(c.id)
         setDraftStatus("ready")
         console.log("conversation_created", { id: c.id })
-      } else {
-        toast.error("Failed to start a new conversation")
+      } catch (e) {
+        toast.error((e as Error).message || "Failed to start a new conversation")
         setDraftStatus("empty")
         return
       }
     }
 
-    const id = `${Date.now()}`
+    const id = generateId()
     // Optimistic UI: show pending user message
     setMessages((prev) => [...prev, { id, role: "user", text: trimmed }])
     setStatus("streaming")
 
     // Persist user message (idempotent). Only clear input on success
     try {
-      const idem = crypto?.randomUUID?.() ?? `${Date.now()}`
-      const res = await fetch(`/api/chat/messages/${targetConversationId}`, {
+      const idem = generateId()
+      await apiFetch(`/api/chat/messages/${targetConversationId}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ role: "user", text: trimmed, idempotencyKey: idem }),
       })
-      if (!res.ok) {
-        const msg = await res.text().catch(() => "Failed to send message")
-        toast.error(msg)
-      } else {
-        setInput("")
-        console.log("message_sent", { conversationId: targetConversationId })
-        await loadMessagesCallback(targetConversationId)
-        // Refresh sidebar so active conversation jumps to the top
-        setSidebarRefreshKey((k) => k + 1)
-        console.log("sidebar_refreshed")
-      }
+      setInput("")
+      console.log("message_sent", { conversationId: targetConversationId })
+      await loadMessagesCallback(targetConversationId)
+      // Refresh sidebar so active conversation jumps to the top
+      setSidebarRefreshKey((k) => k + 1)
+      console.log("sidebar_refreshed")
     } catch (e) {
       console.error(e)
-      toast.error("Failed to send message")
+      toast.error(e instanceof Error ? e.message : "Failed to send message")
     }
     const reply = await sendChat(trimmed)
     // TODO: Stream assistant replies over WebSocket for real-time updates
@@ -123,8 +123,8 @@ export default function ClientChatPage() {
     ])
     if (reply && reply.trim()) {
       try {
-        const idem2 = crypto?.randomUUID?.() ?? `${Date.now()}-r`
-        await fetch(`/api/chat/messages/${targetConversationId}`, {
+        const idem2 = generateId()
+        await apiFetch(`/api/chat/messages/${targetConversationId}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ role: "assistant", text: reply, idempotencyKey: idem2 }),

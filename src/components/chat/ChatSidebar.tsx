@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, Pencil, Archive } from "lucide-react"
 import { useHydrated } from "@/hooks/useHydrated"
+import { apiFetch } from "@/lib/api"
 
 export function ChatSidebar({
   onNewChat,
@@ -49,12 +50,8 @@ export function ChatSidebar({
   React.useEffect(() => {
     let alive = true
     const t = setTimeout(() => {
-      // TODO: Factor out API calls into shared client for consistent error handling
-      fetch("/api/chat/conversations")
-        .then(async (r) => {
-          if (!r.ok) throw new Error(await r.text().catch(() => r.statusText))
-          return r.json()
-        })
+      apiFetch("/api/chat/conversations")
+        .then((r) => r.json())
         .then((rows) => {
           if (!alive) return
           setServerConversations(rows)
@@ -135,12 +132,11 @@ export function ChatSidebar({
                             const name = window.prompt("Rename conversation", s.title)
                             if (!name || !name.trim()) return
                             try {
-                              const r = await fetch(`/api/chat/conversations/${s.id}`, {
+                              await apiFetch(`/api/chat/conversations/${s.id}`, {
                                 method: "PATCH",
                                 headers: { "content-type": "application/json" },
                                 body: JSON.stringify({ title: name.trim() }),
                               })
-                              if (!r.ok) throw new Error(await r.text().catch(() => r.statusText))
                               setServerConversations((prev) =>
                                 prev.map((c) => (c.id === s.id ? { ...c, title: name.trim() } : c)),
                               )
@@ -156,12 +152,11 @@ export function ChatSidebar({
                         <DropdownMenuItem
                           onClick={async () => {
                             try {
-                              const r = await fetch(`/api/chat/conversations/${s.id}`, {
+                              await apiFetch(`/api/chat/conversations/${s.id}`, {
                                 method: "PATCH",
                                 headers: { "content-type": "application/json" },
                                 body: JSON.stringify({ archived: true }),
                               })
-                              if (!r.ok) throw new Error(await r.text().catch(() => r.statusText))
                               setServerConversations((prev) => prev.filter((c) => c.id !== s.id))
                             } catch (e) {
                               // TODO: Provide clearer user feedback for archive failures

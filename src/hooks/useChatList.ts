@@ -2,6 +2,7 @@
 
 import { useLocalStorage } from "usehooks-ts"
 import * as React from "react"
+import { generateId } from "@/lib/utils"
 
 export type ChatSession = {
   id: string
@@ -14,7 +15,7 @@ export function useChatList(storageKey: string = "chat_sessions") {
 
   const addSession = React.useCallback(
     (title: string) => {
-      const id = typeof crypto !== "undefined" ? crypto.randomUUID() : String(Date.now())
+      const id = generateId()
       const session: ChatSession = {
         id,
         title,
