@@ -242,7 +242,7 @@ export default function ClientChatPage() {
       <div className="flex flex-1 flex-col">
         <ChatConversation messages={messages} isTyping={status === "streaming"} />
         {/* TODO: Virtualize long message lists for performance */}
-        {/*   Context: Use windowing (e.g., react-virtual) to render only visible messages. */}
+        {/*   Context: Use windowing (e.g., @tanstack/react-virtual) to render only visible messages. */}
         {/*   labels: area/web, feature/chat, type/perf */}
         {/*   assignees: omzification */}
         {/*   milestone: 0.0.1 */}
