@@ -17,6 +17,9 @@ importers:
       '@hubble/prettier-config':
         specifier: workspace:*
         version: link:packages/prettier-config
+      '@types/node':
+        specifier: ^20
+        version: 20.19.13
       commitizen:
         specifier: ^4.3.0
         version: 4.3.1(@types/node@20.19.13)(typescript@5.9.2)

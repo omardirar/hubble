@@ -12,6 +12,7 @@
     "commit": "cz"
   },
   "devDependencies": {
+    "@types/node": "^20",
     "turbo": "^2.0.0",
     "typescript": "^5.5.0",
     "eslint": "^9.0.0",
