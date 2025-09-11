@@ -7,10 +7,10 @@ import type { SupabaseClient } from "@supabase/supabase-js"
  * @param options Optional configuration for the client
  * @returns Supabase client instance
  */
-export function useSupabase(options?: { authToken?: string; region?: string }): SupabaseClient {
+export function useSupabase(options?: { authToken?: string }): SupabaseClient {
   return useMemo(() => {
     return createBrowserClient(options)
-  }, [options?.authToken, options?.region])
+  }, [options?.authToken])
 }
 
 /**

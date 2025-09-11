@@ -1,5 +1,5 @@
 import { auth } from "@clerk/nextjs/server"
-import { createServiceClient } from "@hubble/db"
+import { createBrowserClient } from "@hubble/db"
 
 export const runtime = "nodejs"
 
@@ -8,7 +8,7 @@ export async function GET() {
   const token = await getToken({ template: "supabase" }).catch(() => null)
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
 
-  const supabase = createServiceClient()
+  const supabase = createBrowserClient({ authToken: token })
   const { data, error } = await supabase
     .from("conversation_summaries")
     .select("id,title,updated_at,archived_at,last_message_text")
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as { title?: string }
   const title = body.title ?? "New Chat"
 
-  const supabase = createServiceClient()
+  const supabase = createBrowserClient({ authToken: token })
   const { data, error } = await supabase
     .from("conversations")
     .insert({

@@ -23,24 +23,30 @@ type ServerEnv = z.infer<typeof serverSchema>
 let _publicEnvCache: PublicEnv | null = null
 let _serverEnvCache: ServerEnv | null = null
 
-export function getRequiredEnv(name: string, options?: { allowPublicFallback?: boolean }) {
+export function getRequiredEnv<T extends keyof (ServerEnv & PublicEnv)>(
+  name: T,
+  options?: { allowPublicFallback?: boolean },
+): string {
   ensureServerOnly("getRequiredEnv")
   const allowPublicFallback = options?.allowPublicFallback ?? false
 
   // Check server environment first
   const server = readServerEnv()
-  const serverValue = server[name as keyof ServerEnv]
-
-  if (serverValue) {
-    return serverValue
+  if (name in server) {
+    const serverValue = server[name as keyof ServerEnv]
+    if (serverValue) {
+      return serverValue
+    }
   }
 
   // Check public environment if fallback is allowed
   if (allowPublicFallback) {
     const pub = readPublicEnv()
-    const publicValue = pub[name as keyof PublicEnv]
-    if (publicValue) {
-      return publicValue
+    if (name in pub) {
+      const publicValue = pub[name as keyof PublicEnv]
+      if (publicValue) {
+        return publicValue
+      }
     }
   }
 
@@ -138,6 +144,18 @@ export function invalidateEnvCaches() {
   }
   _publicEnvCache = null
   _serverEnvCache = null
+}
+
+// Type-safe environment variable accessors
+export function getServerEnvVar<T extends keyof ServerEnv>(name: T): ServerEnv[T] | undefined {
+  ensureServerOnly("getServerEnvVar")
+  const server = readServerEnv()
+  return server[name]
+}
+
+export function getPublicEnvVar<T extends keyof PublicEnv>(name: T): PublicEnv[T] | undefined {
+  const pub = readPublicEnv()
+  return pub[name]
 }
 
 export type { PublicEnv, ServerEnv }

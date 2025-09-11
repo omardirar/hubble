@@ -1,14 +1,10 @@
 import { auth } from "@clerk/nextjs/server"
-import { createServiceClient } from "@hubble/db"
+import { createBrowserClient } from "@hubble/db"
 
 export const runtime = "nodejs"
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  // TODO: Enforce org scoping and ownership checks
-  //   Context: Verify the conversation belongs to the requester's org before allowing updates.
-  //   labels: area/web, feature/security, type/quality
-  //   assignees: omzification
-  //   milestone: 0.0.1
+  // RLS enforcement: Using createBrowserClient with authToken ensures user can only access their org's conversations
   const { getToken } = await auth()
   const token = await getToken({ template: "supabase" }).catch(() => null)
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
@@ -20,7 +16,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (typeof body.archived === "boolean")
     updates.archived_at = body.archived ? new Date().toISOString() : null
 
-  const supabase = createServiceClient()
+  const supabase = createBrowserClient({ authToken: token })
   const { data, error } = await supabase
     .from("conversations")
     .update(updates)

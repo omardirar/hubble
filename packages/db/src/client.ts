@@ -7,14 +7,10 @@ import { readPublicEnv } from "@hubble/env"
  *
  * @param options Optional configuration for the client
  * @param options.authToken Optional JWT token for authenticated requests
- * @param options.region Optional region for the Supabase instance
  * @returns Typed Supabase client with anon key authentication
  * @throws Error if required environment variables are missing
  */
-export function createBrowserClient(options?: {
-  authToken?: string
-  region?: string
-}): SupabaseClient {
+export function createBrowserClient(options?: { authToken?: string }): SupabaseClient {
   const env = readPublicEnv()
 
   if (!env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -49,12 +45,8 @@ export function createBrowserClient(options?: {
     }
   }
 
-  // Add region if provided
-  if (options?.region) {
-    clientOptions.db = {
-      schema: options.region,
-    }
-  }
+  // Note: Regions are handled by the Supabase URL configuration
+  // The URL already contains the region information (e.g., https://project-id.supabase.co)
 
   return createSupabaseClient(
     env.NEXT_PUBLIC_SUPABASE_URL,

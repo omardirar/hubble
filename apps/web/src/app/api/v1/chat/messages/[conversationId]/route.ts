@@ -1,21 +1,17 @@
 import { auth } from "@clerk/nextjs/server"
-import { createServiceClient } from "@hubble/db"
+import { createBrowserClient } from "@hubble/db"
 import { contentToText } from "@hubble/utils"
 
 export const runtime = "nodejs"
 
 export async function GET(_req: Request, ctx: { params: Promise<{ conversationId: string }> }) {
-  // TODO: Validate access to conversation by org/user
-  //   Context: Ensure the conversation belongs to the authenticated org before returning messages.
-  //   labels: area/web, feature/security, type/quality
-  //   assignees: omzification
-  //   milestone: 0.0.1
+  // RLS enforcement: Using createBrowserClient with authToken ensures user can only access their org's messages
   const { getToken } = await auth()
   const token = await getToken({ template: "supabase" }).catch(() => null)
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
 
   const { conversationId: convoId } = await ctx.params
-  const supabase = createServiceClient()
+  const supabase = createBrowserClient({ authToken: token })
   const { data, error } = await supabase
     .from("messages")
     .select("id,role,content,created_at")
@@ -56,7 +52,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ conversationId
   const text = body.text ?? ""
   const idem = body.idempotencyKey ?? null
 
-  const supabase = createServiceClient()
+  const supabase = createBrowserClient({ authToken: token })
   const { data, error } = await supabase.rpc("rpc_append_message", {
     p_conversation_id: convoId,
     p_role: role,
@@ -65,8 +61,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ conversationId
   })
 
   if (error) {
-    // Try without idempotency key if the first attempt failed
-    if (error.code === "400" && idem) {
+    // Try without idempotency key if the first attempt failed due to idempotency conflict
+    // Check for unique constraint violation (23505) or idempotency-related error message
+    if ((error.code === "23505" || error.message?.includes("idempotency")) && idem) {
       const { data: retryData, error: retryError } = await supabase.rpc("rpc_append_message", {
         p_conversation_id: convoId,
         p_role: role,
