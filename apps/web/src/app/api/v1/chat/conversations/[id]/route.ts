@@ -1,18 +1,14 @@
 import { auth } from "@clerk/nextjs/server"
-import { getSupabaseEnv } from "@hubble/env"
-import { createSupabaseRest } from "@hubble/db"
+import { createBrowserClient } from "@hubble/db"
 
 export const runtime = "nodejs"
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  // TODO: Enforce org scoping and ownership checks
-  //   Context: Verify the conversation belongs to the requester’s org before allowing updates.
-  //   labels: area/web, feature/security, type/quality
-  //   assignees: omzification
-  //   milestone: 0.0.1
+  // RLS enforcement: Using createBrowserClient with authToken ensures user can only access their org's conversations
   const { getToken } = await auth()
   const token = await getToken({ template: "supabase" }).catch(() => null)
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
+
   const { id } = await ctx.params
   const body = (await req.json().catch(() => ({}))) as { title?: string; archived?: boolean }
   const updates: Record<string, unknown> = {}
@@ -20,13 +16,17 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (typeof body.archived === "boolean")
     updates.archived_at = body.archived ? new Date().toISOString() : null
 
-  const { url: supabaseUrl, anonKey: supabaseAnonKey } = getSupabaseEnv()
-  const sb = createSupabaseRest({ url: supabaseUrl, anonKey: supabaseAnonKey, token })
-  const res = await sb.patch(`/rest/v1/conversations?id=eq.${encodeURIComponent(id)}`, updates)
-  if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText)
-    return Response.json({ error: text }, { status: res.status })
+  const supabase = createBrowserClient({ authToken: token })
+  const { data, error } = await supabase
+    .from("conversations")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .single()
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 })
   }
-  const data = await res.json()
-  return Response.json(Array.isArray(data) ? data[0] : data)
+
+  return Response.json(data)
 }

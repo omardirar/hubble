@@ -14,6 +14,7 @@ const serverSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   SUPABASE_URL: z.url().optional(),
   SUPABASE_ANON_KEY: z.string().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
 })
 
 type PublicEnv = z.infer<typeof publicSchema>
@@ -22,11 +23,47 @@ type ServerEnv = z.infer<typeof serverSchema>
 let _publicEnvCache: PublicEnv | null = null
 let _serverEnvCache: ServerEnv | null = null
 
-// TODO: Add strict required-env helper with friendly errors
-//   Context: Provide getRequiredEnv(name) that throws with actionable guidance and examples.
-//   labels: area/env, feature/config, type/quality
-//   assignees: omzification
-//   milestone: 0.0.1
+export function getRequiredEnv<T extends keyof (ServerEnv & PublicEnv)>(
+  name: T,
+  options?: { allowPublicFallback?: boolean },
+): string {
+  ensureServerOnly("getRequiredEnv")
+  const allowPublicFallback = options?.allowPublicFallback ?? false
+
+  // Check server environment first
+  const server = readServerEnv()
+  if (name in server) {
+    const serverValue = server[name as keyof ServerEnv]
+    if (serverValue) {
+      return serverValue
+    }
+  }
+
+  // Check public environment if fallback is allowed
+  if (allowPublicFallback) {
+    const pub = readPublicEnv()
+    if (name in pub) {
+      const publicValue = pub[name as keyof PublicEnv]
+      if (publicValue) {
+        return publicValue
+      }
+    }
+  }
+
+  // Generate friendly error message with examples
+  const publicPrefix = name.startsWith("NEXT_PUBLIC_") ? "" : "NEXT_PUBLIC_"
+  const publicName = publicPrefix + name
+
+  throw new Error(
+    `Missing required environment variable: ${name}\n\n` +
+      `Set one of the following:\n` +
+      `  ${name}=your_value_here (server-only)\n` +
+      (allowPublicFallback ? `  ${publicName}=your_value_here (public)\n` : "") +
+      `\nExample:\n` +
+      `  ${name}=supabase_service_role_key_here\n` +
+      `\nNote: Server-only variables are not exposed to the client.`,
+  )
+}
 
 export function readPublicEnv(): PublicEnv {
   if (_publicEnvCache) return _publicEnvCache
@@ -53,6 +90,7 @@ export function readServerEnv(): ServerEnv {
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     SUPABASE_URL: process.env.SUPABASE_URL,
     SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   })
   return _serverEnvCache
 }
@@ -100,10 +138,24 @@ export function getAnthropicEnv() {
   return { apiKey: ANTHROPIC_API_KEY, model }
 }
 
-// TODO: Support runtime refresh of env caches in dev
-//   Context: Add invalidateEnvCaches() to reset cached values for tests and hot reload scenarios.
-//   labels: area/env, feature/devx, type/enhancement
-//   assignees: omzification
-//   milestone: 0.0.1
+export function invalidateEnvCaches() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("invalidateEnvCaches() is only available in development mode")
+  }
+  _publicEnvCache = null
+  _serverEnvCache = null
+}
+
+// Type-safe environment variable accessors
+export function getServerEnvVar<T extends keyof ServerEnv>(name: T): ServerEnv[T] | undefined {
+  ensureServerOnly("getServerEnvVar")
+  const server = readServerEnv()
+  return server[name]
+}
+
+export function getPublicEnvVar<T extends keyof PublicEnv>(name: T): PublicEnv[T] | undefined {
+  const pub = readPublicEnv()
+  return pub[name]
+}
 
 export type { PublicEnv, ServerEnv }

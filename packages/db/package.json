@@ -16,6 +16,10 @@
   },
   "license": "MIT",
   "sideEffects": false,
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "@hubble/env": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.5.0",
     "@hubble/tsconfig": "workspace:*",

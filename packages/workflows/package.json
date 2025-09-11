@@ -16,6 +16,9 @@
   },
   "license": "MIT",
   "sideEffects": false,
+  "dependencies": {
+    "@hubble/db": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.5.0",
     "@hubble/tsconfig": "workspace:*",
