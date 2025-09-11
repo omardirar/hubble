@@ -61,21 +61,31 @@ export async function POST(req: Request, ctx: { params: Promise<{ conversationId
   })
 
   if (error) {
-    // Try without idempotency key if the first attempt failed due to idempotency conflict
+    // Handle idempotency conflict by fetching the existing message
     // Check for unique constraint violation (23505) or idempotency-related error message
     if ((error.code === "23505" || error.message?.includes("idempotency")) && idem) {
-      const { data: retryData, error: retryError } = await supabase.rpc("rpc_append_message", {
-        p_conversation_id: convoId,
-        p_role: role,
-        p_content: { text },
-        p_idempotency_key: null,
-      })
+      // Fetch the existing message that was created with this idempotency key
+      const { data: existingMessage, error: fetchError } = await supabase
+        .from("messages")
+        .select("id,role,content,created_at")
+        .eq("conversation_id", convoId)
+        .eq("idempotency_key", idem)
+        .single()
 
-      if (retryError) {
-        return Response.json({ error: retryError.message }, { status: 500 })
+      if (fetchError) {
+        return Response.json(
+          { error: `Failed to fetch existing message: ${fetchError.message}` },
+          { status: 500 },
+        )
       }
 
-      return Response.json(retryData)
+      // Return the existing message in the same format as a new message
+      return Response.json({
+        id: existingMessage.id,
+        role: existingMessage.role,
+        content: existingMessage.content,
+        created_at: existingMessage.created_at,
+      })
     }
 
     return Response.json({ error: error.message }, { status: 500 })
