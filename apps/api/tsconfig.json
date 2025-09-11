@@ -11,6 +11,5 @@
     "types": ["@cloudflare/workers-types"],
     "paths": {}
   },
-  "include": ["src/**/*"],
-  "references": [{ "path": "../../packages/workflows" }]
+  "include": ["src/**/*"]
 }
