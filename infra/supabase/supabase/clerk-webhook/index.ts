@@ -2,13 +2,22 @@
 // Deno runtime
 import { Webhook } from "npm:svix"
 import { createClient } from "npm:@supabase/supabase-js"
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
 const CLERK_WEBHOOK_SECRET = Deno.env.get("CLERK_WEBHOOK_SECRET")
+
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !CLERK_WEBHOOK_SECRET) {
   throw new Error("Missing env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CLERK_WEBHOOK_SECRET")
 }
-const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY).schema("clerk")
+
+// Create service client with proper configuration
+const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
+}).schema("clerk")
 /* ───────────────────────────── utils ───────────────────────────── */ function toIso(ts) {
   if (ts == null) return null
   if (typeof ts === "number") return new Date(ts > 1e12 ? ts : ts * 1000).toISOString()

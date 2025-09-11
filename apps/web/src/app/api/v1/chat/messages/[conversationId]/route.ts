@@ -1,6 +1,5 @@
 import { auth } from "@clerk/nextjs/server"
-import { getSupabaseEnv } from "@hubble/env"
-import { createSupabaseRest } from "@hubble/db"
+import { createServiceClient } from "@hubble/db"
 import { contentToText } from "@hubble/utils"
 
 export const runtime = "nodejs"
@@ -14,21 +13,26 @@ export async function GET(_req: Request, ctx: { params: Promise<{ conversationId
   const { getToken } = await auth()
   const token = await getToken({ template: "supabase" }).catch(() => null)
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
+
   const { conversationId: convoId } = await ctx.params
-  const { url: supabaseUrl, anonKey: supabaseAnonKey } = getSupabaseEnv()
-  const sb = createSupabaseRest({ url: supabaseUrl, anonKey: supabaseAnonKey, token })
-  const res = await sb.get(
-    `/rest/v1/messages?select=id,role,content,created_at&conversation_id=eq.${encodeURIComponent(
-      convoId,
-    )}&order=created_at.asc,id.asc`,
-  )
-  if (!res.ok) return Response.json({ error: res.statusText }, { status: res.status })
-  const rows = (await res.json()) as Array<{ id: string; role: string; content: unknown }>
-  const msgs = rows.map((r) => ({
+  const supabase = createServiceClient()
+  const { data, error } = await supabase
+    .from("messages")
+    .select("id,role,content,created_at")
+    .eq("conversation_id", convoId)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 })
+  }
+
+  const msgs = (data || []).map((r) => ({
     id: r.id,
     role: r.role as "user" | "assistant" | "system",
     text: contentToText(r.content),
   }))
+
   return Response.json(msgs)
 }
 
@@ -41,6 +45,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ conversationId
   const { getToken } = await auth()
   const token = await getToken({ template: "supabase" }).catch(() => null)
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
+
   const { conversationId: convoId } = await ctx.params
   const body = (await req.json().catch(() => ({}))) as {
     role?: "user" | "assistant" | "system"
@@ -50,30 +55,34 @@ export async function POST(req: Request, ctx: { params: Promise<{ conversationId
   const role = body.role ?? "user"
   const text = body.text ?? ""
   const idem = body.idempotencyKey ?? null
-  const { url: supabaseUrl, anonKey: supabaseAnonKey } = getSupabaseEnv()
-  const sb = createSupabaseRest({ url: supabaseUrl, anonKey: supabaseAnonKey, token })
-  const res = await sb.post(`/rest/v1/rpc/rpc_append_message`, {
+
+  const supabase = createServiceClient()
+  const { data, error } = await supabase.rpc("rpc_append_message", {
     p_conversation_id: convoId,
     p_role: role,
     p_content: { text },
     p_idempotency_key: idem,
   })
-  if (!res.ok) {
-    if (res.status === 400 && idem) {
-      const res2 = await sb.post(`/rest/v1/rpc/rpc_append_message`, {
+
+  if (error) {
+    // Try without idempotency key if the first attempt failed
+    if (error.code === "400" && idem) {
+      const { data: retryData, error: retryError } = await supabase.rpc("rpc_append_message", {
         p_conversation_id: convoId,
         p_role: role,
         p_content: { text },
         p_idempotency_key: null,
       })
-      if (res2.ok) {
-        const row = await res2.json()
-        return Response.json(row)
+
+      if (retryError) {
+        return Response.json({ error: retryError.message }, { status: 500 })
       }
+
+      return Response.json(retryData)
     }
-    const textMsg = await res.text().catch(() => res.statusText)
-    return Response.json({ error: textMsg }, { status: res.status })
+
+    return Response.json({ error: error.message }, { status: 500 })
   }
-  const row = await res.json()
-  return Response.json(row)
+
+  return Response.json(data)
 }

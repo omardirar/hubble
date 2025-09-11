@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@hubble/workflows": "workspace:*"
+    "@hubble/workflows": "workspace:*",
+    "@hubble/db": "workspace:*"
   },
   "scripts": {
     "dev": "wrangler dev --local --persist-to=./.wrangler/state",

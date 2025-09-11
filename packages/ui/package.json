@@ -82,6 +82,8 @@
     "@radix-ui/react-slot": "^1.0.0"
   },
   "dependencies": {
-    "@hubble/utils": "workspace:*"
+    "@hubble/utils": "workspace:*",
+    "@hubble/db": "workspace:*",
+    "@supabase/supabase-js": "^2.39.0"
   }
 }

@@ -35,6 +35,12 @@ async function sendChat(text: string): Promise<string> {
 
 export default function ClientChatPage() {
   const { sessions } = useChatList()
+  // const supabase = useSupabase()
+  // TODO: Use for direct client-side operations
+  //   Context: Integrate browser client for real-time updates and direct database operations.
+  //   labels: area/web, feature/chat, type/enhancement
+  //   assignees: omzification
+  //   milestone: 0.0.1
   const [serverConversations, setServerConversations] = React.useState<
     Array<{ id: string; title: string; updated_at?: string }>
   >([])

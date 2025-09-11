@@ -1,15 +1,27 @@
-// TODO: Thin handlers; call @hubble/workflows + @hubble/db
-//   Context: Move orchestration logic into @hubble/workflows and persistence to @hubble/db.
-//   labels: area/web, feature/connect, type/tech-debt
-//   assignees: omzification
-//   milestone: 0.0.1
 import { NextResponse } from "next/server"
+import { startProvisioning } from "@hubble/workflows"
 
-export async function POST() {
-  // TODO: Invoke @hubble/workflows.startProvisioning and persist via @hubble/db
-  //   Context: Kick off provisioning saga and record job status.
-  //   labels: area/web, feature/connect, type/feature
-  //   assignees: omzification
-  //   milestone: 0.0.1
-  return NextResponse.json({ ok: true, message: "connect endpoint stub" })
+export async function POST(req: Request) {
+  try {
+    const body = await req.json().catch(() => ({}))
+
+    // Start provisioning workflow
+    const result = await startProvisioning({ body, env: process.env })
+
+    return NextResponse.json({
+      ok: true,
+      jobId: result.jobId,
+      status: result.status,
+      message: "Provisioning started successfully",
+    })
+  } catch (error) {
+    console.error("Connect endpoint error:", error)
+    return NextResponse.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
+  }
 }

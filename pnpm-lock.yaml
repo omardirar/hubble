@@ -44,6 +44,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@hubble/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@hubble/workflows':
         specifier: workspace:*
         version: link:../../packages/workflows
@@ -90,6 +93,9 @@ importers:
       '@hubble/utils':
         specifier: workspace:*
         version: link:../../packages/utils
+      '@hubble/workflows':
+        specifier: workspace:*
+        version: link:../../packages/workflows
       '@radix-ui/react-avatar':
         specifier: ^1.1.10
         version: 1.1.10(@types/react-dom@19.1.9(@types/react@19.1.12))(@types/react@19.1.12)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -331,9 +337,15 @@ importers:
       '@clerk/themes':
         specifier: ^2.0.0
         version: 2.4.18
+      '@hubble/db':
+        specifier: workspace:*
+        version: link:../db
       '@hubble/utils':
         specifier: workspace:*
         version: link:../utils
+      '@supabase/supabase-js':
+        specifier: ^2.39.0
+        version: 2.57.4
       '@tabler/icons-react':
         specifier: ^3.0.0
         version: 3.34.1(react@19.1.0)
@@ -470,6 +482,10 @@ importers:
         version: 5.9.2
 
   packages/workflows:
+    dependencies:
+      '@hubble/db':
+        specifier: workspace:*
+        version: link:../db
     devDependencies:
       '@hubble/eslint-config':
         specifier: workspace:*
