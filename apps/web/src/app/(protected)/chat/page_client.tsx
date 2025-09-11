@@ -166,8 +166,8 @@ export default function ClientChatPage() {
       toast.error(e instanceof Error ? e.message : "Failed to send message")
     }
     const reply = await sendChat(trimmed)
-    // TODO: Stream assistant replies over WebSocket for real-time updates
-    //   Context: Replace polling with WS/SSE to stream token-by-token responses and typing indicators.
+    // TODO: Stream assistant replies over Server-Sent Events (SSE) for real-time updates
+    //   Context: Replace polling with SSE to stream token-by-token AI responses and typing indicators.
     //   labels: area/web, feature/chat, type/enhancement
     //   assignees: omzification
     //   milestone: 0.0.1

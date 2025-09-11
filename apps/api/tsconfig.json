@@ -8,13 +8,9 @@
     "strict": true,
     "composite": true,
     "baseUrl": ".",
-    "rootDirs": ["./src", "../../packages/workflows/src"],
     "types": ["@cloudflare/workers-types"],
-    "paths": {
-      "@hubble/workflows": ["../../packages/workflows/src/index.ts"],
-      "@hubble/workflows/*": ["../../packages/workflows/src/*"]
-    }
+    "paths": {}
   },
-  "include": ["src/**/*", "../../packages/workflows/src/**/*"],
+  "include": ["src/**/*"],
   "references": [{ "path": "../../packages/workflows" }]
 }
