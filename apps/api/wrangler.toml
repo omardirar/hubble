@@ -1,0 +1,41 @@
+name = "hubble-api"
+main = "./dist/index.mjs"
+compatibility_date = "2025-09-05"
+compatibility_flags = ["nodejs_compat"]
+
+[build]
+command = "pnpm build"
+
+[observability.logs]
+enabled = true
+
+# TODO: Configure log sampling and retention
+#   Context: Define sampling strategy and sinks (Workers Analytics/Logpush) for production observability.
+#   labels: area/api, feature/observability, type/quality
+#   assignees: omzification
+#   milestone: 0.0.1
+
+[env.preview]
+# TODO: Configure preview routes and bindings
+#   Context: Define preview routes, durable objects, and environment bindings for the API worker.
+#   labels: area/api, feature/deploy, type/tech-debt
+#   assignees: omzification
+#   milestone: 0.0.1
+workers_dev = true
+
+[env.production]
+# TODO: Configure production routes
+#   Context: Set production routes and bindings; ensure zero-downtime rollout strategy.
+#   labels: area/api, feature/deploy, type/tech-debt
+#   assignees: omzification
+#   milestone: 0.0.1
+workers_dev = true
+
+# TODO: Add KV/R2/D1/Queues bindings as needed
+#   Context: Define and document bindings required by the worker and corresponding secrets.
+#   labels: area/api, feature/platform, type/tech-debt
+#   assignees: omzification
+#   milestone: 0.0.1
+# [[kv_namespaces]]
+# binding = "WORKER_KV"
+# id = "<kv_namespace_id>"

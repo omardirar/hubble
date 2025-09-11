@@ -1,0 +1,35 @@
+@config "../../tailwind.config.mjs";
+/* Include class usage from shared UI package */
+@source "../../../../packages/ui/src/**/*.{ts,tsx,mdx}";
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@clerk/themes/shadcn.css";
+
+/* Enable class-based dark mode variant in Tailwind v4 */
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  * {
+    /* Border defaults use shared tokens via preset */
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  /* Global header height custom property for consistent layout offsets */
+  :root {
+    --site-header-height: 3rem;
+  }
+}
+
+/* TODO: Review dark mode contrast ratios and test with axe-core */
+/*   Context: Validate custom OKLCH color pairs meet WCAG AA in both themes; add tests. */
+/*   labels: area/ui, feature/a11y, type/quality */
+/*   assignees: omzification */
+/*   milestone: 0.0.1 */
+
+/* TODO: Respect prefers-reduced-motion across animations */
+/*   Context: Reduce or disable transitions/animations when users prefer reduced motion. */
+/*   labels: area/ui, feature/a11y, type/quality */
+/*   assignees: omzification */
+/*   milestone: 0.0.1 */

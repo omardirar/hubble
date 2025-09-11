@@ -1,22 +1,31 @@
 # dependencies
-/node_modules
+**/node_modules
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
-/tmp/
+**/next-env.d.ts
+**/tmp/
 
 # externals
-/.wrangler/
-/.open-next/
-/.next/
-/.clerk/
-/.cursor/
+**/.wrangler/
+**/.open-next/
+**/.next/
+**/.clerk/
+**/.cursor/
+**/.turbo/
+.cursorignore
 
 # misc
 .DS_Store
 *.pem
-/dist/
+**/dist/
+**/build/
+**/coverage/
+
+# lockfiles from other managers (we use pnpm)
+package-lock.json
+yarn.lock
+bun.lockb
 
 # debug
 npm-debug.log*
@@ -25,4 +34,8 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files
-.env*
+.env.local
+**/.env.local
+
+# Turborepo
+.turbo

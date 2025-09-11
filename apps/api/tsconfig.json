@@ -1,0 +1,15 @@
+{
+  "extends": "../../packages/tsconfig/base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "module": "esnext",
+    "target": "ES2020",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "composite": true,
+    "baseUrl": ".",
+    "types": ["@cloudflare/workers-types"],
+    "paths": {}
+  },
+  "include": ["src/**/*"]
+}
