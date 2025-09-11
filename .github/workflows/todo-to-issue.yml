@@ -41,7 +41,6 @@ jobs:
         with:
           INSERT_ISSUE_URLS: true
           CLOSE_ISSUES: true
-          IDENTIFIERS: "TODO,FIXME"
           IGNORE: "CONTRIBUTING.md"
           # Backfill refs supplied via env on workflow_dispatch
 
