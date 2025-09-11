@@ -11,7 +11,10 @@ export type ChatSession = {
 }
 
 export function useChatList(storageKey: string = "chat_sessions") {
-  const [sessions, setSessions] = useLocalStorage<ChatSession[]>(storageKey, [])
+  const [sessions, setSessions] = useLocalStorage<ChatSession[]>(storageKey, [], {
+    // Avoid SSR/CSR markup mismatch by not reading localStorage on first render
+    initializeWithValue: false,
+  })
 
   const addSession = React.useCallback(
     (title: string) => {
