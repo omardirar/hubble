@@ -167,6 +167,7 @@ export default function ClientChatPage() {
     }
     const reply = await sendChat(trimmed)
     // TODO: Stream assistant replies over Server-Sent Events (SSE) for real-time updates
+    // Issue URL: https://github.com/omzification/hubble/issues/23
     //   Context: Replace polling with SSE to stream token-by-token AI responses and typing indicators.
     //   labels: area/web, feature/chat, type/enhancement
     //   assignees: omzification
