@@ -1,0 +1,58 @@
+---
+name: "TODO to Issue"
+
+# Do NOT trigger on pull_request to avoid duplicate runs on the same diff.
+# The job itself is guarded to only run on the repository default branch.
+on:
+  push:
+    paths-ignore:
+      - "CONTRIBUTING.md"
+  workflow_dispatch:
+    inputs:
+      MANUAL_COMMIT_REF:
+        description: "Commit SHA (HEAD) to process for backfill"
+        required: true
+      MANUAL_BASE_REF:
+        description: "Optional base commit SHA to compare against"
+        required: false
+
+jobs:
+  todo_to_issue:
+    # Guard so we only act on the default branch and skip commit-back loops.
+    if: >-
+      ${{ github.ref_name == github.event.repository.default_branch &&
+          !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Convert TODOs to Issues
+        uses: alstr/todo-to-issue-action@v5
+        env:
+          MANUAL_COMMIT_REF: ${{ github.event.inputs.MANUAL_COMMIT_REF }}
+          MANUAL_BASE_REF: ${{ github.event.inputs.MANUAL_BASE_REF }}
+        with:
+          INSERT_ISSUE_URLS: true
+          CLOSE_ISSUES: true
+          IDENTIFIERS: "TODO,FIXME"
+          IGNORE: "CONTRIBUTING.md"
+          # Backfill refs supplied via env on workflow_dispatch
+
+      - name: Commit back inserted issue URLs (if any)
+        run: |
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "ci(todo): insert issue URLs [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi

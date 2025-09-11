@@ -1,17 +1,23 @@
-name: Release on version change
+---
+name: Release on version change (cz-gitmoji)
 
 permissions:
   contents: write
 
 on:
   push:
-    branches:
-      - main
+    # Broad trigger; guard at job-level for default branch
+    paths-ignore:
+      - "CHANGELOG.md"
   workflow_dispatch:
 
 jobs:
   release_from_bump_commit:
-    if: ${{ contains(github.event.head_commit.message, 'bump:') }}
+    # Run on manual dispatch OR on default branch when the head commit is a bump commit
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.ref_name == github.event.repository.default_branch &&
+          contains(github.event.head_commit.message, 'bump:')) }}
     runs-on: ubuntu-latest
     name: "Release from bump commit: changelog + tag + GH release"
     concurrency:
@@ -23,6 +29,10 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+      - name: Ensure tools (jq)
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -35,6 +45,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --tags --force
       - name: Detect version change from package.json
         id: version
         run: |
@@ -50,9 +61,9 @@ jobs:
       - name: Update changelog
         if: steps.version.outputs.changed == 'true'
         run: |
-          cz -n cz_gitmoji changelog --unreleased --incremental
+          cz -n cz_conventional_gitmoji changelog --unreleased --incremental
           git add CHANGELOG.md
-          git commit -m "📝 docs: update changelog for ${{ steps.version.outputs.current_version }}" || true
+          git commit -m "📝 docs: update changelog for ${{ steps.version.outputs.current_version }} [skip ci]" || true
           git push
       - name: Tag and push
         if: steps.version.outputs.changed == 'true'

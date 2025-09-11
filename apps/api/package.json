@@ -1,0 +1,25 @@
+{
+  "name": "@hubble/api",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@hubble/workflows": "workspace:*"
+  },
+  "scripts": {
+    "dev": "wrangler dev --local --persist-to=./.wrangler/state",
+    "build": "tsc -p tsconfig.json && esbuild src/index.ts --bundle --format=esm --outfile=dist/index.mjs",
+    "start": "wrangler deploy --dry-run",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint \"src/**/*.{ts,tsx}\""
+  },
+  "devDependencies": {
+    "@hubble/eslint-config": "workspace:*",
+    "@hubble/tsconfig": "workspace:*",
+    "@cloudflare/workers-types": "^4.20240919.0",
+    "esbuild": "^0.21.5",
+    "typescript": "^5.5.0",
+    "wrangler": "^3.80.0",
+    "eslint": "^9.0.0"
+  }
+}

@@ -35,11 +35,13 @@ repos:
           - -d
           - "{extends: default, rules: {line-length: {max: 120}}}"
         id: yamllint
+        exclude: ^pnpm-lock\.yaml$
     repo: https://github.com/adrienverge/yamllint
     rev: v1.37.1
   - hooks:
       - files: \.(md|mdx)$
         id: markdownlint
+        exclude: ^\.turbo/
     repo: https://github.com/igorshubovych/markdownlint-cli
     rev: v0.45.0
   - hooks:
@@ -71,6 +73,7 @@ repos:
     rev: 0.33.3
   - hooks:
       - id: editorconfig-checker
+        exclude: ^\.turbo/|^infra/supabase/supabase/migrations/|^apps/web/README\.md$
     repo: https://github.com/editorconfig-checker/editorconfig-checker.python
     rev: 3.4.0
   - hooks:
@@ -87,6 +90,7 @@ repos:
         id: prettier
         language: system
         name: Prettier
+        exclude: ^(\.turbo/|pnpm-lock\.yaml$)
         types_or:
           - javascript
           - jsx
@@ -97,18 +101,14 @@ repos:
           - scss
           - markdown
           - yaml
-      - entry: npx --yes eslint --max-warnings=0
-        id: eslint
+      - entry: npx --yes turbo run lint --filter=...[HEAD] --cache-dir=.turbo
+        id: turbo-lint
         language: system
-        name: ESLint
-        types_or:
-          - javascript
-          - jsx
-          - ts
-          - tsx
-      - entry: npx --yes tsc -p tsconfig.json --noEmit
-        id: typescript-typecheck
+        name: ESLint via Turbo (affected)
+        pass_filenames: false
+      - entry: npx --yes turbo run typecheck --filter=...[HEAD] --cache-dir=.turbo
+        id: turbo-typecheck
         language: system
-        name: TypeScript type-check
+        name: TypeScript type-check via Turbo (affected)
         pass_filenames: false
     repo: local

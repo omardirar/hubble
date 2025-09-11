@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@hubble/ui": ["packages/ui/src/index.ts"],
+      "@hubble/ui/*": ["packages/ui/src/*"],
+      "@hubble/env": ["packages/env/src/index.ts"],
+      "@hubble/db": ["packages/db/src/index.ts"],
+      "@hubble/db/*": ["packages/db/src/*"],
+      "@hubble/workflows": ["packages/workflows/src/index.ts"],
+      "@hubble/workflows/*": ["packages/workflows/src/*"],
+      "@hubble/utils": ["packages/utils/src/index.ts"],
+      "@hubble/utils/*": ["packages/utils/src/*"],
+      "@hubble/api-contracts": ["packages/api-contracts/src/index.ts"],
+      "@hubble/api-contracts/*": ["packages/api-contracts/src/*"],
+      "@hubble/auth": ["packages/auth/src/index.ts"],
+      "@hubble/auth/*": ["packages/auth/src/*"]
+    }
+  },
+  "exclude": ["node_modules"]
+}

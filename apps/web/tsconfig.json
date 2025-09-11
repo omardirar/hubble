@@ -1,0 +1,26 @@
+{
+  "extends": "@hubble/tsconfig/base.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "noEmit": true,
+    "incremental": true,
+    "plugins": [{ "name": "next" }],
+    "baseUrl": ".",
+    "types": ["node", "vitest", "vitest/globals"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@hubble/ui": ["../../packages/ui/src/index.ts"],
+      "@hubble/ui/*": ["../../packages/ui/src/*"],
+      "@hubble/utils": ["../../packages/utils/src/index.ts"],
+      "@hubble/utils/*": ["../../packages/utils/src/*"],
+      "@hubble/env": ["../../packages/env/src/index.ts"],
+      "@hubble/env/*": ["../../packages/env/src/*"],
+      "@hubble/db": ["../../packages/db/src/index.ts"],
+      "@hubble/db/*": ["../../packages/db/src/*"],
+      "@hubble/api-contracts": ["../../packages/api-contracts/src/index.ts"],
+      "@hubble/api-contracts/*": ["../../packages/api-contracts/src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
