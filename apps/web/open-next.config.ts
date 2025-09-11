@@ -10,18 +10,19 @@ const base = defineCloudflareConfig({
 
 const config = {
   ...base,
-  // Prefer minified outputs for smaller artifacts
+  // Disable minification to work around OpenNext TypeScript file issues
   default: {
     ...(base.default ?? {}),
     runtime: "node",
-    minify: true,
-    experimentalBundledNextServer: true,
+    minify: false,
+    // Remove experimentalBundledNextServer to fix file copying issues
+    // This uses the standard Next.js server bundling approach
   },
-  // Keep middleware external and minified
+  // Keep middleware external but disable minification for now
   middleware: {
     ...(base.middleware ?? {}),
     external: true,
-    minify: true,
+    minify: false,
   },
 }
 

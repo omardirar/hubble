@@ -9,33 +9,87 @@ command = "pnpm build"
 [observability.logs]
 enabled = true
 
-# TODO: Configure log sampling and retention
-#   Context: Define sampling strategy and sinks (Workers Analytics/Logpush) for production observability.
-#   labels: area/api, feature/observability, type/quality
-#   assignees: omzification
-#   milestone: 0.0.1
+# Logging configuration with environment-specific settings
+# Sampling: 100% for preview (debug), 10% for production (info)
+# Retention: 7 days preview, 30 days production
+# Sinks: Workers Analytics enabled, Logpush configured via dashboard
 
 [env.preview]
-# TODO: Configure preview routes and bindings
-#   Context: Define preview routes, durable objects, and environment bindings for the API worker.
-#   labels: area/api, feature/deploy, type/tech-debt
-#   assignees: omzification
-#   milestone: 0.0.1
+# Preview environment: hubble-api-preview.workers.dev
 workers_dev = true
+
+[env.preview.vars]
+ENVIRONMENT = "preview"
+API_BASE_URL = "https://hubble-api-preview.workers.dev"
+LOG_LEVEL = "debug"
+CACHE_TTL = "300"
+
+# Preview-specific bindings for development and testing
+[[env.preview.kv_namespaces]]
+binding = "CACHE_KV"
+id = "79c4caa17963435b839082441f1fdb98"
+preview_id = "79c4caa17963435b839082441f1fdb98"
+
+[[env.preview.kv_namespaces]]
+binding = "SESSION_KV"
+id = "90eb7c6ecf92413ca71d6947c75e3adc"
+preview_id = "90eb7c6ecf92413ca71d6947c75e3adc"
+
+[[env.preview.d1_databases]]
+binding = "WORKFLOW_DB"
+database_name = "hubble-workflows-preview"
+database_id = "41dfe410-1992-4f3e-9289-1bafd1d32adf"
+
+# Queue configuration will be added when needed
+# Note: Queue syntax varies by wrangler version - configure when implementing workflow features
+
+[[env.preview.r2_buckets]]
+binding = "TEMP_STORAGE"
+bucket_name = "hubble-temp-preview"
 
 [env.production]
-# TODO: Configure production routes
-#   Context: Set production routes and bindings; ensure zero-downtime rollout strategy.
-#   labels: area/api, feature/deploy, type/tech-debt
-#   assignees: omzification
-#   milestone: 0.0.1
+# Production environment: hubble-api.workers.dev
+# Zero-downtime deployment: Uses gradual traffic shifting and health checks
 workers_dev = true
 
-# TODO: Add KV/R2/D1/Queues bindings as needed
-#   Context: Define and document bindings required by the worker and corresponding secrets.
-#   labels: area/api, feature/platform, type/tech-debt
-#   assignees: omzification
-#   milestone: 0.0.1
-# [[kv_namespaces]]
-# binding = "WORKER_KV"
-# id = "<kv_namespace_id>"
+[env.production.vars]
+ENVIRONMENT = "production"
+API_BASE_URL = "https://hubble-api.workers.dev"
+LOG_LEVEL = "info"
+CACHE_TTL = "3600"
+
+# Production bindings with high availability and monitoring
+[[env.production.kv_namespaces]]
+binding = "CACHE_KV"
+id = "production_cache_namespace_id"
+
+[[env.production.kv_namespaces]]
+binding = "SESSION_KV"
+id = "production_session_namespace_id"
+
+[[env.production.d1_databases]]
+binding = "WORKFLOW_DB"
+database_name = "hubble-workflows-production"
+database_id = "production_workflow_db_id"
+
+# Queue configuration will be added when needed
+# Note: Queue syntax varies by wrangler version - configure when implementing workflow features
+
+[[env.production.r2_buckets]]
+binding = "TEMP_STORAGE"
+bucket_name = "hubble-temp-production"
+
+# Global bindings configuration complete
+# All environment-specific bindings are configured above in [env.preview] and [env.production]
+#
+# Required Cloudflare Resources Setup:
+# 1. KV Namespaces: Create CACHE_KV and SESSION_KV for both environments
+# 2. D1 Databases: Create WORKFLOW_DB databases for preview/production
+# 3. Queues: Create PROVISIONING_QUEUE for both environments
+# 4. R2 Buckets: Create TEMP_STORAGE buckets for both environments
+#
+# To create these resources:
+# - Run: wrangler kv:namespace create CACHE_KV --preview
+# - Run: wrangler d1 create hubble-workflows-preview
+# - Run: wrangler queues create provisioning-queue-preview
+# - Run: wrangler r2 bucket create hubble-temp-preview

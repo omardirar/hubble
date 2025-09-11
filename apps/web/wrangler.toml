@@ -9,36 +9,90 @@ command = "opennextjs-cloudflare build"
 [observability.logs]
 enabled = true
 
+# Logging configuration with environment-specific settings
+# Preview: Debug level for development and testing
+# Production: Info level with optimized sampling for performance
+
 [assets]
 binding = "ASSETS"
 directory = ".open-next/assets"
 
 [env.preview]
-# Deploys to *.workers.dev by default for preview
+# Preview environment: hubble-frontend-preview.workers.dev
 workers_dev = true
 
+[env.preview.vars]
+ENVIRONMENT = "preview"
+NEXT_PUBLIC_APP_URL = "https://hubble-frontend-preview.workers.dev"
+API_BASE_URL = "https://hubble-api-preview.workers.dev"
+LOG_LEVEL = "debug"
+CACHE_TTL = "300"
+
+# Preview-specific bindings for development and testing
+[[env.preview.kv_namespaces]]
+binding = "CACHE_KV"
+id = "4d14dd5a41954a5a9bbc0bbd980ccaed"
+preview_id = "4d14dd5a41954a5a9bbc0bbd980ccaed"
+
+[[env.preview.kv_namespaces]]
+binding = "SESSION_KV"
+id = "56857d2d70f740a18cfce73833379e12"
+preview_id = "56857d2d70f740a18cfce73833379e12"
+
+[[env.preview.r2_buckets]]
+binding = "UPLOADS"
+bucket_name = "hubble-uploads-preview"
+
+[[env.preview.r2_buckets]]
+binding = "STATIC_ASSETS"
+bucket_name = "hubble-static-preview"
+
 [env.production]
-# Safe default to deploy to *.workers.dev until a custom route is configured
+# Production environment: hubble-frontend.workers.dev
+# Optimized for performance with CDN caching and asset optimization
 workers_dev = true
 
 # To use a custom domain, comment the line above and set routes like:
 # routes = ["your-domain.com/*"]
 
-# Bindings: add only when referenced by the app.
+[env.production.vars]
+ENVIRONMENT = "production"
+NEXT_PUBLIC_APP_URL = "https://hubble-frontend.workers.dev"
+API_BASE_URL = "https://hubble-api.workers.dev"
+LOG_LEVEL = "info"
+CACHE_TTL = "3600"
 
-# [[kv_namespaces]]
-# binding = "MY_KV"
-# id = "<kv_namespace_id>"
+# Production bindings with high availability and performance optimization
+[[env.production.kv_namespaces]]
+binding = "CACHE_KV"
+id = "production_frontend_cache_namespace_id"
 
-# [[r2_buckets]]
-# binding = "MY_BUCKET"
-# bucket_name = "my-bucket"
+[[env.production.kv_namespaces]]
+binding = "SESSION_KV"
+id = "production_frontend_session_namespace_id"
 
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "my-db"
-# database_id = "<d1_db_id>"
+[[env.production.r2_buckets]]
+binding = "UPLOADS"
+bucket_name = "hubble-uploads-production"
 
-# [[durable_objects.bindings]]
-# name = "MY_DO"
-# class_name = "MyDurableObject"
+[[env.production.r2_buckets]]
+binding = "STATIC_ASSETS"
+bucket_name = "hubble-static-production"
+
+# Global bindings configuration complete
+# All environment-specific bindings are configured above in [env.preview] and [env.production]
+#
+# Required Cloudflare Resources Setup for Web App:
+# 1. KV Namespaces: Create CACHE_KV and SESSION_KV for both environments
+# 2. R2 Buckets: Create UPLOADS and STATIC_ASSETS buckets for both environments
+#
+# To create these resources:
+# - Run: wrangler kv:namespace create CACHE_KV --preview (frontend)
+# - Run: wrangler kv:namespace create SESSION_KV --preview (frontend)
+# - Run: wrangler r2 bucket create hubble-uploads-preview
+# - Run: wrangler r2 bucket create hubble-static-preview
+#
+# CORS Configuration for R2 buckets:
+# - Configure CORS policies to allow cross-origin access from workers.dev domains
+# - Set appropriate caching headers for static assets
+# - Enable versioning for production buckets

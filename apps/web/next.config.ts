@@ -28,12 +28,12 @@ const nextConfig: NextConfig = {
       // Images and fonts
       "img-src 'self' data: https:",
       "font-src 'self' data: https:",
-      // Scripts: allow Clerk CDN + inline/eval in dev
+      // Scripts: allow Clerk CDN + inline scripts for Next.js production builds
       [
         "script-src",
         "'self'",
-        isProd ? null : "'unsafe-inline'",
-        isProd ? null : "'unsafe-eval'",
+        "'unsafe-inline'", // Required for Next.js inline scripts in production
+        isProd ? null : "'unsafe-eval'", // Only allow eval in development
         "https://*.clerk.com",
         "https://*.clerk.accounts.dev",
         // Some dev tooling may use blob: URLs
@@ -45,13 +45,14 @@ const nextConfig: NextConfig = {
       ["style-src", "'self'", "'unsafe-inline'", "https:", isProd ? null : "blob:"]
         .filter(Boolean)
         .join(" "),
-      // XHR/WebSocket connections (HMR + Clerk API)
+      // XHR/WebSocket connections (HMR + Clerk API + Workers.dev)
       [
         "connect-src",
         "'self'",
         "https://api.clerk.com",
         "https://*.clerk.com",
         "https://*.clerk.accounts.dev",
+        "https://*.workers.dev", // Allow connections to workers.dev domains
         isProd ? null : "ws://localhost:*",
         isProd ? null : "http://localhost:*",
       ]
@@ -61,8 +62,8 @@ const nextConfig: NextConfig = {
       ["frame-src", "'self'", "https://*.clerk.com", "https://*.clerk.accounts.dev"]
         .filter(Boolean)
         .join(" "),
-      // Workers used by dev/runtime
-      ["worker-src", "'self'", isProd ? null : "blob:"].filter(Boolean).join(" "),
+      // Workers used by dev/runtime and Clerk
+      ["worker-src", "'self'", "blob:"].filter(Boolean).join(" "),
     ]
 
     const csp = cspDirectives.join("; ")
