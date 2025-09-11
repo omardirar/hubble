@@ -65,11 +65,11 @@ CACHE_TTL = "3600"
 # Production bindings with high availability and performance optimization
 [[env.production.kv_namespaces]]
 binding = "CACHE_KV"
-id = "production_frontend_cache_namespace_id"
+id = "336164029cba402298ad12b566085938"
 
 [[env.production.kv_namespaces]]
 binding = "SESSION_KV"
-id = "production_frontend_session_namespace_id"
+id = "25a2577cd3c94458987b5ecd534f35b4"
 
 [[env.production.r2_buckets]]
 binding = "UPLOADS"

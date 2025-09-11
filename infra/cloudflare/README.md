@@ -37,6 +37,10 @@ wrangler kv:namespace create SESSION_KV --preview
 # Create production KV namespaces
 wrangler kv:namespace create CACHE_KV
 wrangler kv:namespace create SESSION_KV
+
+# Production KV Namespace IDs (API Worker):
+# CACHE_KV: 7e135cb1c36b43a1983db2ccc3c75944
+# SESSION_KV: 9c5bd7b69de74ad3a8e438130759c135
 ```
 
 #### API Worker D1 Databases
@@ -45,6 +49,9 @@ wrangler kv:namespace create SESSION_KV
 # Create workflow databases
 wrangler d1 create hubble-workflows-preview
 wrangler d1 create hubble-workflows-production
+
+# Production D1 Database ID (API Worker):
+# hubble-workflows-production: ed66b90a-fc8e-4684-ae72-29b61baf4e30
 ```
 
 #### API Worker Queues
@@ -71,8 +78,12 @@ wrangler r2 bucket create hubble-temp-production
 # Create frontend KV namespaces (separate from API)
 wrangler kv:namespace create CACHE_KV --preview --compatibility-date 2025-09-05
 wrangler kv:namespace create SESSION_KV --preview --compatibility-date 2025-09-05
-wrangler kv:namespace create CACHE_KV --compatibility-date 2025-09-05
-wrangler kv:namespace create SESSION_KV --compatibility-date 2025-09-05
+wrangler kv:namespace create WEB_CACHE_KV --compatibility-date 2025-09-05
+wrangler kv:namespace create WEB_SESSION_KV --compatibility-date 2025-09-05
+
+# Production KV Namespace IDs (Web App):
+# WEB_CACHE_KV: 336164029cba402298ad12b566085938
+# WEB_SESSION_KV: 25a2577cd3c94458987b5ecd534f35b4
 ```
 
 #### Web App R2 Buckets

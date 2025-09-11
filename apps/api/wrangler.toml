@@ -61,16 +61,16 @@ CACHE_TTL = "3600"
 # Production bindings with high availability and monitoring
 [[env.production.kv_namespaces]]
 binding = "CACHE_KV"
-id = "production_cache_namespace_id"
+id = "7e135cb1c36b43a1983db2ccc3c75944"
 
 [[env.production.kv_namespaces]]
 binding = "SESSION_KV"
-id = "production_session_namespace_id"
+id = "9c5bd7b69de74ad3a8e438130759c135"
 
 [[env.production.d1_databases]]
 binding = "WORKFLOW_DB"
 database_name = "hubble-workflows-production"
-database_id = "production_workflow_db_id"
+database_id = "ed66b90a-fc8e-4684-ae72-29b61baf4e30"
 
 # Queue configuration will be added when needed
 # Note: Queue syntax varies by wrangler version - configure when implementing workflow features
