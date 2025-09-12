@@ -1,35 +1,30 @@
 import { auth } from "@clerk/nextjs/server"
-import { createBrowserClient } from "@hubble/db"
-import { contentToText } from "@hubble/utils"
 
 export const runtime = "nodejs"
 
 export async function GET(_req: Request, ctx: { params: Promise<{ conversationId: string }> }) {
-  // RLS enforcement: Using createBrowserClient with authToken ensures user can only access their org's messages
   const { getToken } = await auth()
   const token = await getToken({ template: "supabase" }).catch(() => null)
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
 
   const { conversationId: convoId } = await ctx.params
-  const supabase = createBrowserClient({ authToken: token })
-  const { data, error } = await supabase
-    .from("messages")
-    .select("id,role,content,created_at")
-    .eq("conversation_id", convoId)
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true })
 
-  if (error) {
-    return Response.json({ error: error.message }, { status: 500 })
+  // Proxy request to API worker
+  const apiUrl = process.env.API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
+  const response = await fetch(`${apiUrl}/v1/chat/messages/${convoId}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
+    return Response.json(errorData, { status: response.status })
   }
 
-  const msgs = (data || []).map((r) => ({
-    id: r.id,
-    role: r.role as "user" | "assistant" | "system",
-    text: contentToText(r.content),
-  }))
-
-  return Response.json(msgs)
+  const data = await response.json()
+  return Response.json(data)
 }
 
 export async function POST(req: Request, ctx: { params: Promise<{ conversationId: string }> }) {
@@ -43,53 +38,24 @@ export async function POST(req: Request, ctx: { params: Promise<{ conversationId
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
 
   const { conversationId: convoId } = await ctx.params
-  const body = (await req.json().catch(() => ({}))) as {
-    role?: "user" | "assistant" | "system"
-    text?: string
-    idempotencyKey?: string
-  }
-  const role = body.role ?? "user"
-  const text = body.text ?? ""
-  const idem = body.idempotencyKey ?? null
+  const body = await req.json().catch(() => ({}))
 
-  const supabase = createBrowserClient({ authToken: token })
-  const { data, error } = await supabase.rpc("rpc_append_message", {
-    p_conversation_id: convoId,
-    p_role: role,
-    p_content: { text },
-    p_idempotency_key: idem,
+  // Proxy request to API worker
+  const apiUrl = process.env.API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
+  const response = await fetch(`${apiUrl}/v1/chat/messages/${convoId}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
   })
 
-  if (error) {
-    // Handle idempotency conflict by fetching the existing message
-    // Check for unique constraint violation (23505) or idempotency-related error message
-    if ((error.code === "23505" || error.message?.includes("idempotency")) && idem) {
-      // Fetch the existing message that was created with this idempotency key
-      const { data: existingMessage, error: fetchError } = await supabase
-        .from("messages")
-        .select("id,role,content,created_at")
-        .eq("conversation_id", convoId)
-        .eq("idempotency_key", idem)
-        .single()
-
-      if (fetchError) {
-        return Response.json(
-          { error: `Failed to fetch existing message: ${fetchError.message}` },
-          { status: 500 },
-        )
-      }
-
-      // Return the existing message in the same format as a new message
-      return Response.json({
-        id: existingMessage.id,
-        role: existingMessage.role,
-        content: existingMessage.content,
-        created_at: existingMessage.created_at,
-      })
-    }
-
-    return Response.json({ error: error.message }, { status: 500 })
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
+    return Response.json(errorData, { status: response.status })
   }
 
+  const data = await response.json()
   return Response.json(data)
 }

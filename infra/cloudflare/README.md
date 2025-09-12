@@ -109,13 +109,16 @@ wrangler r2 bucket create hubble-static-production
 
 ### Web App
 
-| Variable              | Preview Value                                            | Production Value                                 | Description              |
-| --------------------- | -------------------------------------------------------- | ------------------------------------------------ | ------------------------ |
-| `ENVIRONMENT`         | `preview`                                                | `production`                                     | Deployment environment   |
-| `NEXT_PUBLIC_APP_URL` | `https://hubble-frontend-preview.github-cc7.workers.dev` | `https://hubble-frontend.github-cc7.workers.dev` | Frontend base URL        |
-| `API_BASE_URL`        | `https://hubble-api-preview.github-cc7.workers.dev`      | `https://hubble-api.github-cc7.workers.dev`      | API endpoint URL         |
-| `LOG_LEVEL`           | `debug`                                                  | `info`                                           | Logging verbosity        |
-| `CACHE_TTL`           | `300`                                                    | `3600`                                           | Cache timeout in seconds |
+| Variable                            | Preview Value                                            | Production Value                                 | Description              |
+| ----------------------------------- | -------------------------------------------------------- | ------------------------------------------------ | ------------------------ |
+| `ENVIRONMENT`                       | `preview`                                                | `production`                                     | Deployment environment   |
+| `NEXT_PUBLIC_APP_URL`               | `https://hubble-frontend-preview.github-cc7.workers.dev` | `https://hubble-frontend.github-cc7.workers.dev` | Frontend base URL        |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `""` (set as secret)                                     | `""` (set as secret)                             | Clerk public key         |
+| `NEXT_PUBLIC_SUPABASE_URL`          | `""` (set as secret)                                     | `""` (set as secret)                             | Supabase URL             |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`     | `""` (set as secret)                                     | `""` (set as secret)                             | Supabase anon key        |
+| `API_BASE_URL`                      | `https://hubble-api-preview.github-cc7.workers.dev`      | `https://hubble-api.github-cc7.workers.dev`      | API endpoint URL         |
+| `LOG_LEVEL`                         | `debug`                                                  | `info`                                           | Logging verbosity        |
+| `CACHE_TTL`                         | `300`                                                    | `3600`                                           | Cache timeout in seconds |
 
 ## Required Secrets
 
@@ -255,16 +258,168 @@ cd apps/api && pnpm deploy:prod
 cd apps/web && pnpm deploy:prod
 ```
 
-### Secret Management
+### Secrets Store Integration
 
-Use the dedicated workflow for managing secrets:
+This project uses [Cloudflare's Secrets Store](https://developers.cloudflare.com/secrets-store/integrations/workers/) for secure, centralized secret management across all environments.
 
-- **Workflow**: `.github/workflows/manage-secrets.yml`
-- **Actions**: List or update secrets for specific environments
-- **Trigger**: Manual workflow dispatch
-- **Secrets managed**:
-  - API Worker: `CLERK_SECRET_KEY`, `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-  - Web App: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`
+#### Secrets Store Configuration
+
+- **Store ID**: `f37d78acf99641778b64ea4c0761c543`
+- **Secrets Managed**:
+  - `CLERK_SECRET_KEY` - Clerk authentication secret
+  - `ANTHROPIC_API_KEY` - Anthropic API key for AI features
+  - `SUPABASE_URL` - Supabase project URL
+  - `SUPABASE_ANON_KEY` - Supabase anonymous key
+  - `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key
+
+#### Async Secret Access Pattern
+
+All secrets are accessed asynchronously using the `get()` method as per [Cloudflare's documentation](https://developers.cloudflare.com/secrets-store/integrations/workers/):
+
+```typescript
+// Individual secret access
+const secretValue = await env.SECRET_NAME.get()
+
+// Using helper functions from @hubble/env
+import { getSecretValue, getSupabaseEnvFromSecrets } from "@hubble/env"
+
+const clerkKey = await getSecretValue(env, "CLERK_SECRET_KEY")
+const supabaseConfig = await getSupabaseEnvFromSecrets(env)
+```
+
+#### Database Integration
+
+The `@hubble/db` package supports both traditional environment variables and Secrets Store:
+
+```typescript
+// Traditional approach (environment variables)
+import { createServiceClient } from "@hubble/db"
+const supabase = createServiceClient()
+
+// Secrets Store approach (recommended for Cloudflare Workers)
+import { createServiceClientFromSecrets } from "@hubble/db"
+const supabase = await createServiceClientFromSecrets(env)
+```
+
+### Legacy Code Removal
+
+All legacy environment variable usage has been removed in favor of Secrets Store:
+
+- **Removed**: Direct environment variable access in web app API routes
+- **Removed**: Legacy secret management workflow
+- **Architecture**: Web app now proxies all database operations to API worker
+- **Benefits**: Centralized secret management, better security, simplified deployment
+
+### Environment Variables Management
+
+**Web App Environment Variables** (NEXT*PUBLIC*\*):
+
+- **Location**: Defined in `wrangler.toml` under `[env.*.vars]`
+- **Management**: Update values directly in `wrangler.toml` and redeploy
+- **Access**: Available to both server and client-side code
+- **Variables**: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- **Note**: Web app API routes proxy to API worker, so no direct database access
+
+**API Worker Secrets** (All sensitive data):
+
+- **Management**: Secrets Store (recommended) or `wrangler secret put`
+- **Access**: Only available to API worker with async `get()` method
+- **Security**: Encrypted and not visible after being set
+- **Architecture**: All database operations handled by API worker
+
+### Setting Environment Variables and Secrets
+
+**1. Set Public Environment Variables:**
+
+```bash
+# Edit wrangler.toml and update the values in [env.*.vars] sections
+# Then redeploy:
+cd apps/web && pnpm deploy:preview
+```
+
+**2. Set Private Secrets:**
+
+```bash
+# For API Worker
+cd apps/api
+pnpm exec wrangler secret put CLERK_SECRET_KEY --env preview
+pnpm exec wrangler secret put ANTHROPIC_API_KEY --env preview
+pnpm exec wrangler secret put SUPABASE_URL --env preview
+pnpm exec wrangler secret put SUPABASE_ANON_KEY --env preview
+
+# For Web App
+cd apps/web
+pnpm exec wrangler secret put CLERK_SECRET_KEY --env preview
+pnpm exec wrangler secret put ANTHROPIC_API_KEY --env preview
+pnpm exec wrangler secret put SUPABASE_URL --env preview
+pnpm exec wrangler secret put SUPABASE_ANON_KEY --env preview
+```
+
+**3. Using Cloudflare Dashboard:**
+
+- Navigate to Workers & Pages → Your Worker → Settings
+- Under "Environment Variables" → Add variable
+- For secrets: Check "Encrypt" checkbox
+- For public vars: Leave unchecked
+
+### Testing Secrets Store Integration
+
+Test the Secrets Store integration using the example endpoint:
+
+```bash
+# Test preview environment
+curl https://hubble-api-preview.github-cc7.workers.dev/v1/example/secrets
+
+# Test production environment
+curl https://hubble-api.github-cc7.workers.dev/v1/example/secrets
+```
+
+The endpoint will return a JSON response showing:
+
+- Individual secret access examples
+- Supabase configuration from secrets
+- Anthropic configuration from secrets
+- Database connection test using secrets
+- Error details if any secrets are missing
+
+### Secrets Store Management
+
+**Creating Secrets:**
+
+```bash
+# Create secrets in the store
+npx wrangler secrets-store secret create f37d78acf99641778b64ea4c0761c543 \
+  --name CLERK_SECRET_KEY \
+  --scopes workers \
+  --remote
+
+npx wrangler secrets-store secret create f37d78acf99641778b64ea4c0761c543 \
+  --name ANTHROPIC_API_KEY \
+  --scopes workers \
+  --remote
+
+npx wrangler secrets-store secret create f37d78acf99641778b64ea4c0761c543 \
+  --name SUPABASE_URL \
+  --scopes workers \
+  --remote
+
+npx wrangler secrets-store secret create f37d78acf99641778b64ea4c0761c543 \
+  --name SUPABASE_ANON_KEY \
+  --scopes workers \
+  --remote
+
+npx wrangler secrets-store secret create f37d78acf99641778b64ea4c0761c543 \
+  --name SUPABASE_SERVICE_ROLE_KEY \
+  --scopes workers \
+  --remote
+```
+
+**Listing Secrets:**
+
+```bash
+# List all secrets in the store
+npx wrangler secrets-store secret list f37d78acf99641778b64ea4c0761c543 --remote
+```
 
 ### Performance Optimization
 

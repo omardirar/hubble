@@ -1,5 +1,4 @@
 import { auth } from "@clerk/nextjs/server"
-import { createBrowserClient } from "@hubble/db"
 
 export const runtime = "nodejs"
 
@@ -8,17 +7,21 @@ export async function GET() {
   const token = await getToken({ template: "supabase" }).catch(() => null)
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
 
-  const supabase = createBrowserClient({ authToken: token })
-  const { data, error } = await supabase
-    .from("conversation_summaries")
-    .select("id,title,updated_at,archived_at,last_message_text")
-    .is("archived_at", null)
-    .order("updated_at", { ascending: false })
+  // Proxy request to API worker
+  const apiUrl = process.env.API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
+  const response = await fetch(`${apiUrl}/v1/chat/conversations`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
 
-  if (error) {
-    return Response.json({ error: error.message }, { status: 500 })
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
+    return Response.json(errorData, { status: response.status })
   }
 
+  const data = await response.json()
   return Response.json(data)
 }
 
@@ -28,23 +31,24 @@ export async function POST(req: Request) {
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
   if (!userId || !orgId) return Response.json({ error: "Forbidden" }, { status: 403 })
 
-  const body = (await req.json().catch(() => ({}))) as { title?: string }
-  const title = body.title ?? "New Chat"
+  const body = await req.json().catch(() => ({}))
 
-  const supabase = createBrowserClient({ authToken: token })
-  const { data, error } = await supabase
-    .from("conversations")
-    .insert({
-      title,
-      owner_user_id: userId,
-      org_id: orgId,
-    })
-    .select()
-    .single()
+  // Proxy request to API worker
+  const apiUrl = process.env.API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
+  const response = await fetch(`${apiUrl}/v1/chat/conversations`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  })
 
-  if (error) {
-    return Response.json({ error: error.message }, { status: 500 })
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
+    return Response.json(errorData, { status: response.status })
   }
 
+  const data = await response.json()
   return Response.json(data)
 }

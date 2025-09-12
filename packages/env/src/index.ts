@@ -158,4 +158,72 @@ export function getPublicEnvVar<T extends keyof PublicEnv>(name: T): PublicEnv[T
   return pub[name]
 }
 
+// Secrets Store integration for Cloudflare Workers
+export interface SecretsStoreEnv {
+  CLERK_SECRET_KEY: { get(): Promise<string | null> }
+  ANTHROPIC_API_KEY: { get(): Promise<string | null> }
+  SUPABASE_URL: { get(): Promise<string | null> }
+  SUPABASE_ANON_KEY: { get(): Promise<string | null> }
+  SUPABASE_SERVICE_ROLE_KEY: { get(): Promise<string | null> }
+}
+
+// Async secret access functions for Cloudflare Workers
+export async function getSecretValue<T extends keyof SecretsStoreEnv>(
+  env: SecretsStoreEnv,
+  secretName: T,
+): Promise<string> {
+  ensureServerOnly("getSecretValue")
+
+  const secret = env[secretName]
+  if (!secret) {
+    throw new Error(`Secret binding '${secretName}' not found in environment`)
+  }
+
+  const value = await secret.get()
+  if (!value) {
+    throw new Error(`Secret '${secretName}' not found in Secrets Store`)
+  }
+
+  return value
+}
+
+export async function getSupabaseEnvFromSecrets(env: SecretsStoreEnv) {
+  ensureServerOnly("getSupabaseEnvFromSecrets")
+
+  const [url, anonKey] = await Promise.all([
+    getSecretValue(env, "SUPABASE_URL"),
+    getSecretValue(env, "SUPABASE_ANON_KEY"),
+  ])
+
+  // Validate URL shape
+  try {
+    new URL(url)
+  } catch {
+    throw new Error("Invalid Supabase URL: not a valid URL")
+  }
+
+  return { url, anonKey }
+}
+
+export async function getAnthropicEnvFromSecrets(env: SecretsStoreEnv) {
+  ensureServerOnly("getAnthropicEnvFromSecrets")
+
+  const apiKey = await getSecretValue(env, "ANTHROPIC_API_KEY")
+  const model = process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-latest"
+
+  return { apiKey, model }
+}
+
+export async function getClerkSecretFromSecrets(env: SecretsStoreEnv) {
+  ensureServerOnly("getClerkSecretFromSecrets")
+
+  return await getSecretValue(env, "CLERK_SECRET_KEY")
+}
+
+export async function getSupabaseServiceRoleKeyFromSecrets(env: SecretsStoreEnv) {
+  ensureServerOnly("getSupabaseServiceRoleKeyFromSecrets")
+
+  return await getSecretValue(env, "SUPABASE_SERVICE_ROLE_KEY")
+}
+
 export type { PublicEnv, ServerEnv }

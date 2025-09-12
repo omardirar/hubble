@@ -4,7 +4,9 @@
   "type": "module",
   "dependencies": {
     "@hubble/workflows": "workspace:*",
-    "@hubble/db": "workspace:*"
+    "@hubble/db": "workspace:*",
+    "@hubble/env": "workspace:*",
+    "@hubble/utils": "workspace:*"
   },
   "scripts": {
     "dev": "wrangler dev --local --persist-to=./.wrangler/state",

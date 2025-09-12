@@ -24,9 +24,40 @@ workers_dev = true
 [env.preview.vars]
 ENVIRONMENT = "preview"
 NEXT_PUBLIC_APP_URL = "https://hubble-frontend-preview.github-cc7.workers.dev"
+# Public environment variables (accessible to client-side code)
+# These should be set via Cloudflare Dashboard or wrangler env put
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = ""
+NEXT_PUBLIC_SUPABASE_URL = ""
+NEXT_PUBLIC_SUPABASE_ANON_KEY = ""
 API_BASE_URL = "https://hubble-api-preview.github-cc7.workers.dev"
 LOG_LEVEL = "debug"
 CACHE_TTL = "300"
+
+# Secrets Store bindings for preview environment
+[[env.preview.secrets_store_secrets]]
+binding = "CLERK_SECRET_KEY"
+store_id = "f37d78acf99641778b64ea4c0761c543"
+secret_name = "CLERK_SECRET_KEY"
+
+[[env.preview.secrets_store_secrets]]
+binding = "ANTHROPIC_API_KEY"
+store_id = "f37d78acf99641778b64ea4c0761c543"
+secret_name = "ANTHROPIC_API_KEY"
+
+[[env.preview.secrets_store_secrets]]
+binding = "SUPABASE_URL"
+store_id = "f37d78acf99641778b64ea4c0761c543"
+secret_name = "SUPABASE_URL"
+
+[[env.preview.secrets_store_secrets]]
+binding = "SUPABASE_ANON_KEY"
+store_id = "f37d78acf99641778b64ea4c0761c543"
+secret_name = "SUPABASE_ANON_KEY"
+
+[[env.preview.secrets_store_secrets]]
+binding = "SUPABASE_SERVICE_ROLE_KEY"
+store_id = "f37d78acf99641778b64ea4c0761c543"
+secret_name = "SUPABASE_SERVICE_ROLE_KEY"
 
 # Preview-specific bindings for development and testing
 [[env.preview.kv_namespaces]]
@@ -58,9 +89,40 @@ workers_dev = true
 [env.production.vars]
 ENVIRONMENT = "production"
 NEXT_PUBLIC_APP_URL = "https://hubble-frontend.github-cc7.workers.dev"
+# Public environment variables (accessible to client-side code)
+# These should be set via Cloudflare Dashboard or wrangler env put
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = ""
+NEXT_PUBLIC_SUPABASE_URL = ""
+NEXT_PUBLIC_SUPABASE_ANON_KEY = ""
 API_BASE_URL = "https://hubble-api.github-cc7.workers.dev"
 LOG_LEVEL = "info"
 CACHE_TTL = "3600"
+
+# Secrets Store bindings for production environment
+[[env.production.secrets_store_secrets]]
+binding = "CLERK_SECRET_KEY"
+store_id = "f37d78acf99641778b64ea4c0761c543"
+secret_name = "CLERK_SECRET_KEY"
+
+[[env.production.secrets_store_secrets]]
+binding = "ANTHROPIC_API_KEY"
+store_id = "f37d78acf99641778b64ea4c0761c543"
+secret_name = "ANTHROPIC_API_KEY"
+
+[[env.production.secrets_store_secrets]]
+binding = "SUPABASE_URL"
+store_id = "f37d78acf99641778b64ea4c0761c543"
+secret_name = "SUPABASE_URL"
+
+[[env.production.secrets_store_secrets]]
+binding = "SUPABASE_ANON_KEY"
+store_id = "f37d78acf99641778b64ea4c0761c543"
+secret_name = "SUPABASE_ANON_KEY"
+
+[[env.production.secrets_store_secrets]]
+binding = "SUPABASE_SERVICE_ROLE_KEY"
+store_id = "f37d78acf99641778b64ea4c0761c543"
+secret_name = "SUPABASE_SERVICE_ROLE_KEY"
 
 # Production bindings with high availability and performance optimization
 [[env.production.kv_namespaces]]

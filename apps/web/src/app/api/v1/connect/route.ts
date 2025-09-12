@@ -1,19 +1,26 @@
 import { NextResponse } from "next/server"
-import { startProvisioning } from "@hubble/workflows"
 
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}))
 
-    // Start provisioning workflow
-    const result = await startProvisioning({ body, env: process.env })
-
-    return NextResponse.json({
-      ok: true,
-      jobId: result.jobId,
-      status: result.status,
-      message: "Provisioning started successfully",
+    // Proxy request to API worker
+    const apiUrl = process.env.API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
+    const response = await fetch(`${apiUrl}/v1/connect/enable`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
     })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
+      return NextResponse.json(errorData, { status: response.status })
+    }
+
+    const data = await response.json()
+    return NextResponse.json(data)
   } catch (error) {
     console.error("Connect endpoint error:", error)
     return NextResponse.json(

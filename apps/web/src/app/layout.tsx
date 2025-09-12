@@ -10,7 +10,7 @@ import {
   UserButton,
 } from "@clerk/nextjs"
 import { shadcn } from "@clerk/themes"
-import { readPublicEnv } from "@hubble/env"
+// Using environment variables directly since Next.js handles them at build time
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,7 +32,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const { NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey } = readPublicEnv()
+  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
   // TODO: Document header visibility and auth rendering; add ADR
   //   Context: Clarify header contract and auth rendering patterns; include decision record.
   //   labels: area/web, feature/docs, type/docs

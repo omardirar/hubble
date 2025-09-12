@@ -1,10 +1,9 @@
 import { SiteHeader, AppSidebar } from "@hubble/ui"
 import { SidebarInset, SidebarProvider } from "@hubble/ui"
-import { readPublicEnv } from "@hubble/env"
+// Using environment variables directly since Next.js handles them at build time
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  const { NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY } = readPublicEnv()
-  const hasClerk = Boolean(NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
+  const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
   return (
     <>
       <SiteHeader hasClerk={hasClerk} />
