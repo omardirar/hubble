@@ -20,7 +20,7 @@ workers_dev = true
 
 [env.preview.vars]
 ENVIRONMENT = "preview"
-API_BASE_URL = "https://hubble-api-preview.workers.dev"
+API_BASE_URL = "https://hubble-api-preview.github-cc7.workers.dev"
 LOG_LEVEL = "debug"
 CACHE_TTL = "300"
 
@@ -54,7 +54,7 @@ workers_dev = true
 
 [env.production.vars]
 ENVIRONMENT = "production"
-API_BASE_URL = "https://hubble-api.workers.dev"
+API_BASE_URL = "https://hubble-api.github-cc7.workers.dev"
 LOG_LEVEL = "info"
 CACHE_TTL = "3600"
 

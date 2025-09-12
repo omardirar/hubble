@@ -100,22 +100,22 @@ wrangler r2 bucket create hubble-static-production
 
 ### API Worker
 
-| Variable       | Preview Value                            | Production Value                 | Description              |
-| -------------- | ---------------------------------------- | -------------------------------- | ------------------------ |
-| `ENVIRONMENT`  | `preview`                                | `production`                     | Deployment environment   |
-| `API_BASE_URL` | `https://hubble-api-preview.workers.dev` | `https://hubble-api.workers.dev` | API base URL             |
-| `LOG_LEVEL`    | `debug`                                  | `info`                           | Logging verbosity        |
-| `CACHE_TTL`    | `300`                                    | `3600`                           | Cache timeout in seconds |
+| Variable       | Preview Value                                       | Production Value                            | Description              |
+| -------------- | --------------------------------------------------- | ------------------------------------------- | ------------------------ |
+| `ENVIRONMENT`  | `preview`                                           | `production`                                | Deployment environment   |
+| `API_BASE_URL` | `https://hubble-api-preview.github-cc7.workers.dev` | `https://hubble-api.github-cc7.workers.dev` | API base URL             |
+| `LOG_LEVEL`    | `debug`                                             | `info`                                      | Logging verbosity        |
+| `CACHE_TTL`    | `300`                                               | `3600`                                      | Cache timeout in seconds |
 
 ### Web App
 
-| Variable              | Preview Value                                 | Production Value                      | Description              |
-| --------------------- | --------------------------------------------- | ------------------------------------- | ------------------------ |
-| `ENVIRONMENT`         | `preview`                                     | `production`                          | Deployment environment   |
-| `NEXT_PUBLIC_APP_URL` | `https://hubble-frontend-preview.workers.dev` | `https://hubble-frontend.workers.dev` | Frontend base URL        |
-| `API_BASE_URL`        | `https://hubble-api-preview.workers.dev`      | `https://hubble-api.workers.dev`      | API endpoint URL         |
-| `LOG_LEVEL`           | `debug`                                       | `info`                                | Logging verbosity        |
-| `CACHE_TTL`           | `300`                                         | `3600`                                | Cache timeout in seconds |
+| Variable              | Preview Value                                            | Production Value                                 | Description              |
+| --------------------- | -------------------------------------------------------- | ------------------------------------------------ | ------------------------ |
+| `ENVIRONMENT`         | `preview`                                                | `production`                                     | Deployment environment   |
+| `NEXT_PUBLIC_APP_URL` | `https://hubble-frontend-preview.github-cc7.workers.dev` | `https://hubble-frontend.github-cc7.workers.dev` | Frontend base URL        |
+| `API_BASE_URL`        | `https://hubble-api-preview.github-cc7.workers.dev`      | `https://hubble-api.github-cc7.workers.dev`      | API endpoint URL         |
+| `LOG_LEVEL`           | `debug`                                                  | `info`                                           | Logging verbosity        |
+| `CACHE_TTL`           | `300`                                                    | `3600`                                           | Cache timeout in seconds |
 
 ## Required Secrets
 
@@ -219,7 +219,7 @@ Deployments are handled automatically via GitHub Actions using the official [Clo
   1. Deploys API worker first
   2. Deploys web app after API worker succeeds
 - **URLs**:
-  - API: `https://hubble-api-preview.workers.dev`
+  - API: `https://hubble-api-preview.github-cc7.workers.dev`
   - Web: `https://hubble-frontend-preview.github-cc7.workers.dev`
 
 #### Production Deployments
@@ -230,7 +230,7 @@ Deployments are handled automatically via GitHub Actions using the official [Clo
   1. Deploys API worker first
   2. Deploys web app after API worker succeeds
 - **URLs**:
-  - API: `https://hubble-api.workers.dev`
+  - API: `https://hubble-api.github-cc7.workers.dev`
   - Web: `https://hubble-frontend.github-cc7.workers.dev`
 
 #### Manual Deployments
@@ -265,6 +265,36 @@ Use the dedicated workflow for managing secrets:
 - **Secrets managed**:
   - API Worker: `CLERK_SECRET_KEY`, `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
   - Web App: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`
+
+### Performance Optimization
+
+All workflows are optimized with:
+
+- **Turbo Cache**: Remote caching enabled for faster builds
+- **pnpm Cache**: Node.js package caching for faster dependency installation
+- **Parallel Jobs**: API and web app deployments run in sequence for optimal resource usage
+- **Incremental Builds**: Only changed packages are rebuilt when possible
+
+#### Required GitHub Secrets & Variables
+
+For optimal performance, configure these in your GitHub repository:
+
+**Secrets** (Settings → Secrets and variables → Actions):
+
+- `TURBO_TOKEN`: Your Turbo remote cache token
+- `CLOUDFLARE_API_TOKEN`: Cloudflare API token
+- `CLOUDFLARE_ACCOUNT_ID`: Cloudflare account ID
+
+**Variables** (Settings → Secrets and variables → Actions):
+
+- `TURBO_TEAM`: Your Turbo team name (e.g., `your-org`)
+
+**Turbo Cache Benefits**:
+
+- **Faster Builds**: Cache build artifacts across CI runs
+- **Reduced Build Time**: Skip unchanged packages and tasks
+- **Cost Savings**: Less compute time = lower CI costs
+- **Reliability**: Consistent builds across different environments
 
 ## Troubleshooting
 
