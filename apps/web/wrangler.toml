@@ -32,9 +32,7 @@ API_BASE_URL = "https://hubble-api-preview.github-cc7.workers.dev"
 LOG_LEVEL = "debug"
 CACHE_TTL = "300"
 
-# Server-only environment variables (not accessible to client-side code)
-# These should be set via Cloudflare Dashboard or wrangler env put
-CLERK_SECRET_KEY = ""  # Will be set via GitHub Actions or Cloudflare Dashboard
+# Note: CLERK_SECRET_KEY should be set as a secret using: wrangler secret put CLERK_SECRET_KEY
 
 # Secrets Store bindings for preview environment
 [[env.preview.secrets_store_secrets]]
@@ -95,9 +93,7 @@ API_BASE_URL = "https://hubble-api.github-cc7.workers.dev"
 LOG_LEVEL = "info"
 CACHE_TTL = "3600"
 
-# Server-only environment variables (not accessible to client-side code)
-# These should be set via Cloudflare Dashboard or wrangler env put
-CLERK_SECRET_KEY = ""  # Will be set via GitHub Actions or Cloudflare Dashboard
+# Note: CLERK_SECRET_KEY should be set as a secret using: wrangler secret put CLERK_SECRET_KEY
 
 # Secrets Store bindings for production environment
 [[env.production.secrets_store_secrets]]

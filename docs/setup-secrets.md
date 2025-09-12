@@ -28,9 +28,29 @@ You need to set up these secrets in your GitHub repository:
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` = your publishable key
 - `CLERK_SECRET_KEY` = your secret key
 
-### 4. Setting Environment Variables
+### 4. Automatic Secret Management
 
-After setting the secrets, you need to update the Cloudflare Workers environment variables:
+**Good news!** The Clerk secret key is now automatically set during deployment. You don't need to manually manage it.
+
+**How it works:**
+
+- When you deploy (via pull request or push to main), the deployment pipeline automatically sets the `CLERK_SECRET_KEY` secret
+- The secret is pulled from your GitHub repository secrets and set in Cloudflare Workers
+- This happens before the web app is deployed, ensuring it's always available
+
+**Manual management (optional):**
+If you need to manually update the secret, you can still use the "Manage Cloudflare Secrets" workflow:
+
+1. Go to the "Actions" tab in your GitHub repository
+2. Click on "Manage Cloudflare Secrets"
+3. Click "Run workflow"
+4. Select Environment: `preview` (or `production`)
+5. Select Action: `update`
+6. Click "Run workflow"
+
+### 5. Setting Environment Variables
+
+For non-secret environment variables:
 
 1. Go to the "Actions" tab in your GitHub repository
 2. Click on "Manage Cloudflare Environment Variables"
@@ -39,20 +59,18 @@ After setting the secrets, you need to update the Cloudflare Workers environment
 5. Select Action: `update`
 6. Click "Run workflow"
 
-This will automatically set the environment variables in Cloudflare Workers using the secrets you configured.
-
-### 5. Alternative: Manual Setup
+### 6. Alternative: Manual Setup
 
 You can also set the environment variables manually using Wrangler:
 
 ```bash
 # For preview environment
 cd apps/web
-wrangler env put CLERK_SECRET_KEY --env preview
+wrangler secret put CLERK_SECRET_KEY --env preview
 wrangler env put NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY --env preview
 
 # For production environment
-wrangler env put CLERK_SECRET_KEY --env production
+wrangler secret put CLERK_SECRET_KEY --env production
 wrangler env put NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY --env production
 ```
 
