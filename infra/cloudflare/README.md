@@ -114,6 +114,7 @@ wrangler r2 bucket create hubble-static-production
 | `ENVIRONMENT`                       | `preview`                                                | `production`                                     | Deployment environment   |
 | `NEXT_PUBLIC_APP_URL`               | `https://hubble-frontend-preview.github-cc7.workers.dev` | `https://hubble-frontend.github-cc7.workers.dev` | Frontend base URL        |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `""` (set as secret)                                     | `""` (set as secret)                             | Clerk public key         |
+| `CLERK_SECRET_KEY`                  | `""` (set as secret)                                     | `""` (set as secret)                             | Clerk secret key         |
 | `API_BASE_URL`                      | `https://hubble-api-preview.github-cc7.workers.dev`      | `https://hubble-api.github-cc7.workers.dev`      | API endpoint URL         |
 | `LOG_LEVEL`                         | `debug`                                                  | `info`                                           | Logging verbosity        |
 | `CACHE_TTL`                         | `300`                                                    | `3600`                                           | Cache timeout in seconds |
@@ -315,7 +316,7 @@ All legacy environment variable usage has been removed in favor of Secrets Store
 - **Location**: Defined in `wrangler.toml` under `[env.*.vars]`
 - **Management**: Update values directly in `wrangler.toml` and redeploy
 - **Access**: Available to both server and client-side code
-- **Variables**: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- **Variables**: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`
 - **Note**: Web app API routes proxy to API worker, so no direct database access
 
 **API Worker Secrets** (All sensitive data):
