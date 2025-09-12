@@ -37,22 +37,8 @@ export function createBrowserClient(options?: { authToken?: string }): SupabaseC
   // Read public environment variables (safe for client-side exposure)
   const env = readPublicEnv()
 
-  // Validate that required Supabase configuration is present
-  if (!env.NEXT_PUBLIC_SUPABASE_URL) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL. Set this environment variable in your .env.local file.\n\n" +
-        "Example:\n" +
-        "  NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co",
-    )
-  }
-
-  if (!env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_ANON_KEY. Set this environment variable in your .env.local file.\n\n" +
-        "Example:\n" +
-        "  NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here",
-    )
-  }
+  // Note: In the proxy architecture, browser clients should not directly connect to Supabase
+  // This function is kept for potential future use but is not recommended in the current architecture
 
   // Configure client options for optimal browser usage
   const clientOptions: any = {
@@ -75,10 +61,11 @@ export function createBrowserClient(options?: { authToken?: string }): SupabaseC
   // The URL already contains the region information (e.g., https://project-id.supabase.co)
 
   // Create and return the Supabase client with anon key authentication
-  return createSupabaseClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    clientOptions,
+  // Note: This function is deprecated in the proxy architecture
+  // Browser clients should not directly connect to Supabase
+  throw new Error(
+    "Direct Supabase client creation is not supported in the proxy architecture. " +
+      "Use API routes instead of direct database access from the browser.",
   )
 }
 

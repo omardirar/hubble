@@ -26,9 +26,7 @@ ENVIRONMENT = "preview"
 NEXT_PUBLIC_APP_URL = "https://hubble-frontend-preview.github-cc7.workers.dev"
 # Public environment variables (accessible to client-side code)
 # These should be set via Cloudflare Dashboard or wrangler env put
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = ""
-NEXT_PUBLIC_SUPABASE_URL = ""
-NEXT_PUBLIC_SUPABASE_ANON_KEY = ""
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_ZW5oYW5jZWQtc2x1Zy0yNy5jbGVyay5hY2NvdW50cy5kZXYk"
 NEXT_PUBLIC_API_BASE_URL = "https://hubble-api-preview.github-cc7.workers.dev"
 API_BASE_URL = "https://hubble-api-preview.github-cc7.workers.dev"
 LOG_LEVEL = "debug"
@@ -93,8 +91,6 @@ NEXT_PUBLIC_APP_URL = "https://hubble-frontend.github-cc7.workers.dev"
 # Public environment variables (accessible to client-side code)
 # These should be set via Cloudflare Dashboard or wrangler env put
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = ""
-NEXT_PUBLIC_SUPABASE_URL = ""
-NEXT_PUBLIC_SUPABASE_ANON_KEY = ""
 NEXT_PUBLIC_API_BASE_URL = "https://hubble-api.github-cc7.workers.dev"
 API_BASE_URL = "https://hubble-api.github-cc7.workers.dev"
 LOG_LEVEL = "info"

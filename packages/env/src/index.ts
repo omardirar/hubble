@@ -21,8 +21,6 @@ import { z } from "zod"
 // Used for client-side authentication, API endpoints, and public configuration
 const publicSchema = z.object({
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().optional(), // Clerk authentication public key
-  NEXT_PUBLIC_SUPABASE_URL: z.url().optional(), // Supabase project URL for client connections
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(), // Supabase anonymous key for client auth
 })
 
 // Server-only vars. Keep optional at the schema level; dedicated helpers
@@ -117,8 +115,6 @@ export function readPublicEnv(): PublicEnv {
   // This means these values are baked into the client bundle
   _publicEnvCache = publicSchema.parse({
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   })
   return _publicEnvCache
 }
@@ -191,20 +187,16 @@ export function getSupabaseEnv(options?: { allowPublicFallback?: boolean }) {
   const server = readServerEnv()
   const pub = allowPublicFallback ? readPublicEnv() : undefined
 
-  // Prefer server environment variables, fallback to public if allowed
-  const url = server.SUPABASE_URL ?? pub?.NEXT_PUBLIC_SUPABASE_URL
-  const anonKey = server.SUPABASE_ANON_KEY ?? pub?.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  // Use server environment variables only (no public fallback needed in proxy architecture)
+  const url = server.SUPABASE_URL
+  const anonKey = server.SUPABASE_ANON_KEY
 
   // Validate that required values are present
   if (!url) {
-    throw new Error(
-      "Missing Supabase URL. Set SUPABASE_URL (server) or NEXT_PUBLIC_SUPABASE_URL (public).",
-    )
+    throw new Error("Missing Supabase URL. Set SUPABASE_URL (server).")
   }
   if (!anonKey) {
-    throw new Error(
-      "Missing Supabase anon key. Set SUPABASE_ANON_KEY (server) or NEXT_PUBLIC_SUPABASE_ANON_KEY (public).",
-    )
+    throw new Error("Missing Supabase anon key. Set SUPABASE_ANON_KEY (server).")
   }
 
   // Validate URL shape explicitly (zod url already validated if present via schema)
