@@ -38,6 +38,9 @@
  */
 export async function getOrgId(): Promise<string | null> {
   // TODO: Implement actual Clerk integration
-  // This should read from Clerk JWT claims or session data
+  //   Context: This should read from Clerk JWT claims or session data
+  //   labels: area/auth, feature/orgs, type/feature
+  //   assignees: omzification
+  //   milestone: 0.0.1
   return null
 }
