@@ -4,13 +4,13 @@ This document describes the chat system used by the application, including authe
 
 ## Authentication
 
-All requests to Supabase are proxied through Next.js API routes that attach a Clerk session JWT (using the `supabase` template) as a Bearer token. Row‑level security derives tenancy from JWT claims and ignores client‑supplied tenancy fields.
+All client requests go through the Web App API routes which now proxy to the API Worker. The Web App attaches a Clerk session JWT (using the `supabase` template) as a Bearer token to the API Worker. The API Worker is the only service that talks to Supabase and it uses the Secrets Store for credentials. Row‑level security derives tenancy from JWT claims and ignores client‑supplied tenancy fields.
 
-Headers (server → Supabase):
+Headers:
 
-- `Authorization: Bearer <Clerk RS256 JWT (supabase template)>`
-- `apikey: <Supabase anon key>`
-- `content-type: application/json`
+- Client → Web App: standard fetch
+- Web App → API Worker: `Authorization: Bearer <Clerk RS256 JWT (supabase template)>`
+- API Worker → Supabase: `Authorization: Bearer <Clerk RS256 JWT>`, `apikey: <Supabase anon key>`, `content-type: application/json`
 
 Required JWT claims:
 
@@ -43,7 +43,7 @@ Columns: `id uuid`, `conversation_id uuid`, `org_id text`, `owner_user_id text`,
 
 ## API Routes
 
-All chat routes are namespaced under `/api/chat/*`.
+Web routes are under `/api/v1/chat/*` and proxy to the API Worker `/v1/chat/*`.
 
 ### GET /api/chat/conversations
 

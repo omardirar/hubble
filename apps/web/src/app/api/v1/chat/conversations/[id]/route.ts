@@ -1,9 +1,7 @@
 import { auth } from "@clerk/nextjs/server"
 
-export const runtime = "nodejs"
-
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  // RLS enforcement: Using createBrowserClient with authToken ensures user can only access their org's conversations
+  // RLS enforcement occurs in the API Worker (via Supabase JWT). We only pass the JWT.
   const { getToken } = await auth()
   const token = await getToken({ template: "supabase" }).catch(() => null)
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
@@ -12,7 +10,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const body = await req.json().catch(() => ({}))
 
   // Proxy request to API worker
-  const apiUrl = process.env.API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
+  const apiUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
   const response = await fetch(`${apiUrl}/v1/chat/conversations/${id}`, {
     method: "PATCH",
     headers: {

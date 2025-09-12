@@ -32,18 +32,10 @@ export async function handleConversations(
       const body = (await request.json().catch(() => ({}))) as { title?: string }
       const title = body.title ?? "New Chat"
 
-      // Extract user info from JWT token (simplified - in production, verify the token)
-      // For now, we'll use placeholder values - in production, decode the JWT
-      const userId = "placeholder_user_id" // TODO: Extract from JWT
-      const orgId = "placeholder_org_id" // TODO: Extract from JWT
-
+      // Let RLS/DB defaults derive tenancy from the JWT; do not inject placeholders
       const { data, error } = await supabase
         .from("conversations")
-        .insert({
-          title,
-          owner_user_id: userId,
-          org_id: orgId,
-        })
+        .insert({ title })
         .select()
         .single()
 

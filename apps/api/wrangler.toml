@@ -1,30 +1,49 @@
-name = "hubble-api"
-main = "./dist/index.mjs"
-compatibility_date = "2025-09-05"
-compatibility_flags = ["nodejs_compat"]
+# Hubble API Worker Configuration
+#
+# This Cloudflare Worker serves as the centralized backend API for the Hubble application.
+# It handles all server-side operations including database access, AI chat, connection
+# management, and other business logic.
+#
+# Architecture:
+# - Centralized API worker for all backend operations
+# - Uses Cloudflare Secrets Store for secure secret management
+# - Implements proxy pattern: Web app → API worker → Supabase
+# - All sensitive operations are handled server-side
+# - Supports both traditional and Cloudflare-specific bindings
 
+# Worker identification and entry point
+name = "hubble-api"                    # Worker name (used in *.workers.dev URL)
+main = "./dist/index.mjs"             # Entry point file (compiled from TypeScript)
+compatibility_date = "2025-09-05"     # Cloudflare Workers compatibility date
+compatibility_flags = ["nodejs_compat"] # Enable Node.js compatibility for dependencies
+
+# Build configuration
 [build]
-command = "pnpm build"
+command = "pnpm build"                # Command to build the worker
 
+# Observability and logging
 [observability.logs]
-enabled = true
+enabled = true                        # Enable structured logging
 
 # Logging configuration with environment-specific settings
 # Sampling: 100% for preview (debug), 10% for production (info)
 # Retention: 7 days preview, 30 days production
 # Sinks: Workers Analytics enabled, Logpush configured via dashboard
 
+# Preview Environment Configuration
+# Deployed to: hubble-api-preview.github-cc7.workers.dev
 [env.preview]
-# Preview environment: hubble-api-preview.workers.dev
-workers_dev = true
+workers_dev = true                     # Use workers.dev subdomain for preview
 
+# Environment variables for preview (public configuration)
 [env.preview.vars]
-ENVIRONMENT = "preview"
-API_BASE_URL = "https://hubble-api-preview.github-cc7.workers.dev"
-LOG_LEVEL = "debug"
-CACHE_TTL = "300"
+ENVIRONMENT = "preview"                # Environment identifier
+API_BASE_URL = "https://hubble-api-preview.github-cc7.workers.dev"  # API base URL
+LOG_LEVEL = "debug"                   # Detailed logging for development
+CACHE_TTL = "300"                     # Cache TTL in seconds (5 minutes)
 
 # Secrets Store bindings for preview environment
+# All sensitive data is stored in Cloudflare Secrets Store for security
 [[env.preview.secrets_store_secrets]]
 binding = "CLERK_SECRET_KEY"
 store_id = "f37d78acf99641778b64ea4c0761c543"

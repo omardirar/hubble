@@ -1,10 +1,39 @@
+/**
+ * Vault Provider System
+ *
+ * This module provides a flexible vault system for secret management across
+ * different environments. It supports multiple backends including Cloudflare
+ * Workers environment bindings and Supabase database functions.
+ *
+ * Architecture:
+ * - VaultProvider interface for pluggable backends
+ * - CloudflareVaultProvider for Workers environment
+ * - SupabaseVaultProvider for database-based secrets
+ * - DefaultVaultProvider with fallback logic
+ * - Global instance management
+ */
+
 import { createServiceClient } from "./server"
 
 /**
  * Vault provider interface for secret retrieval
+ *
+ * This interface defines the contract for vault providers that can
+ * retrieve secrets from various backends. All vault providers must
+ * implement this interface to ensure consistent behavior.
  */
 export interface VaultProvider {
+  /**
+   * Retrieve a secret by key
+   * @param key - The secret key to retrieve
+   * @returns Promise that resolves to the secret value or null if not found
+   */
   getSecret(key: string): Promise<string | null>
+
+  /**
+   * Check if the vault provider is available
+   * @returns True if the provider is available, false otherwise
+   */
   isAvailable(): boolean
 }
 

@@ -1,9 +1,32 @@
+/**
+ * Supabase client creation for browser/client-side usage
+ *
+ * This module provides functions to create Supabase clients for client-side
+ * usage with proper authentication and RLS policy enforcement. It supports
+ * both traditional environment variables and Cloudflare Secrets Store.
+ *
+ * Architecture:
+ * - Browser clients use anon key authentication and respect RLS policies
+ * - JWT tokens can be provided for authenticated requests
+ * - Two methods: traditional env vars and Secrets Store (for Cloudflare Workers)
+ * - All clients are configured for optimal browser usage (auto-refresh, persistence)
+ */
+
 import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js"
 import { readPublicEnv, getSupabaseEnvFromSecrets, type SecretsStoreEnv } from "@hubble/env"
 
 /**
  * Creates a Supabase client for browser/client-side usage with anon key authentication.
- * This client respects RLS policies and is safe to use in client-side code.
+ *
+ * This client is designed for use in browser environments and respects Row Level
+ * Security (RLS) policies. It uses the anonymous key which is safe to expose
+ * to the client and provides automatic token refresh and session persistence.
+ *
+ * Security considerations:
+ * - Uses anonymous key (safe for client-side exposure)
+ * - Respects RLS policies for data access control
+ * - JWT tokens can be provided for authenticated requests
+ * - No service role key (prevents privilege escalation)
  *
  * @param options Optional configuration for the client
  * @param options.authToken Optional JWT token for authenticated requests
@@ -11,8 +34,10 @@ import { readPublicEnv, getSupabaseEnvFromSecrets, type SecretsStoreEnv } from "
  * @throws Error if required environment variables are missing
  */
 export function createBrowserClient(options?: { authToken?: string }): SupabaseClient {
+  // Read public environment variables (safe for client-side exposure)
   const env = readPublicEnv()
 
+  // Validate that required Supabase configuration is present
   if (!env.NEXT_PUBLIC_SUPABASE_URL) {
     throw new Error(
       "Missing NEXT_PUBLIC_SUPABASE_URL. Set this environment variable in your .env.local file.\n\n" +
@@ -29,14 +54,15 @@ export function createBrowserClient(options?: { authToken?: string }): SupabaseC
     )
   }
 
+  // Configure client options for optimal browser usage
   const clientOptions: any = {
     auth: {
-      autoRefreshToken: true,
-      persistSession: true,
+      autoRefreshToken: true, // Automatically refresh expired tokens
+      persistSession: true, // Persist session across browser refreshes
     },
   }
 
-  // Add auth token if provided
+  // Add JWT token to requests if provided (for authenticated operations)
   if (options?.authToken) {
     clientOptions.global = {
       headers: {
@@ -48,6 +74,7 @@ export function createBrowserClient(options?: { authToken?: string }): SupabaseC
   // Note: Regions are handled by the Supabase URL configuration
   // The URL already contains the region information (e.g., https://project-id.supabase.co)
 
+  // Create and return the Supabase client with anon key authentication
   return createSupabaseClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -57,7 +84,17 @@ export function createBrowserClient(options?: { authToken?: string }): SupabaseC
 
 /**
  * Creates a Supabase client using Secrets Store for server-side usage with anon key authentication.
- * This client respects RLS policies and is safe to use in server-side contexts.
+ *
+ * This function is designed for Cloudflare Workers and other server-side environments
+ * that use Cloudflare's Secrets Store for secure secret management. It provides the
+ * same functionality as createBrowserClient but retrieves credentials from Secrets Store.
+ *
+ * Security considerations:
+ * - Uses anonymous key (safe for client-side exposure)
+ * - Respects RLS policies for data access control
+ * - JWT tokens can be provided for authenticated requests
+ * - Secrets are retrieved asynchronously from Cloudflare Secrets Store
+ * - No service role key (prevents privilege escalation)
  *
  * @param env - Cloudflare Workers environment with Secrets Store bindings
  * @param options Optional configuration for the client
@@ -69,16 +106,18 @@ export async function createBrowserClientFromSecrets(
   env: SecretsStoreEnv,
   options?: { authToken?: string },
 ): Promise<SupabaseClient> {
+  // Retrieve Supabase configuration from Cloudflare Secrets Store
   const { url, anonKey } = await getSupabaseEnvFromSecrets(env)
 
+  // Configure client options for optimal browser usage
   const clientOptions: any = {
     auth: {
-      autoRefreshToken: true,
-      persistSession: true,
+      autoRefreshToken: true, // Automatically refresh expired tokens
+      persistSession: true, // Persist session across browser refreshes
     },
   }
 
-  // Add auth token if provided
+  // Add JWT token to requests if provided (for authenticated operations)
   if (options?.authToken) {
     clientOptions.global = {
       headers: {
@@ -87,5 +126,6 @@ export async function createBrowserClientFromSecrets(
     }
   }
 
+  // Create and return the Supabase client with anon key authentication
   return createSupabaseClient(url, anonKey, clientOptions)
 }

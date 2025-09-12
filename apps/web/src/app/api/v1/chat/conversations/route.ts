@@ -1,14 +1,13 @@
 import { auth } from "@clerk/nextjs/server"
 
-export const runtime = "nodejs"
-
 export async function GET() {
   const { getToken } = await auth()
   const token = await getToken({ template: "supabase" }).catch(() => null)
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
 
   // Proxy request to API worker
-  const apiUrl = process.env.API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
+  const apiUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
   const response = await fetch(`${apiUrl}/v1/chat/conversations`, {
     method: "GET",
     headers: {
@@ -34,7 +33,8 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
 
   // Proxy request to API worker
-  const apiUrl = process.env.API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
+  const apiUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
   const response = await fetch(`${apiUrl}/v1/chat/conversations`, {
     method: "POST",
     headers: {

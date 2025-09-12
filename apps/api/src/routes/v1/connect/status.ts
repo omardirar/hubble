@@ -1,6 +1,7 @@
-import { createServiceClient } from "@hubble/db"
+import { createServiceClientFromSecrets } from "@hubble/db"
+import type { SecretsStoreEnv } from "@hubble/env"
 
-export async function handleStatus(request: Request, _env: unknown): Promise<Response> {
+export async function handleStatus(request: Request, env: SecretsStoreEnv): Promise<Response> {
   try {
     const url = new URL(request.url)
     const jobId = url.searchParams.get("jobId")
@@ -15,7 +16,7 @@ export async function handleStatus(request: Request, _env: unknown): Promise<Res
       )
     }
 
-    const supabase = createServiceClient()
+    const supabase = await createServiceClientFromSecrets(env)
     const { data: job, error } = await supabase
       .from("provisioning_jobs")
       .select("id, status, payload, created_at, updated_at")

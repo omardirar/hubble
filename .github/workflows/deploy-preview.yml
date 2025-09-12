@@ -1,26 +1,47 @@
 ---
+# GitHub Actions Workflow: Deploy Preview
+#
+# This workflow automatically deploys the Hubble application to the preview environment
+# when pull requests are opened against the main branch. It also supports manual
+# triggering for testing and debugging purposes.
+#
+# Architecture:
+# - Deploys both API worker and web app to preview environment
+# - Uses Cloudflare Wrangler for deployment
+# - Leverages Turbo cache for faster builds
+# - Deploys to *.workers.dev subdomains
+#
+# Triggers:
+# - Pull requests to main branch (automatic)
+# - Manual workflow dispatch (for testing)
+
 name: Deploy Preview
 
+# Workflow triggers
 on:
   pull_request:
-    branches: ["main"]
-  workflow_dispatch:
+    branches: ["main"] # Trigger on PRs to main branch
+  workflow_dispatch: # Allow manual triggering
     inputs:
       reason:
         description: "Optional note for manual run"
         required: false
 
+# Required permissions
 permissions:
-  contents: read
+  contents: read # Read repository contents
 
+# Job definitions
 jobs:
+  # Deploy API Worker to preview environment
   deploy-api:
     name: Deploy API Worker (Preview)
     runs-on: ubuntu-latest
     env:
-      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
-      TURBO_CACHE: remote:rw
+      # Turbo cache configuration for faster builds
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }} # Turbo authentication token
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }} # Turbo team identifier
+      TURBO_CACHE: remote:rw # Enable remote cache read/write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
