@@ -1,5 +1,12 @@
-import { createBrowserClientWithFallback } from "@hubble/db"
-import { type SecretsStoreEnv } from "@hubble/env"
+/**
+ * Messages API Function for Vercel
+ *
+ * Handles listing and creating messages within conversations
+ * Converted from Cloudflare Worker to Vercel Function
+ */
+
+import { VercelRequest, VercelResponse } from "@vercel/node"
+import { createBrowserClient } from "@hubble/db"
 import { extractJWTClaims } from "@hubble/auth"
 import { contentToText } from "@hubble/utils"
 import {
@@ -10,15 +17,17 @@ import {
   validateApiMessage,
 } from "@hubble/api-contracts/chat"
 
-export async function handleMessages(
-  request: Request,
-  env: SecretsStoreEnv,
-  params: { conversationId: string },
-): Promise<Response> {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    const authHeader = request.headers.get("Authorization")
+    const { conversationId } = req.query
+
+    if (!conversationId || typeof conversationId !== "string") {
+      return res.status(400).json({ error: "Invalid conversation ID" })
+    }
+
+    const authHeader = req.headers.authorization
     if (!authHeader?.startsWith("Bearer ")) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 })
+      return res.status(401).json({ error: "Unauthorized" })
     }
 
     const token = authHeader.substring(7)
@@ -26,18 +35,18 @@ export async function handleMessages(
     // Extract user and organization information from JWT token
     const { userId, orgId } = extractJWTClaims(token)
 
-    const supabase = await createBrowserClientWithFallback(env, { authToken: token })
+    const supabase = createBrowserClient({ authToken: token })
 
-    if (request.method === "GET") {
+    if (req.method === "GET") {
       const { data, error } = await supabase
         .from("messages")
         .select("id,role,content,created_at")
-        .eq("conversation_id", params.conversationId)
+        .eq("conversation_id", conversationId)
         .order("created_at", { ascending: true })
         .order("id", { ascending: true })
 
       if (error) {
-        return Response.json({ error: error.message }, { status: 500 })
+        return res.status(500).json({ error: error.message })
       }
 
       const msgs: ApiMessage[] = (data || []).map((r) => ({
@@ -49,19 +58,19 @@ export async function handleMessages(
 
       // Validate response data against schema
       const validatedData = msgs.map(validateApiMessage)
-      return Response.json(validatedData)
+      return res.status(200).json(validatedData)
     }
 
-    if (request.method === "POST") {
+    if (req.method === "POST") {
       // Validate request body against schema
-      const body = await request.json().catch(() => ({}))
+      const body = req.body || {}
       const validatedBody = validateCreateMessageRequest(body)
       const role = validatedBody.role ?? "user"
       const text = validatedBody.text ?? ""
       const idem = validatedBody.idempotencyKey ?? null
 
       const { data, error } = await supabase.rpc("rpc_append_message", {
-        p_conversation_id: params.conversationId,
+        p_conversation_id: conversationId,
         p_role: role,
         p_content: { text },
         p_idempotency_key: idem,
@@ -73,18 +82,17 @@ export async function handleMessages(
           const { data: existingMessage, error: fetchError } = await supabase
             .from("messages")
             .select("id,role,content,created_at")
-            .eq("conversation_id", params.conversationId)
+            .eq("conversation_id", conversationId)
             .eq("idempotency_key", idem)
             .single()
 
           if (fetchError) {
-            return Response.json(
-              { error: `Failed to fetch existing message: ${fetchError.message}` },
-              { status: 500 },
-            )
+            return res.status(500).json({
+              error: `Failed to fetch existing message: ${fetchError.message}`,
+            })
           }
 
-          return Response.json({
+          return res.status(200).json({
             id: existingMessage.id,
             role: existingMessage.role,
             content: existingMessage.content,
@@ -92,22 +100,19 @@ export async function handleMessages(
           })
         }
 
-        return Response.json({ error: error.message }, { status: 500 })
+        return res.status(500).json({ error: error.message })
       }
 
       // Validate response data against schema
       const validatedData: CreateMessageResponse = data
-      return Response.json(validatedData)
+      return res.status(200).json(validatedData)
     }
 
-    return Response.json({ error: "Method not allowed" }, { status: 405 })
+    return res.status(405).json({ error: "Method not allowed" })
   } catch (error) {
     console.error("Messages endpoint error:", error)
-    return Response.json(
-      {
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    )
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : "Unknown error",
+    })
   }
 }

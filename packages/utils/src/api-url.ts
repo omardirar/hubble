@@ -31,16 +31,14 @@
  * ```
  */
 export function getApiWorkerUrl(fallbackUrl?: string): string {
-  // Use local API worker URL in development
+  // Use local Vercel dev server URL in development
   if (process.env.NODE_ENV === "development") {
-    return "http://localhost:8787"
+    return "http://localhost:3001"
   }
 
   // In production, use environment variable or fallback
   return (
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    fallbackUrl ||
-    "https://hubble-api-preview.github-cc7.workers.dev"
+    process.env.NEXT_PUBLIC_API_BASE_URL || fallbackUrl || "https://hubble-api-preview.vercel.app"
   )
 }
 
@@ -51,10 +49,10 @@ export function getApiWorkerUrl(fallbackUrl?: string): string {
  * making it easy to maintain and update them in one place.
  */
 export const API_URLS = {
-  /** Local development API worker URL */
-  LOCAL: "http://localhost:8787",
-  /** Preview environment API worker URL */
-  PREVIEW: "https://hubble-api-preview.github-cc7.workers.dev",
-  /** Production environment API worker URL */
-  PRODUCTION: "https://hubble-api.github-cc7.workers.dev",
+  /** Local development API server URL */
+  LOCAL: "http://localhost:3001",
+  /** Preview environment API URL */
+  PREVIEW: "https://hubble-api-preview.vercel.app",
+  /** Production environment API URL */
+  PRODUCTION: "https://hubble-api.vercel.app",
 } as const

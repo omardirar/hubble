@@ -1,24 +1,17 @@
 /**
- * AI Chat API Route Handler
+ * AI Chat API Function for Vercel
  *
- * This handler processes chat requests by forwarding them to the Anthropic API
- * for AI-powered responses. It handles the complete flow from request parsing
- * to response formatting.
+ * This function processes chat requests by forwarding them to the Anthropic API
  *
  * Flow:
  * 1. Parse and validate the incoming request
- * 2. Retrieve Anthropic API credentials from Secrets Store
+ * 2. Retrieve Anthropic API credentials from environment variables
  * 3. Forward the request to Anthropic's API
  * 4. Process and format the response
  * 5. Return the AI-generated reply
- *
- * Security:
- * - API key retrieved securely from Cloudflare Secrets Store
- * - No sensitive data exposed in error messages
- * - Proper error handling for upstream failures
  */
 
-import { getAnthropicEnvFromSecrets, type SecretsStoreEnv } from "@hubble/env"
+import { VercelRequest, VercelResponse } from "@vercel/node"
 import {
   type ChatRequest,
   type ChatResponse,
@@ -27,30 +20,36 @@ import {
 } from "@hubble/api-contracts/chat"
 
 /**
- * Handle chat requests by forwarding them to Anthropic's API
- *
- * @param request - The incoming HTTP request containing chat text
- * @param env - Cloudflare Workers environment with Secrets Store bindings
- * @returns Promise that resolves to an HTTP response with the AI reply
+ * Get Anthropic configuration from environment variables
  */
-export async function handleChat(request: Request, env: SecretsStoreEnv): Promise<Response> {
+function getAnthropicConfig() {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  const model = process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-latest"
+
+  if (!apiKey) {
+    throw new Error("Missing ANTHROPIC_API_KEY environment variable")
+  }
+
+  return { apiKey, model }
+}
+
+/**
+ * Handle chat requests
+ */
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Only allow POST requests
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" })
+  }
+
   try {
     // Parse and validate the request body
-    let body: any
-    try {
-      body = await request.json()
-    } catch (parseError) {
-      console.warn("Invalid JSON in chat request")
-      return Response.json({ error: "Invalid JSON" }, { status: 400 })
-    }
-
-    // Validate request body against schema
     let validatedRequest: ChatRequest
     try {
-      validatedRequest = validateChatRequest(body)
+      validatedRequest = validateChatRequest(req.body)
     } catch (validationError) {
       console.warn("Invalid chat request:", validationError)
-      return Response.json({ error: "Invalid request data" }, { status: 400 })
+      return res.status(400).json({ error: "Invalid request data" })
     }
 
     const prompt = validatedRequest.text.trim()
@@ -61,21 +60,21 @@ export async function handleChat(request: Request, env: SecretsStoreEnv): Promis
       hasText: !!validatedRequest.text,
     })
 
-    // Retrieve Anthropic API credentials from Cloudflare Secrets Store
-    const { apiKey, model } = await getAnthropicEnvFromSecrets(env)
+    // Retrieve Anthropic API credentials from environment variables
+    const { apiKey, model } = getAnthropicConfig()
 
     // Forward the request to Anthropic's API
     const upstream = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-api-key": apiKey, // API key from Secrets Store
-        "anthropic-version": "2023-06-01", // API version
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model, // AI model (e.g., claude-3-5-sonnet-latest)
-        max_tokens: 1024, // Maximum response length
-        messages: [{ role: "user", content: prompt }], // User's message
+        model,
+        max_tokens: 1024,
+        messages: [{ role: "user", content: prompt }],
       }),
     })
 
@@ -90,13 +89,13 @@ export async function handleChat(request: Request, env: SecretsStoreEnv): Promis
 
       // Return appropriate error based on status code
       if (upstream.status === 401) {
-        return Response.json({ error: "Invalid API key" }, { status: 502 })
+        return res.status(502).json({ error: "Invalid API key" })
       } else if (upstream.status === 429) {
-        return Response.json({ error: "Rate limit exceeded" }, { status: 429 })
+        return res.status(429).json({ error: "Rate limit exceeded" })
       } else if (upstream.status >= 500) {
-        return Response.json({ error: "Anthropic service unavailable" }, { status: 502 })
+        return res.status(502).json({ error: "Anthropic service unavailable" })
       } else {
-        return Response.json({ error: "Upstream error", detail: errorText }, { status: 502 })
+        return res.status(502).json({ error: "Upstream error", detail: errorText })
       }
     }
 
@@ -116,7 +115,7 @@ export async function handleChat(request: Request, env: SecretsStoreEnv): Promis
       validatedResponse = validateChatResponse({ reply })
     } catch (validationError) {
       console.error("Response validation error:", validationError)
-      return Response.json({ error: "Response validation failed" }, { status: 500 })
+      return res.status(500).json({ error: "Response validation failed" })
     }
 
     // Log successful response
@@ -126,7 +125,7 @@ export async function handleChat(request: Request, env: SecretsStoreEnv): Promis
     })
 
     // Return the AI-generated reply
-    return Response.json(validatedResponse)
+    return res.status(200).json(validatedResponse)
   } catch (err) {
     // Handle errors gracefully with appropriate status codes
     const msg = err instanceof Error ? err.message : String(err)
@@ -139,15 +138,15 @@ export async function handleChat(request: Request, env: SecretsStoreEnv): Promis
 
     // Special handling for missing API key (configuration issue)
     if (msg.includes("Missing ANTHROPIC_API_KEY")) {
-      return Response.json({ error: "Upstream not configured" }, { status: 502 })
+      return res.status(502).json({ error: "Upstream not configured" })
     }
 
     // Special handling for network errors
     if (msg.includes("fetch failed") || msg.includes("ETIMEDOUT")) {
-      return Response.json({ error: "Network error" }, { status: 502 })
+      return res.status(502).json({ error: "Network error" })
     }
 
     // Generic error handling for unexpected issues
-    return Response.json({ error: "Unexpected error", detail: msg }, { status: 500 })
+    return res.status(500).json({ error: "Unexpected error", detail: msg })
   }
 }

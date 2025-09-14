@@ -8,23 +8,20 @@
     "@hubble/env": "workspace:*",
     "@hubble/utils": "workspace:*",
     "@hubble/auth": "workspace:*",
-    "@hubble/api-contracts": "workspace:*"
+    "@hubble/api-contracts": "workspace:*",
+    "@vercel/node": "^3.0.0"
   },
   "scripts": {
-    "dev": "wrangler dev --local --persist-to=./.wrangler/state --env-file=../../.env.local",
-    "build": "tsc -p tsconfig.json && esbuild src/index.ts --bundle --format=esm --outfile=dist/index.mjs",
-    "start": "wrangler deploy --dry-run",
-    "deploy": "wrangler deploy",
+    "dev": "vercel dev",
+    "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json",
-    "lint": "eslint \"src/**/*.{ts,tsx}\""
+    "lint": "eslint \"api/**/*.{ts,tsx}\""
   },
   "devDependencies": {
     "@hubble/eslint-config": "workspace:*",
     "@hubble/tsconfig": "workspace:*",
-    "@cloudflare/workers-types": "^4.20240919.0",
-    "esbuild": "^0.21.5",
     "typescript": "^5.5.0",
-    "wrangler": "^4.35.0",
-    "eslint": "^9.0.0"
+    "eslint": "^9.0.0",
+    "vercel": "^34.0.0"
   }
 }

@@ -19,8 +19,6 @@ const nextConfig: NextConfig = {
   // Runtime hardening and ergonomics
   poweredByHeader: false, // Remove X-Powered-By header for security
   reactStrictMode: true, // Enable React strict mode for better development
-  images: { unoptimized: true }, // Disable image optimization for Cloudflare Workers
-  output: "standalone", // Generate standalone build for Cloudflare Workers
 
   // Ensure monorepo packages are transpiled by Next/Turbopack
   // to allow importing TS sources directly from workspaces
@@ -73,14 +71,14 @@ const nextConfig: NextConfig = {
         .filter(Boolean)
         .join(" "),
 
-      // XHR/WebSocket connections (HMR + Clerk API + Workers.dev)
+      // XHR/WebSocket connections (HMR + Clerk API + Vercel)
       [
         "connect-src",
         "'self'",
         "https://api.clerk.com", // Clerk API endpoints
         "https://*.clerk.com", // Clerk CDN connections
         "https://*.clerk.accounts.dev", // Clerk accounts connections
-        "https://*.workers.dev", // Allow connections to workers.dev domains
+        "https://*.vercel.app", // Allow connections to vercel.app domains
         isProd ? null : "ws://localhost:*", // WebSocket for HMR in development
         isProd ? null : "http://localhost:*", // HTTP for HMR in development
       ]

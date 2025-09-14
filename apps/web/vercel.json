@@ -1,0 +1,34 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "pnpm build",
+  "devCommand": "pnpm dev",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "outputDirectory": ".next",
+  "rewrites": [
+    {
+      "source": "/api/v1/(.*)",
+      "destination": "https://hubble-api-git-migration-vercel.vercel.app/api/v1/$1"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "@next-public-clerk-publishable-key",
+    "NEXT_PUBLIC_API_BASE_URL": "@next-public-api-base-url"
+  },
+  "functions": {
+    "app/api/v1/chat/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/v1/chat/conversations/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/v1/chat/conversations/[id]/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/v1/chat/messages/[conversationId]/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/v1/connect/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}

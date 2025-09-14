@@ -1,5 +1,12 @@
-import { createBrowserClientWithFallback } from "@hubble/db"
-import { type SecretsStoreEnv } from "@hubble/env"
+/**
+ * Conversations API Function for Vercel
+ *
+ * Handles listing and creating chat conversations
+ * Converted from Cloudflare Worker to Vercel Function
+ */
+
+import { VercelRequest, VercelResponse } from "@vercel/node"
+import { createBrowserClient } from "@hubble/db"
 import { extractJWTClaims } from "@hubble/auth"
 import {
   type ConversationSummary,
@@ -9,16 +16,13 @@ import {
   validateConversationSummary,
 } from "@hubble/api-contracts/chat"
 
-export async function handleConversations(
-  request: Request,
-  env: SecretsStoreEnv,
-): Promise<Response> {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // Validate authorization header
-    const authHeader = request.headers.get("Authorization")
+    const authHeader = req.headers.authorization
     if (!authHeader?.startsWith("Bearer ")) {
       console.warn("Conversations request missing or invalid Authorization header")
-      return Response.json({ error: "Unauthorized" }, { status: 401 })
+      return res.status(401).json({ error: "Unauthorized" })
     }
 
     const token = authHeader.substring(7)
@@ -32,13 +36,13 @@ export async function handleConversations(
       orgId = claims.orgId!
     } catch (jwtError) {
       console.error("JWT claims extraction failed:", jwtError)
-      return Response.json({ error: "Invalid token" }, { status: 401 })
+      return res.status(401).json({ error: "Invalid token" })
     }
 
     // Create Supabase client with JWT token
-    const supabase = await createBrowserClientWithFallback(env, { authToken: token })
+    const supabase = createBrowserClient({ authToken: token })
 
-    if (request.method === "GET") {
+    if (req.method === "GET") {
       console.log("Fetching conversations", { userId, orgId })
 
       const { data, error } = await supabase
@@ -49,29 +53,23 @@ export async function handleConversations(
 
       if (error) {
         console.error("Database error fetching conversations:", error)
-        return Response.json({ error: "Failed to fetch conversations" }, { status: 500 })
+        return res.status(500).json({ error: "Failed to fetch conversations" })
       }
 
       // Validate response data against schema
       try {
         const validatedData: ConversationSummary[] = (data || []).map(validateConversationSummary)
         console.log("Successfully fetched conversations", { count: validatedData.length })
-        return Response.json(validatedData)
+        return res.status(200).json(validatedData)
       } catch (validationError) {
         console.error("Data validation error:", validationError)
-        return Response.json({ error: "Data validation failed" }, { status: 500 })
+        return res.status(500).json({ error: "Data validation failed" })
       }
     }
 
-    if (request.method === "POST") {
+    if (req.method === "POST") {
       // Parse and validate request body
-      let body: any
-      try {
-        body = await request.json()
-      } catch (parseError) {
-        console.warn("Invalid JSON in conversation creation request")
-        return Response.json({ error: "Invalid JSON" }, { status: 400 })
-      }
+      const body = req.body || {}
 
       // Validate request body against schema
       let validatedBody: CreateConversationRequest
@@ -79,7 +77,7 @@ export async function handleConversations(
         validatedBody = validateCreateConversationRequest(body)
       } catch (validationError) {
         console.warn("Invalid conversation creation request:", validationError)
-        return Response.json({ error: "Invalid request data" }, { status: 400 })
+        return res.status(400).json({ error: "Invalid request data" })
       }
 
       const title = validatedBody.title ?? "New Chat"
@@ -92,7 +90,7 @@ export async function handleConversations(
 
       if (orgError || !orgData) {
         console.error("Organization not found in Clerk mirror:", orgError)
-        return Response.json({ error: "Organization not found" }, { status: 404 })
+        return res.status(404).json({ error: "Organization not found" })
       }
 
       // Insert conversation with user and organization information from JWT
@@ -108,29 +106,26 @@ export async function handleConversations(
 
       if (error) {
         console.error("Database error creating conversation:", error)
-        return Response.json({ error: "Failed to create conversation" }, { status: 500 })
+        return res.status(500).json({ error: "Failed to create conversation" })
       }
 
       // Validate response data against schema
       try {
         const validatedData: CreateConversationResponse = data
         console.log("Successfully created conversation", { id: validatedData.id })
-        return Response.json(validatedData)
+        return res.status(200).json(validatedData)
       } catch (validationError) {
         console.error("Response validation error:", validationError)
-        return Response.json({ error: "Response validation failed" }, { status: 500 })
+        return res.status(500).json({ error: "Response validation failed" })
       }
     }
 
-    console.warn("Unsupported method for conversations endpoint", { method: request.method })
-    return Response.json({ error: "Method not allowed" }, { status: 405 })
+    console.warn("Unsupported method for conversations endpoint", { method: req.method })
+    return res.status(405).json({ error: "Method not allowed" })
   } catch (error) {
     console.error("Conversations endpoint error:", error)
-    return Response.json(
-      {
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    )
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : "Unknown error",
+    })
   }
 }
