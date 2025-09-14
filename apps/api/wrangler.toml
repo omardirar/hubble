@@ -30,6 +30,33 @@ enabled = true                        # Enable structured logging
 # Retention: 7 days preview, 30 days production
 # Sinks: Workers Analytics enabled, Logpush configured via dashboard
 
+# Local Development Environment Configuration
+# Used when running `wrangler dev` locally
+[env.local]
+workers_dev = false                     # Don't use workers.dev for local development
+
+# Environment variables for local development (using regular env vars instead of Secrets Store)
+[env.local.vars]
+ENVIRONMENT = "local"                   # Environment identifier
+API_BASE_URL = "http://localhost:8787" # Local API base URL
+LOG_LEVEL = "debug"                    # Detailed logging for development
+CACHE_TTL = "300"                      # Cache TTL in seconds (5 minutes)
+# These will be overridden by values from .env.local file
+SUPABASE_URL = "placeholder"           # Will be replaced by .env.local
+SUPABASE_ANON_KEY = "placeholder"      # Will be replaced by .env.local
+SUPABASE_SERVICE_ROLE_KEY = "placeholder" # Will be replaced by .env.local
+CLERK_SECRET_KEY = "placeholder"       # Will be replaced by .env.local
+ANTHROPIC_API_KEY = "placeholder"      # Will be replaced by .env.local
+
+# Local development uses regular environment variables instead of Secrets Store
+# These should be set in your local .env.local file or shell environment
+# Required variables:
+# - SUPABASE_URL
+# - SUPABASE_ANON_KEY
+# - SUPABASE_SERVICE_ROLE_KEY
+# - CLERK_SECRET_KEY
+# - ANTHROPIC_API_KEY
+
 # Preview Environment Configuration
 # Deployed to: hubble-api-preview.github-cc7.workers.dev
 [env.preview]

@@ -40,20 +40,8 @@ binding = "ANTHROPIC_API_KEY"
 store_id = "f37d78acf99641778b64ea4c0761c543"
 secret_name = "ANTHROPIC_API_KEY"
 
-[[env.preview.secrets_store_secrets]]
-binding = "SUPABASE_URL"
-store_id = "f37d78acf99641778b64ea4c0761c543"
-secret_name = "SUPABASE_URL"
-
-[[env.preview.secrets_store_secrets]]
-binding = "SUPABASE_ANON_KEY"
-store_id = "f37d78acf99641778b64ea4c0761c543"
-secret_name = "SUPABASE_ANON_KEY"
-
-[[env.preview.secrets_store_secrets]]
-binding = "SUPABASE_SERVICE_ROLE_KEY"
-store_id = "f37d78acf99641778b64ea4c0761c543"
-secret_name = "SUPABASE_SERVICE_ROLE_KEY"
+# Note: Web app does not need direct Supabase access
+# All database operations are handled by the API worker via proxy pattern
 
 # Preview-specific bindings for development and testing
 [[env.preview.kv_namespaces]]
@@ -101,20 +89,8 @@ binding = "ANTHROPIC_API_KEY"
 store_id = "f37d78acf99641778b64ea4c0761c543"
 secret_name = "ANTHROPIC_API_KEY"
 
-[[env.production.secrets_store_secrets]]
-binding = "SUPABASE_URL"
-store_id = "f37d78acf99641778b64ea4c0761c543"
-secret_name = "SUPABASE_URL"
-
-[[env.production.secrets_store_secrets]]
-binding = "SUPABASE_ANON_KEY"
-store_id = "f37d78acf99641778b64ea4c0761c543"
-secret_name = "SUPABASE_ANON_KEY"
-
-[[env.production.secrets_store_secrets]]
-binding = "SUPABASE_SERVICE_ROLE_KEY"
-store_id = "f37d78acf99641778b64ea4c0761c543"
-secret_name = "SUPABASE_SERVICE_ROLE_KEY"
+# Note: Web app does not need direct Supabase access
+# All database operations are handled by the API worker via proxy pattern
 
 # Production bindings with high availability and performance optimization
 [[env.production.kv_namespaces]]

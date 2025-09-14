@@ -87,7 +87,10 @@ returns text
 language sql
 stable
 as $fn$
-  select public.jwt_claim('org_id')
+  select coalesce(
+    auth.jwt()->>'org_id',
+    auth.jwt()->'o'->>'id'
+  )
 $fn$;
 alter function public.current_org_id() set search_path = pg_catalog, public;
 
@@ -525,32 +528,32 @@ alter table public.provisioning_runs  enable row level security;
 drop policy if exists tenants_select_org on public.tenants;
 create policy tenants_select_org
   on public.tenants for select
-  using (org_id = public.current_org_id());
+  using (org_id = (select public.current_org_id()));
 
 drop policy if exists dest_select_org on public.tenant_destinations;
 create policy dest_select_org
   on public.tenant_destinations for select
-  using (org_id = public.current_org_id());
+  using (org_id = (select public.current_org_id()));
 
 drop policy if exists conns_select_org on public.connections;
 create policy conns_select_org
   on public.connections for select
-  using (org_id = public.current_org_id());
+  using (org_id = (select public.current_org_id()));
 
 drop policy if exists events_select_org on public.events;
 create policy events_select_org
   on public.events for select
-  using (org_id = public.current_org_id());
+  using (org_id = (select public.current_org_id()));
 
 drop policy if exists runs_select_org on public.provisioning_runs;
 create policy runs_select_org
   on public.provisioning_runs for select
-  using (org_id = public.current_org_id());
+  using (org_id = (select public.current_org_id()));
 
 drop policy if exists quotas_select_org on public.tenant_quotas;
 create policy quotas_select_org
   on public.tenant_quotas for select
-  using (org_id = public.current_org_id());
+  using (org_id = (select public.current_org_id()));
 
  -- Service key bypasses RLS; no explicit service-role policies required.
 
@@ -1209,18 +1212,52 @@ create table if not exists public.messages (
   updated_at timestamptz not null default now()
 );
 
--- Optional FK to ensure org consistency (not validated by default)
+-- Remove foreign key constraint to tenants table since we use Clerk mirror
 do $$
 begin
-  if not exists (
+  if exists (
     select 1 from pg_constraint
     where conrelid='public.messages'::regclass and conname='messages_org_fk'
   ) then
-    alter table public.messages
-      add constraint messages_org_fk
-      foreign key (org_id) references public.tenants(org_id) not valid;
+    alter table public.messages drop constraint messages_org_fk;
   end if;
 end$$;
+
+-- Helper function to get organization data from Clerk mirror
+create or replace function public.get_org_from_clerk_mirror(p_org_id text)
+returns jsonb
+language plpgsql
+security definer
+as $$
+declare
+  v_org_data jsonb;
+begin
+  -- First try to get organization data from Clerk raw_objects table (where the full data is stored)
+  select data into v_org_data
+  from clerk.raw_objects
+  where object_type = 'organization'
+    and object_id = p_org_id
+    and deleted_at is null;
+
+  -- If not found in raw_objects, check if organization exists in organizations table
+  if v_org_data is null then
+    if exists (
+      select 1
+      from clerk.organizations
+      where organization_id = p_org_id
+    ) then
+      -- Organization exists in organizations table, return a minimal object
+      return jsonb_build_object('id', p_org_id, 'exists', true);
+    end if;
+  end if;
+
+  return v_org_data;
+end;
+$$;
+
+-- Set proper permissions for the helper function
+alter function public.get_org_from_clerk_mirror(text) set search_path = pg_catalog, public;
+grant execute on function public.get_org_from_clerk_mirror(text) to authenticated;
 
 -- Post-tables: RPC append message (returns public.messages)
 create or replace function public.rpc_append_message(
@@ -1238,8 +1275,13 @@ declare
   v_sub text;
   v_org text;
 begin
-  v_sub := public.jwt_claim('sub');
-  v_org := public.jwt_claim('org_id');
+  v_sub := auth.jwt()->>'sub';
+  v_org := public.current_org_id();
+
+  -- Verify organization exists in Clerk mirror
+  if public.get_org_from_clerk_mirror(v_org) is null then
+    raise exception 'Organization % not found in Clerk mirror', v_org using errcode = '42501';
+  end if;
 
   -- optional rate limiting: 120 messages per 5 minutes per user
   perform public.rate_limit_check(v_sub, 'append_message', interval '5 minutes', 120);
@@ -1262,12 +1304,12 @@ begin
   end if;
 
   if p_idempotency_key is null then
-    insert into public.messages (conversation_id, role, content)
-    values (p_conversation_id, p_role, p_content)
+    insert into public.messages (conversation_id, org_id, owner_user_id, role, content)
+    values (p_conversation_id, v_org, v_sub, p_role, p_content)
     returning * into v_msg;
   else
-    insert into public.messages (conversation_id, role, content, idempotency_key)
-    values (p_conversation_id, p_role, p_content, p_idempotency_key)
+    insert into public.messages (conversation_id, org_id, owner_user_id, role, content, idempotency_key)
+    values (p_conversation_id, v_org, v_sub, p_role, p_content, p_idempotency_key)
     on conflict (conversation_id, idempotency_key)
     where idempotency_key is not null
     do update set idempotency_key = excluded.idempotency_key
@@ -1371,8 +1413,8 @@ create policy conversations_select_own
 on public.conversations
 for select
 using (
-  owner_user_id = public.jwt_claim('sub')
-  and org_id     = public.jwt_claim('org_id')
+  owner_user_id = (select auth.jwt()->>'sub')
+  and org_id     = (select public.current_org_id())
 );
 
 drop policy if exists conversations_insert_self on public.conversations;
@@ -1380,8 +1422,8 @@ create policy conversations_insert_self
 on public.conversations
 for insert
 with check (
-  owner_user_id = public.jwt_claim('sub')
-  and org_id     = public.jwt_claim('org_id')
+  owner_user_id = (select auth.jwt()->>'sub')
+  and org_id     = (select public.current_org_id())
 );
 
 drop policy if exists conversations_update_own on public.conversations;
@@ -1389,12 +1431,12 @@ create policy conversations_update_own
 on public.conversations
 for update
 using (
-  owner_user_id = public.jwt_claim('sub')
-  and org_id     = public.jwt_claim('org_id')
+  owner_user_id = (select auth.jwt()->>'sub')
+  and org_id     = (select public.current_org_id())
 )
 with check (
-  owner_user_id = public.jwt_claim('sub')
-  and org_id     = public.jwt_claim('org_id')
+  owner_user_id = (select auth.jwt()->>'sub')
+  and org_id     = (select public.current_org_id())
 );
 
 drop policy if exists conversations_delete_own on public.conversations;
@@ -1402,8 +1444,8 @@ create policy conversations_delete_own
 on public.conversations
 for delete
 using (
-  owner_user_id = public.jwt_claim('sub')
-  and org_id     = public.jwt_claim('org_id')
+  owner_user_id = (select auth.jwt()->>'sub')
+  and org_id     = (select public.current_org_id())
 );
 
 drop policy if exists messages_select_own on public.messages;
@@ -1411,14 +1453,14 @@ create policy messages_select_own
 on public.messages
 for select
 using (
-  owner_user_id = public.jwt_claim('sub')
-  and org_id     = public.jwt_claim('org_id')
+  owner_user_id = (select auth.jwt()->>'sub')
+  and org_id     = (select public.current_org_id())
   and exists (
     select 1
     from public.conversations c
     where c.id = public.messages.conversation_id
-      and c.owner_user_id = public.jwt_claim('sub')
-      and c.org_id = public.jwt_claim('org_id')
+      and c.owner_user_id = (select auth.jwt()->>'sub')
+      and c.org_id = (select public.current_org_id())
   )
 );
 
@@ -1431,8 +1473,8 @@ with check (
     select 1
     from public.conversations c
     where c.id = conversation_id
-      and c.owner_user_id = public.jwt_claim('sub')
-      and c.org_id = public.jwt_claim('org_id')
+      and c.owner_user_id = (select auth.jwt()->>'sub')
+      and c.org_id = (select public.current_org_id())
   )
 );
 
@@ -1441,19 +1483,19 @@ create policy messages_update_own
 on public.messages
 for update
 using (
-  owner_user_id = public.jwt_claim('sub')
-  and org_id     = public.jwt_claim('org_id')
+  owner_user_id = (select auth.jwt()->>'sub')
+  and org_id     = (select public.current_org_id())
   and exists (
     select 1
     from public.conversations c
     where c.id = public.messages.conversation_id
-      and c.owner_user_id = public.jwt_claim('sub')
-      and c.org_id = public.jwt_claim('org_id')
+      and c.owner_user_id = (select auth.jwt()->>'sub')
+      and c.org_id = (select public.current_org_id())
   )
 )
 with check (
-  owner_user_id = public.jwt_claim('sub')
-  and org_id     = public.jwt_claim('org_id')
+  owner_user_id = (select auth.jwt()->>'sub')
+  and org_id     = (select public.current_org_id())
 );
 
 drop policy if exists messages_delete_own on public.messages;
@@ -1461,14 +1503,14 @@ create policy messages_delete_own
 on public.messages
 for delete
 using (
-  owner_user_id = public.jwt_claim('sub')
-  and org_id     = public.jwt_claim('org_id')
+  owner_user_id = (select auth.jwt()->>'sub')
+  and org_id     = (select public.current_org_id())
   and exists (
     select 1
     from public.conversations c
     where c.id = public.messages.conversation_id
-      and c.owner_user_id = public.jwt_claim('sub')
-      and c.org_id = public.jwt_claim('org_id')
+      and c.owner_user_id = (select auth.jwt()->>'sub')
+      and c.org_id = (select public.current_org_id())
   )
 );
 

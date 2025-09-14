@@ -128,7 +128,7 @@ export function readPublicEnv(): PublicEnv {
  * @param fnName - The name of the function being called (for error messages)
  * @throws Error if called on the client side
  */
-function ensureServerOnly(fnName: string) {
+export function ensureServerOnly(fnName: string) {
   if (typeof window !== "undefined") {
     throw new Error(`${fnName} must only be called on the server`)
   }
@@ -337,6 +337,67 @@ export async function getSecretValue<T extends keyof SecretsStoreEnv>(
 }
 
 /**
+ * Get a secret value with fallback to environment variables
+ *
+ * This function tries to get a secret from Cloudflare Secrets Store first,
+ * then falls back to regular environment variables for local development.
+ * This allows the same code to work in both deployed and local environments.
+ *
+ * @param env - The Cloudflare Workers environment object
+ * @param secretName - The name of the secret to retrieve
+ * @param envVarName - The environment variable name to fallback to
+ * @returns Promise that resolves to the secret value
+ * @throws Error if neither secret nor environment variable is found
+ */
+export async function getSecretValueWithFallback(
+  env: SecretsStoreEnv,
+  secretName: keyof SecretsStoreEnv,
+  envVarName: string,
+): Promise<string> {
+  // Ensure this function is only called on the server
+  ensureServerOnly("getSecretValueWithFallback")
+
+  // Check if we're in local development mode (no Secrets Store bindings)
+  const isLocalDev = !env[secretName] || typeof env[secretName]?.get !== "function"
+
+  if (isLocalDev) {
+    // Local development: use environment variables directly
+    const envValue = process.env[envVarName]
+    if (envValue) {
+      return envValue
+    }
+
+    throw new Error(
+      `Environment variable '${envVarName}' not set for local development. ` +
+        `Set ${envVarName} in your .env.local file or shell environment.`,
+    )
+  }
+
+  // Deployed environment: try Secrets Store first
+  try {
+    const secret = env[secretName]
+    if (secret && typeof secret.get === "function") {
+      const value = await secret.get()
+      if (value) {
+        return value
+      }
+    }
+  } catch (error) {
+    // Secrets Store failed, try environment variable as fallback
+    const envValue = process.env[envVarName]
+    if (envValue) {
+      return envValue
+    }
+  }
+
+  // Neither source available
+  throw new Error(
+    `Secret '${secretName}' not found in Secrets Store and environment variable '${envVarName}' not set. ` +
+      `For local development, set ${envVarName} in your .env file or shell environment.`,
+  )
+}
+
+/**
  * Get Supabase environment configuration from Secrets Store
  *
  * Retrieves Supabase URL and anonymous key from Cloudflare Secrets Store.
@@ -368,6 +429,62 @@ export async function getSupabaseEnvFromSecrets(env: SecretsStoreEnv) {
 }
 
 /**
+ * Get Supabase environment configuration with fallback to environment variables
+ *
+ * This function tries to get Supabase configuration from Secrets Store first,
+ * then falls back to regular environment variables for local development.
+ * This allows the same code to work in both deployed and local environments.
+ *
+ * @param env - The Cloudflare Workers environment object
+ * @returns Promise that resolves to Supabase configuration
+ * @throws Error if neither secrets nor environment variables are found
+ */
+export async function getSupabaseEnvWithFallback(env: SecretsStoreEnv) {
+  // Ensure this function is only called on the server
+  ensureServerOnly("getSupabaseEnvWithFallback")
+
+  // Check if we're in local development mode
+  const isLocalDev = !env.SUPABASE_URL || typeof env.SUPABASE_URL?.get !== "function"
+
+  if (isLocalDev) {
+    // Local development: use environment variables directly
+    const url = process.env.SUPABASE_URL
+    const anonKey = process.env.SUPABASE_ANON_KEY
+
+    if (!url || !anonKey) {
+      throw new Error(
+        `Missing environment variables for local development. ` +
+          `Set SUPABASE_URL and SUPABASE_ANON_KEY in your .env.local file.`,
+      )
+    }
+
+    // Validate URL shape to ensure it's a valid URL
+    try {
+      new URL(url)
+    } catch {
+      throw new Error("Invalid Supabase URL: not a valid URL")
+    }
+
+    return { url, anonKey }
+  }
+
+  // Deployed environment: use Secrets Store
+  const [url, anonKey] = await Promise.all([
+    getSecretValueWithFallback(env, "SUPABASE_URL", "SUPABASE_URL"),
+    getSecretValueWithFallback(env, "SUPABASE_ANON_KEY", "SUPABASE_ANON_KEY"),
+  ])
+
+  // Validate URL shape to ensure it's a valid URL
+  try {
+    new URL(url)
+  } catch {
+    throw new Error("Invalid Supabase URL: not a valid URL")
+  }
+
+  return { url, anonKey }
+}
+
+/**
  * Get Anthropic API configuration from Secrets Store
  *
  * Retrieves the Anthropic API key from Cloudflare Secrets Store and
@@ -381,10 +498,25 @@ export async function getAnthropicEnvFromSecrets(env: SecretsStoreEnv) {
   // Ensure this function is only called on the server
   ensureServerOnly("getAnthropicEnvFromSecrets")
 
-  // Get API key from Secrets Store
-  const apiKey = await getSecretValue(env, "ANTHROPIC_API_KEY")
+  // Check if we're in local development mode
+  const isLocalDev = !env.ANTHROPIC_API_KEY || typeof env.ANTHROPIC_API_KEY?.get !== "function"
 
-  // Use configured model or default to Claude 3.5 Sonnet
+  if (isLocalDev) {
+    // Local development: use environment variables directly
+    const apiKey = process.env.ANTHROPIC_API_KEY
+    if (!apiKey) {
+      throw new Error(
+        `Missing ANTHROPIC_API_KEY for local development. ` +
+          `Set ANTHROPIC_API_KEY in your .env.local file.`,
+      )
+    }
+
+    const model = process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-latest"
+    return { apiKey, model }
+  }
+
+  // Deployed environment: use Secrets Store
+  const apiKey = await getSecretValue(env, "ANTHROPIC_API_KEY")
   const model = process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-latest"
 
   return { apiKey, model }

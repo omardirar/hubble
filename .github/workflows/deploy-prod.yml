@@ -77,17 +77,6 @@ jobs:
       - name: Build workspace
         run: pnpm build
 
-      - name: Set Clerk Secret Key
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: "apps/web"
-          command: secret put CLERK_SECRET_KEY --env production
-          wranglerVersion: "4.35.0"
-        env:
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-
       - name: Deploy Web App
         uses: cloudflare/wrangler-action@v3
         with:

@@ -1,3 +1,6 @@
+import { auth } from "@clerk/nextjs/server"
+import { getApiWorkerUrl } from "@hubble/utils"
+
 /**
  * Web App API Route: Chat Proxy
  *
@@ -22,29 +25,36 @@
  * Handle POST requests to /api/v1/chat
  *
  * This function proxies chat requests from the web application to the API worker.
- * It forwards the request body and headers, then returns the response from the
- * API worker back to the client.
+ * It authenticates the user via Clerk, retrieves their JWT token, and forwards
+ * the request with proper authentication to the API worker.
  *
  * @param req - The incoming Next.js request object
  * @returns Promise that resolves to a Next.js response
  */
 export async function POST(req: Request) {
   try {
+    // Get Clerk token for authentication
+    const { getToken } = await auth()
+    const token = await getToken()
+
+    // Ensure user is authenticated
+    if (!token) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     // Parse the request body, with fallback to empty object if parsing fails
     const body = await req.json().catch(() => ({}))
 
     // Determine the API worker URL from environment variables
-    // Falls back to preview URL if not configured (for development)
-    const apiUrl =
-      process.env.NEXT_PUBLIC_API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
+    const apiUrl = getApiWorkerUrl()
 
-    // Forward the request to the API worker
+    // Forward the request to the API worker with proper authentication
     const response = await fetch(`${apiUrl}/v1/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        // Forward the Authorization header to maintain user context
-        Authorization: req.headers.get("Authorization") || "",
+        // Forward the Clerk JWT token for user authentication
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(body), // Forward the request body
     })

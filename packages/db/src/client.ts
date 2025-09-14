@@ -7,13 +7,19 @@
  *
  * Architecture:
  * - Browser clients use anon key authentication and respect RLS policies
- * - JWT tokens can be provided for authenticated requests
+ * - JWT tokens can be provided for authenticated requests using accessToken
  * - Two methods: traditional env vars and Secrets Store (for Cloudflare Workers)
  * - All clients are configured for optimal browser usage (auto-refresh, persistence)
  */
 
 import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js"
-import { readPublicEnv, getSupabaseEnvFromSecrets, type SecretsStoreEnv } from "@hubble/env"
+import {
+  readPublicEnv,
+  getSupabaseEnvFromSecrets,
+  getSupabaseEnvWithFallback,
+  ensureServerOnly,
+  type SecretsStoreEnv,
+} from "@hubble/env"
 
 /**
  * Creates a Supabase client for browser/client-side usage with anon key authentication.
@@ -25,7 +31,7 @@ import { readPublicEnv, getSupabaseEnvFromSecrets, type SecretsStoreEnv } from "
  * Security considerations:
  * - Uses anonymous key (safe for client-side exposure)
  * - Respects RLS policies for data access control
- * - JWT tokens can be provided for authenticated requests
+ * - JWT tokens can be provided for authenticated requests via accessToken
  * - No service role key (prevents privilege escalation)
  *
  * @param options Optional configuration for the client
@@ -50,6 +56,8 @@ export function createBrowserClient(options?: { authToken?: string }): SupabaseC
 
   // Add JWT token to requests if provided (for authenticated operations)
   if (options?.authToken) {
+    // For third-party JWT tokens (like Clerk), we need to pass the token
+    // in the Authorization header for Supabase to verify it and make it available to RLS
     clientOptions.global = {
       headers: {
         Authorization: `Bearer ${options.authToken}`,
@@ -79,7 +87,7 @@ export function createBrowserClient(options?: { authToken?: string }): SupabaseC
  * Security considerations:
  * - Uses anonymous key (safe for client-side exposure)
  * - Respects RLS policies for data access control
- * - JWT tokens can be provided for authenticated requests
+ * - JWT tokens can be provided for authenticated requests via accessToken
  * - Secrets are retrieved asynchronously from Cloudflare Secrets Store
  * - No service role key (prevents privilege escalation)
  *
@@ -106,6 +114,53 @@ export async function createBrowserClientFromSecrets(
 
   // Add JWT token to requests if provided (for authenticated operations)
   if (options?.authToken) {
+    // For third-party JWT tokens (like Clerk), we need to pass the token
+    // in the Authorization header for Supabase to verify it and make it available to RLS
+    clientOptions.global = {
+      headers: {
+        Authorization: `Bearer ${options.authToken}`,
+      },
+    }
+  }
+
+  // Create and return the Supabase client with anon key authentication
+  return createSupabaseClient(url, anonKey, clientOptions)
+}
+
+/**
+ * Create a Supabase browser client with fallback to environment variables
+ *
+ * This function creates a Supabase client that works in both deployed and
+ * local development environments. It tries Secrets Store first, then falls
+ * back to environment variables for local development.
+ *
+ * @param env - The Cloudflare Workers environment object
+ * @param options - Optional configuration for the client
+ * @returns Promise that resolves to a configured Supabase client
+ * @throws Error if neither secrets nor environment variables are found
+ */
+export async function createBrowserClientWithFallback(
+  env: SecretsStoreEnv,
+  options?: { authToken?: string },
+): Promise<SupabaseClient> {
+  // Ensure this function is only called on the server
+  ensureServerOnly("createBrowserClientWithFallback")
+
+  // Get Supabase configuration with fallback support
+  const { url, anonKey } = await getSupabaseEnvWithFallback(env)
+
+  // Configure client options for optimal browser usage
+  const clientOptions: any = {
+    auth: {
+      autoRefreshToken: true, // Automatically refresh expired tokens
+      persistSession: true, // Persist session across browser refreshes
+    },
+  }
+
+  // Add JWT token to requests if provided (for authenticated operations)
+  if (options?.authToken) {
+    // For third-party JWT tokens (like Clerk), we need to pass the token
+    // in the Authorization header for Supabase to verify it and make it available to RLS
     clientOptions.global = {
       headers: {
         Authorization: `Bearer ${options.authToken}`,

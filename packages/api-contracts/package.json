@@ -12,10 +12,21 @@
     ".": {
       "types": "./src/index.ts",
       "import": "./src/index.ts"
+    },
+    "./chat": {
+      "types": "./src/chat.ts",
+      "import": "./src/chat.ts"
+    },
+    "./connect": {
+      "types": "./src/connect.ts",
+      "import": "./src/connect.ts"
     }
   },
   "license": "MIT",
   "sideEffects": false,
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
   "devDependencies": {
     "typescript": "^5.5.0",
     "@hubble/tsconfig": "workspace:*",

@@ -11,8 +11,8 @@ export default function Home() {
         </SignInButton>
       </SignedOut>
       <SignedIn>
-        <Link href="/dashboard">
-          <Button>Open dashboard</Button>
+        <Link href="/chat">
+          <Button>Open chat</Button>
         </Link>
       </SignedIn>
     </div>

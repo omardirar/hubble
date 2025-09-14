@@ -6,10 +6,12 @@
     "@hubble/workflows": "workspace:*",
     "@hubble/db": "workspace:*",
     "@hubble/env": "workspace:*",
-    "@hubble/utils": "workspace:*"
+    "@hubble/utils": "workspace:*",
+    "@hubble/auth": "workspace:*",
+    "@hubble/api-contracts": "workspace:*"
   },
   "scripts": {
-    "dev": "wrangler dev --local --persist-to=./.wrangler/state",
+    "dev": "wrangler dev --local --persist-to=./.wrangler/state --env-file=../../.env.local",
     "build": "tsc -p tsconfig.json && esbuild src/index.ts --bundle --format=esm --outfile=dist/index.mjs",
     "start": "wrangler deploy --dry-run",
     "deploy": "wrangler deploy",

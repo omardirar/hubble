@@ -1,3 +1,5 @@
+import { getApiWorkerUrl } from "@hubble/utils"
+
 /**
  * Web App API Route: Connection Management Proxy
  *
@@ -41,8 +43,7 @@ export async function GET(req: Request) {
     }
 
     // Determine the API worker URL from environment variables
-    const apiUrl =
-      process.env.NEXT_PUBLIC_API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
+    const apiUrl = getApiWorkerUrl()
 
     // Forward the status check request to the API worker
     const response = await fetch(`${apiUrl}/v1/connect/status?jobId=${encodeURIComponent(jobId)}`, {
@@ -84,8 +85,7 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}))
 
     // Determine the API worker URL from environment variables
-    const apiUrl =
-      process.env.NEXT_PUBLIC_API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
+    const apiUrl = getApiWorkerUrl()
 
     // Forward the connection enable request to the API worker
     const response = await fetch(`${apiUrl}/v1/connect/enable`, {

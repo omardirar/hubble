@@ -1,17 +1,17 @@
 import { auth } from "@clerk/nextjs/server"
+import { getApiWorkerUrl } from "@hubble/utils"
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   // RLS enforcement occurs in the API Worker (via Supabase JWT). We only pass the JWT.
   const { getToken } = await auth()
-  const token = await getToken({ template: "supabase" }).catch(() => null)
+  const token = await getToken()
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
 
   const { id } = await ctx.params
   const body = await req.json().catch(() => ({}))
 
   // Proxy request to API worker
-  const apiUrl =
-    process.env.NEXT_PUBLIC_API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
+  const apiUrl = getApiWorkerUrl()
   const response = await fetch(`${apiUrl}/v1/chat/conversations/${id}`, {
     method: "PATCH",
     headers: {

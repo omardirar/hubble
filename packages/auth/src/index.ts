@@ -10,3 +10,4 @@
  */
 
 export * from "./getOrgId" // Organization ID utilities
+export * from "./jwt-utils" // JWT token utilities for claim extraction

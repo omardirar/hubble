@@ -1,4 +1,4 @@
-import { createBrowserClientFromSecrets } from "@hubble/db"
+import { createBrowserClientWithFallback } from "@hubble/db"
 import { type SecretsStoreEnv } from "@hubble/env"
 
 export async function handleConversationById(
@@ -13,7 +13,7 @@ export async function handleConversationById(
     }
 
     const token = authHeader.substring(7)
-    const supabase = await createBrowserClientFromSecrets(env, { authToken: token })
+    const supabase = await createBrowserClientWithFallback(env, { authToken: token })
 
     if (request.method === "PATCH") {
       const body = (await request.json().catch(() => ({}))) as {

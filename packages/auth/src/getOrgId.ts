@@ -6,27 +6,85 @@
  * management.
  */
 
-// TODO: Implement Clerk helper to resolve org ID from request/session
-//   Context: Read from Clerk JWT/session and return selected organization ID or null.
-//   labels: area/auth, feature/orgs, type/feature
-//   assignees: omzification
-//   milestone: 0.0.1
+import { createServiceClient } from "@hubble/db"
 
 /**
- * Get the current user's organization ID
+ * Retrieves the organization ID for a specific user from Clerk data.
  *
- * This function retrieves the organization ID from the current authentication
- * context. It will read from Clerk JWT tokens or session data to determine
- * which organization the user is currently operating within.
+ * This function queries the Clerk mirror tables in Supabase to find
+ * the organization that the user belongs to. It first checks for an
+ * active organization membership, then falls back to the user's
+ * primary organization if available.
  *
- * Currently returns null as a placeholder implementation. The actual implementation
- * will integrate with Clerk to extract organization context from JWT claims.
+ * @param userId - The Clerk user ID to look up
+ * @returns Promise that resolves to the organization ID, or null if not found
+ */
+export async function getOrgId(userId: string): Promise<string | null> {
+  const supabase = createServiceClient()
+
+  // First, try to find an active organization membership
+  const { data: membership } = await supabase
+    .from("organization_memberships")
+    .select("organization_id")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single()
+
+  if (membership?.organization_id) {
+    return membership.organization_id
+  }
+
+  // Fallback: check if user has a primary organization
+  const { data: user } = await supabase
+    .from("users")
+    .select("primary_organization_id")
+    .eq("user_id", userId)
+    .single()
+
+  return user?.primary_organization_id || null
+}
+
+/**
+ * Extracts user ID and organization ID from a JWT token using Clerk's JWT template.
  *
- * @returns Promise that resolves to the organization ID or null if not available
+ * This function uses the extractJWTClaims utility to extract user and organization
+ * information directly from the JWT token. With Clerk's JWT template configured
+ * to include organization data, we no longer need to query the database.
  *
+ * @param token - The JWT token from the Authorization header
+ * @returns Promise that resolves to user and organization info, or null if not found
+ */
+export async function getUserAndOrgFromToken(token: string): Promise<{
+  userId: string
+  orgId: string
+} | null> {
+  try {
+    // Import extractJWTClaims to avoid circular dependency
+    const { extractJWTClaims } = await import("./jwt-utils")
+
+    // Extract user and organization information from JWT token
+    const claims = extractJWTClaims(token)
+
+    if (!claims.userId || !claims.orgId) {
+      return null
+    }
+
+    return {
+      userId: claims.userId,
+      orgId: claims.orgId,
+    }
+  } catch (error) {
+    console.error("Error extracting user and org from token:", error)
+    return null
+  }
+}
+
+/**
  * @example
  * ```ts
- * const orgId = await getOrgId()
+ * const orgId = await getCurrentOrgId()
  * if (orgId) {
  *   // User is in an organization context
  *   console.log(`Current org: ${orgId}`)
@@ -36,7 +94,7 @@
  * }
  * ```
  */
-export async function getOrgId(): Promise<string | null> {
+export async function getCurrentOrgId(): Promise<string | null> {
   // TODO: Implement actual Clerk integration
   //   Context: This should read from Clerk JWT claims or session data
   //   labels: area/auth, feature/orgs, type/feature

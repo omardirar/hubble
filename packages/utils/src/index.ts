@@ -18,3 +18,4 @@ export * from "./errors" // Error handling utilities
 export * from "./cn" // Class name utilities
 export * from "./id" // ID generation utilities
 export * from "./chat" // Chat utilities
+export * from "./api-url" // API URL resolution utilities

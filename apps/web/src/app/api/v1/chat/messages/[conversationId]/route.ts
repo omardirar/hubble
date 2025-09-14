@@ -1,15 +1,15 @@
 import { auth } from "@clerk/nextjs/server"
+import { getApiWorkerUrl } from "@hubble/utils"
 
 export async function GET(_req: Request, ctx: { params: Promise<{ conversationId: string }> }) {
   const { getToken } = await auth()
-  const token = await getToken({ template: "supabase" }).catch(() => null)
+  const token = await getToken()
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
 
   const { conversationId: convoId } = await ctx.params
 
   // Proxy request to API worker
-  const apiUrl =
-    process.env.NEXT_PUBLIC_API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
+  const apiUrl = getApiWorkerUrl()
   const response = await fetch(`${apiUrl}/v1/chat/messages/${convoId}`, {
     method: "GET",
     headers: {
@@ -33,15 +33,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ conversationId
   //   assignees: omzification
   //   milestone: 0.0.1
   const { getToken } = await auth()
-  const token = await getToken({ template: "supabase" }).catch(() => null)
+  const token = await getToken()
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
 
   const { conversationId: convoId } = await ctx.params
   const body = await req.json().catch(() => ({}))
 
   // Proxy request to API worker
-  const apiUrl =
-    process.env.NEXT_PUBLIC_API_BASE_URL || "https://hubble-api-preview.github-cc7.workers.dev"
+  const apiUrl = getApiWorkerUrl()
   const response = await fetch(`${apiUrl}/v1/chat/messages/${convoId}`, {
     method: "POST",
     headers: {

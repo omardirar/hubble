@@ -5,6 +5,40 @@
 - **Web app**: `apps/web/wrangler.toml` (OpenNext worker for Next.js)
 - **API worker**: `apps/api/wrangler.toml` (Cloudflare Worker with routing)
 
+## Authentication Integration
+
+This project uses the **native Clerk-Supabase integration** with a **proxy architecture**, which is the recommended approach as of 2024. This replaces the deprecated JWT template method and provides:
+
+- **Better Security**: No JWT secret sharing with third parties
+- **Easier Maintenance**: No JWT secret rotation issues
+- **Better Performance**: No additional latency for JWT generation
+- **Future-Proof**: Supported approach going forward
+- **Centralized Auth**: All authentication logic in API worker
+- **Enhanced Security**: No client-side Supabase credentials
+
+### Architecture
+
+```text
+Browser → Next.js API Routes → API Worker → Supabase
+```
+
+- **Browser**: Uses `apiFetch` for all database operations
+- **Next.js API Routes**: Proxy requests to API worker with Clerk JWT tokens
+- **API Worker**: Uses native Clerk-Supabase integration for database operations
+- **Supabase**: Enforces RLS policies based on Clerk JWT claims
+
+### Setup Documentation
+
+See [docs/setup-clerk-supabase-native.md](../docs/setup-clerk-supabase-native.md) for complete setup instructions.
+
+### Key Configuration
+
+- **Clerk**: Native Supabase integration enabled
+- **Supabase**: Clerk configured as third-party auth provider
+- **Database**: RLS policies use `auth.jwt()` for organization access
+- **API Worker**: Uses `createBrowserClientWithFallback` with JWT tokens
+- **Browser**: Uses `apiFetch` to communicate with API worker
+
 ## Deployment Strategy
 
 ### Domain Configuration
