@@ -2,7 +2,7 @@
  * API URL Utilities
  *
  * This module provides utilities for determining the correct API URL
- * using Vercel's Related Projects feature for monorepo integration.
+ * using Vercel System Environment Variables for environment-aware resolution.
  *
  * Features:
  * - Vercel Related Projects integration
@@ -12,7 +12,6 @@
  * - Type-safe implementation
  */
 
-import { withRelatedProject } from "@vercel/related-projects"
 import { logger } from "./logger"
 
 /**
@@ -35,69 +34,49 @@ import { logger } from "./logger"
  * ```
  */
 export function getApiWorkerUrl(fallbackUrl?: string): string {
-  // Use local Vercel dev server URL in development
+  // Development: local API dev server
   if (process.env.NODE_ENV === "development") {
-    return "http://localhost:3001"
+    return API_URLS.LOCAL
   }
 
-  // In production/preview, use Vercel Related Projects
-  try {
-    // Use Related Projects. Library supports name-based resolution at runtime.
-    const relatedProjectUrl = withRelatedProject({
-      projectName: "hubble-api",
-      defaultHost: fallbackUrl || "https://hubble-api.vercel.app",
-    })
+  const env = process.env.VERCEL_ENV // production | preview | development
 
-    // If we accidentally resolve to a web project preview domain, correct it
-    // Known bad pattern: hubble-api-git-<branch>-hubble-app.vercel.app (web project suffix)
-    const host = relatedProjectUrl.replace(/^https?:\/\//, "")
-    const seemsLikeWebPreview = host.includes("hubble-app.vercel.app")
-
-    // Log the resolved URL for debugging (preview only)
-    if (process.env.VERCEL_ENV === "preview") {
-      logger.info("Related project URL resolved", {
-        component: "api-url",
-        resolvedUrl: relatedProjectUrl,
-        environment: process.env.NODE_ENV,
-        vercelEnv: process.env.VERCEL_ENV,
-        seemsLikeWebPreview,
-      })
-    }
-
-    if (seemsLikeWebPreview) {
-      const chosen =
-        fallbackUrl || process.env.NEXT_PUBLIC_API_BASE_URL || "https://hubble-api.vercel.app"
-      logger.warn("Using API URL fallback due to web preview host detection", {
-        component: "api-url",
-        chosen,
-      })
-      return chosen
-    }
-
-    return relatedProjectUrl
-  } catch (error) {
-    logger.warn("Failed to resolve related project URL", {
+  // Production: return production API URL
+  if (env === "production") {
+    logger.info("Resolved API URL for production", {
       component: "api-url",
-      error: error instanceof Error ? error.message : String(error),
+      chosen: API_URLS.PRODUCTION,
     })
+    return API_URLS.PRODUCTION
+  }
 
-    // For preview environments, try to use a more reliable fallback
-    if (process.env.VERCEL_ENV === "preview") {
-      const previewFallback =
-        process.env.NEXT_PUBLIC_API_BASE_URL || "https://hubble-api.vercel.app"
-      logger.info("Using preview API fallback", {
+  // Preview: best-effort derivation using VERCEL_BRANCH_URL; fall back safely
+  if (env === "preview") {
+    const branchHost = process.env.VERCEL_BRANCH_URL // e.g. webproject-git-branch-team.vercel.app
+    if (branchHost) {
+      const derived = `https://${branchHost}`
+      logger.info("Derived preview API URL from VERCEL_BRANCH_URL", {
         component: "api-url",
-        previewFallback,
+        branchHost,
+        derived,
       })
-      return previewFallback
+      return derived
     }
 
-    // Fallback to environment variable or default if related projects fail
+    // If branch URL is unavailable, use explicit env override or stable fallback
     const chosen =
-      process.env.NEXT_PUBLIC_API_BASE_URL || fallbackUrl || "https://hubble-api.vercel.app"
-    logger.info("Using default API fallback", { component: "api-url", chosen })
+      process.env.NEXT_PUBLIC_API_BASE_URL || fallbackUrl || API_URLS.PREVIEW || API_URLS.PRODUCTION
+    logger.warn("Using preview API fallback (no branch host)", {
+      component: "api-url",
+      chosen,
+    })
     return chosen
   }
+
+  // Unknown env: choose safest default
+  const chosen = process.env.NEXT_PUBLIC_API_BASE_URL || fallbackUrl || API_URLS.PRODUCTION
+  logger.warn("Using default API URL (unknown env)", { component: "api-url", chosen, env })
+  return chosen
 }
 
 /**

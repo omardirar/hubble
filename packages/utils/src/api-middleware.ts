@@ -7,6 +7,7 @@
 
 import { VercelRequest, VercelResponse } from "@vercel/node"
 import { ApiErrors, sendError, sendSuccess } from "./errors"
+import { logger } from "./logger"
 import { z } from "zod"
 // Note: These imports are moved here to avoid client-side bundling issues
 // import { createBrowserClient } from "@hubble/db"
@@ -39,7 +40,7 @@ export function withAuth(handler: AuthenticatedHandler) {
       // Validate authorization header
       const authHeader = req.headers.authorization
       if (!authHeader?.startsWith("Bearer ")) {
-        console.warn("Request missing or invalid Authorization header")
+        logger.warn("Missing or invalid Authorization header", { component: "api-middleware" })
         return sendError(res, ApiErrors.UNAUTHORIZED)
       }
 
@@ -55,7 +56,10 @@ export function withAuth(handler: AuthenticatedHandler) {
         userId = claims.userId
         orgId = claims.orgId!
       } catch (jwtError) {
-        console.error("JWT claims extraction failed:", jwtError)
+        logger.error("JWT claims extraction failed", {
+          component: "api-middleware",
+          error: jwtError instanceof Error ? jwtError.message : String(jwtError),
+        })
         return sendError(res, ApiErrors.UNAUTHORIZED, { reason: "Invalid token" })
       }
 
@@ -66,7 +70,10 @@ export function withAuth(handler: AuthenticatedHandler) {
         const { createBrowserClient } = await import("@hubble/db")
         supabase = createBrowserClient({ authToken: token })
       } catch (dbError) {
-        console.error("Database client creation failed:", dbError)
+        logger.error("Database client creation failed", {
+          component: "api-middleware",
+          error: dbError instanceof Error ? dbError.message : String(dbError),
+        })
         return sendError(res, ApiErrors.INTERNAL_ERROR, { reason: "Database connection failed" })
       }
 
@@ -77,7 +84,10 @@ export function withAuth(handler: AuthenticatedHandler) {
       // Call the authenticated handler
       await handler(authenticatedReq, res)
     } catch (error) {
-      console.error("Authentication middleware error:", error)
+      logger.error("Authentication middleware error", {
+        component: "api-middleware",
+        error: error instanceof Error ? error.message : String(error),
+      })
       return sendError(res, ApiErrors.INTERNAL_ERROR, {
         message: error instanceof Error ? error.message : "Unknown error",
       })
@@ -125,7 +135,12 @@ export function withValidation<T>(
 
         await handler(validatedReq, res)
       } catch (validationError) {
-        console.warn(`Validation error for ${source}:`, validationError)
+        logger.warn("Validation error", {
+          component: "api-middleware",
+          source,
+          error:
+            validationError instanceof Error ? validationError.message : String(validationError),
+        })
         return sendError(res, ApiErrors.VALIDATION_ERROR, {
           reason: validationError instanceof Error ? validationError.message : "Invalid data",
         })
@@ -147,12 +162,16 @@ export function withErrorHandling(
     try {
       await handler(req, res)
     } catch (error) {
-      console.error("API function error:", {
-        url: req.url,
-        method: req.method,
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      })
+      logger.error(
+        "API function error",
+        {
+          component: "api-middleware",
+          url: req.url,
+          method: req.method,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        error instanceof Error ? error : undefined,
+      )
 
       // Handle specific error types
       if (error instanceof Error) {

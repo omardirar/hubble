@@ -34,7 +34,5 @@
     "node": ">=20.10 <25",
     "pnpm": ">=9"
   },
-  "dependencies": {
-    "@vercel/related-projects": "^1.0.0"
-  }
+  "dependencies": {}
 }
