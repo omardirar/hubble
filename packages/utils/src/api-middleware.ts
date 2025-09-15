@@ -32,6 +32,9 @@ export type AuthenticatedHandler = (req: AuthenticatedRequest, res: VercelRespon
  */
 export function withAuth(handler: AuthenticatedHandler) {
   return async (req: VercelRequest, res: VercelResponse) => {
+    // Ensure we always return JSON, even for unexpected errors
+    res.setHeader("Content-Type", "application/json")
+
     try {
       // Validate authorization header
       const authHeader = req.headers.authorization
@@ -138,6 +141,9 @@ export function withErrorHandling(
   handler: (req: VercelRequest, res: VercelResponse) => Promise<void>,
 ) {
   return async (req: VercelRequest, res: VercelResponse) => {
+    // Ensure we always return JSON, even for unexpected errors
+    res.setHeader("Content-Type", "application/json")
+
     try {
       await handler(req, res)
     } catch (error) {

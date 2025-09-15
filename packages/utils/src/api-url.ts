@@ -41,12 +41,28 @@ export function getApiWorkerUrl(fallbackUrl?: string): string {
 
   // In production/preview, use Vercel Related Projects
   try {
-    return withRelatedProject({
+    const relatedProjectUrl = withRelatedProject({
       projectName: "hubble-api",
       defaultHost: fallbackUrl || "https://hubble-api.vercel.app",
     })
+
+    // Log the resolved URL for debugging
+    if (process.env.VERCEL_ENV === "preview") {
+      console.log(`Related Projects resolved to: ${relatedProjectUrl}`)
+    }
+
+    return relatedProjectUrl
   } catch (error) {
     console.warn("Failed to resolve related project URL:", error)
+
+    // For preview environments, try to use a more reliable fallback
+    if (process.env.VERCEL_ENV === "preview") {
+      const previewFallback =
+        process.env.NEXT_PUBLIC_API_BASE_URL || "https://hubble-api.vercel.app"
+      console.log(`Using preview fallback: ${previewFallback}`)
+      return previewFallback
+    }
+
     // Fallback to environment variable or default if related projects fail
     return process.env.NEXT_PUBLIC_API_BASE_URL || fallbackUrl || "https://hubble-api.vercel.app"
   }
