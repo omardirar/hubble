@@ -76,18 +76,50 @@ export function createProxyHandler(endpoint: string, options: ProxyOptions = {})
 
       // Handle API function errors
       if (!response.ok) {
-        const errorData = await response.json().catch(
-          () =>
-            ({
-              error: "Unknown error",
-              code: "PROXY_ERROR",
-            }) as ProxyError,
-        )
+        let errorData: ProxyError
+        try {
+          errorData = await response.json()
+        } catch (parseError) {
+          // If we can't parse JSON (e.g., HTML error page), create a generic error
+          const responseText = await response.text().catch(() => "Unknown error")
+          console.error(
+            `Failed to parse error response as JSON. Response text: ${responseText.substring(0, 200)}...`,
+          )
+          errorData = {
+            error: "Invalid response format",
+            code: "INVALID_RESPONSE",
+            details:
+              process.env.NODE_ENV === "development"
+                ? `Expected JSON but received: ${responseText.substring(0, 100)}...`
+                : undefined,
+          }
+        }
         return Response.json(errorData, { status: response.status })
       }
 
       // Parse and optionally transform the successful response
-      let data = await response.json()
+      let data: any
+      try {
+        data = await response.json()
+      } catch (parseError) {
+        // If we can't parse JSON from a successful response, something is wrong
+        const responseText = await response.text().catch(() => "Unknown response")
+        console.error(
+          `Failed to parse successful response as JSON. Response text: ${responseText.substring(0, 200)}...`,
+        )
+        return Response.json(
+          {
+            error: "Invalid response format",
+            code: "INVALID_SUCCESS_RESPONSE",
+            details:
+              process.env.NODE_ENV === "development"
+                ? `Expected JSON but received: ${responseText.substring(0, 100)}...`
+                : undefined,
+          } as ProxyError,
+          { status: 502 },
+        )
+      }
+
       if (options.transformResponse) {
         data = options.transformResponse(data)
       }
@@ -96,6 +128,24 @@ export function createProxyHandler(endpoint: string, options: ProxyOptions = {})
     } catch (err) {
       // Handle unexpected errors (network issues, parsing errors, etc.)
       const msg = err instanceof Error ? err.message : String(err)
+
+      // Special handling for connection errors in development
+      if (
+        process.env.NODE_ENV === "development" &&
+        (msg.includes("ECONNREFUSED") || msg.includes("Failed to fetch"))
+      ) {
+        const devApiUrl = options.apiUrl || getApiWorkerUrl()
+        console.error(`API server not running at ${devApiUrl}. Please start the API server.`)
+        return Response.json(
+          {
+            error: "API server not running",
+            code: "API_SERVER_DOWN",
+            details: `Cannot connect to API server at ${devApiUrl}. Please start the API development server.`,
+          } as ProxyError,
+          { status: 503 },
+        )
+      }
+
       console.error(`Proxy error for ${endpoint}:`, err)
 
       return Response.json(

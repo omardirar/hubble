@@ -39,13 +39,14 @@ export function getApiWorkerUrl(fallbackUrl?: string): string {
     return "http://localhost:3001"
   }
 
-  // In production, use Vercel Related Projects
+  // In production/preview, use Vercel Related Projects
   try {
     return withRelatedProject({
       projectName: "hubble-api",
       defaultHost: fallbackUrl || "https://hubble-api.vercel.app",
     })
   } catch (error) {
+    console.warn("Failed to resolve related project URL:", error)
     // Fallback to environment variable or default if related projects fail
     return process.env.NEXT_PUBLIC_API_BASE_URL || fallbackUrl || "https://hubble-api.vercel.app"
   }

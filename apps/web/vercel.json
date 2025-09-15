@@ -5,11 +5,5 @@
   "devCommand": "pnpm dev",
   "installCommand": "pnpm install --frozen-lockfile",
   "outputDirectory": ".next",
-  "relatedProjects": ["hubble-api"],
-  "rewrites": [
-    {
-      "source": "/api/v1/(.*)",
-      "destination": "https://hubble-api.vercel.app/api/v1/$1"
-    }
-  ]
+  "relatedProjects": ["prj_xqllHsbZlVLNU8xZhrM797SEegkN"]
 }

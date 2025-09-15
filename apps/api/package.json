@@ -11,7 +11,7 @@
     "@vercel/node": "^3.0.0"
   },
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "vercel dev --listen 3001",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint \"api/**/*.{ts,tsx}\""
@@ -21,6 +21,6 @@
     "@hubble/tsconfig": "workspace:*",
     "typescript": "^5.5.0",
     "eslint": "^9.0.0",
-    "vercel": "^34.0.0"
+    "vercel": "^48.0.0"
   }
 }
