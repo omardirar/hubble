@@ -95,10 +95,28 @@ export async function getUserAndOrgFromToken(token: string): Promise<{
  * ```
  */
 export async function getCurrentOrgId(): Promise<string | null> {
-  // TODO: Implement actual Clerk integration
-  //   Context: This should read from Clerk JWT claims or session data
-  //   labels: area/auth, feature/orgs, type/feature
-  //   assignees: omzification
-  //   milestone: 0.0.1
-  return null
+  // This function can only be used in server-side contexts (API routes, server components)
+  // For client-side usage, use a different pattern (e.g., React hooks with useAuth)
+
+  // Ensure we're running on the server
+  if (typeof window !== "undefined") {
+    console.warn("getCurrentOrgId cannot be called from client-side code")
+    return null
+  }
+
+  try {
+    // Dynamic import to avoid circular dependencies and only load when needed
+    const { auth } = await import("@clerk/nextjs/server")
+    const { userId } = await auth()
+
+    if (!userId) {
+      return null
+    }
+
+    // Use the existing getOrgId function to fetch from database
+    return await getOrgId(userId)
+  } catch (error) {
+    console.warn("getCurrentOrgId failed - ensure Clerk auth context is available:", error)
+    return null
+  }
 }

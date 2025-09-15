@@ -19,3 +19,6 @@ export * from "./cn" // Class name utilities
 export * from "./id" // ID generation utilities
 export * from "./chat" // Chat utilities
 export * from "./api-url" // API URL resolution utilities
+
+// NOTE: For server-only utilities (api-middleware, rate-limit, logger, proxy),
+// import from "@hubble/utils/server" instead to avoid client-side bundling issues

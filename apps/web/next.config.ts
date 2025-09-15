@@ -27,7 +27,6 @@ const nextConfig: NextConfig = {
     "@hubble/utils", // Utility functions package
     "@hubble/env", // Environment management package
     "@hubble/db", // Database client package
-    "@hubble/workflows", // Workflow management package
     "@hubble/api-contracts", // API contract definitions
     "@hubble/auth", // Authentication utilities
   ],

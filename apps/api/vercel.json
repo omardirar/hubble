@@ -22,18 +22,6 @@
     {
       "src": "/v1/chat/messages/([^/]+)",
       "dest": "/api/v1/chat/messages/$1"
-    },
-    {
-      "src": "/v1/connect/enable",
-      "dest": "/api/v1/connect/enable"
-    },
-    {
-      "src": "/v1/connect/status",
-      "dest": "/api/v1/connect/status"
-    },
-    {
-      "src": "/v1/example/secrets",
-      "dest": "/api/v1/example/secrets"
     }
   ],
   "env": {

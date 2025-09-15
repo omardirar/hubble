@@ -12,19 +12,19 @@
  */
 
 /**
- * Get the API worker URL based on the current environment
+ * Get the API functions URL based on the current environment
  *
- * This function determines the correct API worker URL to use based on
- * the current environment. In development, it uses the local API worker
- * running on localhost:8787. In production, it uses the configured
+ * This function determines the correct API functions URL to use based on
+ * the current environment. In development, it uses the local Vercel dev server
+ * running on localhost:3001. In production, it uses the configured
  * environment variable or falls back to the preview URL.
  *
  * @param fallbackUrl - Optional fallback URL if environment variable is not set
- * @returns The appropriate API worker URL for the current environment
+ * @returns The appropriate API functions URL for the current environment
  *
  * @example
  * ```ts
- * // In development: returns "http://localhost:8787"
+ * // In development: returns "http://localhost:3001"
  * // In production: returns process.env.NEXT_PUBLIC_API_BASE_URL or fallback
  * const apiUrl = getApiWorkerUrl()
  * const response = await fetch(`${apiUrl}/v1/chat`)
@@ -43,7 +43,7 @@ export function getApiWorkerUrl(fallbackUrl?: string): string {
 }
 
 /**
- * Default API worker URLs for different environments
+ * Default API functions URLs for different environments
  *
  * These constants provide the default URLs for each environment,
  * making it easy to maintain and update them in one place.

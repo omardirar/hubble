@@ -1,13 +1,32 @@
 /**
- * Messages API Function for Vercel
+ * Messages API Function for Vercel (Modernized with Middleware)
  *
- * Handles listing and creating messages within conversations
- * Converted from Cloudflare Worker to Vercel Function
+ * Handles listing and creating messages within conversations with modern middleware patterns.
+ *
+ * Features:
+ * - JWT authentication with automatic user/org extraction
+ * - Parameter validation for conversation ID
+ * - Request validation with Zod schemas
+ * - Idempotency key handling for message creation
+ * - Structured logging with correlation IDs
+ * - Standardized error responses
+ * - Rate limiting protection
  */
 
 import { VercelRequest, VercelResponse } from "@vercel/node"
-import { createBrowserClient } from "@hubble/db"
-import { extractJWTClaims } from "@hubble/auth"
+import {
+  withErrorHandling,
+  withMethods,
+  withAuth,
+  withValidation,
+  withRequestLogging,
+  withRateLimit,
+  RateLimits,
+  sendSuccess,
+  sendError,
+  logger,
+  AuthenticatedRequest,
+} from "@hubble/utils/server"
 import { contentToText } from "@hubble/utils"
 import {
   type ApiMessage,
@@ -17,102 +36,198 @@ import {
   validateApiMessage,
 } from "@hubble/api-contracts/chat"
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  try {
-    const { conversationId } = req.query
+/**
+ * GET /v1/chat/messages/[conversationId] - List messages in conversation
+ */
+async function handleGetMessages(req: AuthenticatedRequest, res: VercelResponse) {
+  const { conversationId } = req.query
+  const { supabase } = req.auth
+  const requestLogger = logger.child({
+    endpoint: `/v1/chat/messages/${conversationId}`,
+    method: "GET",
+  })
 
-    if (!conversationId || typeof conversationId !== "string") {
-      return res.status(400).json({ error: "Invalid conversation ID" })
-    }
+  // Validate conversation ID parameter
+  if (!conversationId || typeof conversationId !== "string") {
+    return sendError(res, {
+      code: "INVALID_PARAM",
+      message: "Invalid conversation ID",
+      status: 400,
+    })
+  }
 
-    const authHeader = req.headers.authorization
-    if (!authHeader?.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "Unauthorized" })
-    }
+  requestLogger.info("Fetching messages", { conversationId })
 
-    const token = authHeader.substring(7)
+  const { data, error } = await supabase
+    .from("messages")
+    .select("id,role,content,created_at")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
 
-    // Extract user and organization information from JWT token
-    const { userId, orgId } = extractJWTClaims(token)
+  if (error) {
+    requestLogger.error("Database error fetching messages", {
+      conversationId,
+      error: error.message,
+    })
+    return sendError(res, {
+      code: "DATABASE_ERROR",
+      message: "Failed to fetch messages",
+      status: 500,
+    })
+  }
 
-    const supabase = createBrowserClient({ authToken: token })
+  // Transform and validate messages
+  const msgs: ApiMessage[] = (data || []).map((r: any) => ({
+    id: r.id,
+    role: r.role as "user" | "assistant" | "system",
+    text: contentToText(r.content),
+    created_at: r.created_at,
+  }))
 
-    if (req.method === "GET") {
-      const { data, error } = await supabase
+  const validatedData = msgs.map(validateApiMessage)
+  requestLogger.info("Successfully fetched messages", {
+    conversationId,
+    count: validatedData.length,
+  })
+
+  return sendSuccess(res, validatedData)
+}
+
+/**
+ * POST /v1/chat/messages/[conversationId] - Create message in conversation
+ */
+async function handleCreateMessage(
+  req: AuthenticatedRequest & { validated: CreateMessageRequest },
+  res: VercelResponse,
+) {
+  const { conversationId } = req.query
+  const { supabase } = req.auth
+  const { role = "user", text = "", idempotencyKey = null } = req.validated
+  const requestLogger = logger.child({
+    endpoint: `/v1/chat/messages/${conversationId}`,
+    method: "POST",
+  })
+
+  // Validate conversation ID parameter
+  if (!conversationId || typeof conversationId !== "string") {
+    return sendError(res, {
+      code: "INVALID_PARAM",
+      message: "Invalid conversation ID",
+      status: 400,
+    })
+  }
+
+  requestLogger.info("Creating message", {
+    conversationId,
+    role,
+    textLength: text.length,
+    hasIdempotencyKey: !!idempotencyKey,
+  })
+
+  const { data, error } = await supabase.rpc("rpc_append_message", {
+    p_conversation_id: conversationId,
+    p_role: role,
+    p_content: { text },
+    p_idempotency_key: idempotencyKey,
+  })
+
+  if (error) {
+    // Handle idempotency conflict by fetching the existing message
+    if ((error.code === "23505" || error.message?.includes("idempotency")) && idempotencyKey) {
+      requestLogger.info("Idempotency conflict - fetching existing message", {
+        conversationId,
+        idempotencyKey,
+      })
+
+      const { data: existingMessage, error: fetchError } = await supabase
         .from("messages")
         .select("id,role,content,created_at")
         .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: true })
-        .order("id", { ascending: true })
+        .eq("idempotency_key", idempotencyKey)
+        .single()
 
-      if (error) {
-        return res.status(500).json({ error: error.message })
+      if (fetchError) {
+        requestLogger.error("Failed to fetch existing message after idempotency conflict", {
+          conversationId,
+          idempotencyKey,
+          error: fetchError.message,
+        })
+        return sendError(res, {
+          code: "DATABASE_ERROR",
+          message: "Failed to fetch existing message",
+          status: 500,
+        })
       }
 
-      const msgs: ApiMessage[] = (data || []).map((r) => ({
-        id: r.id,
-        role: r.role as "user" | "assistant" | "system",
-        text: contentToText(r.content),
-        created_at: r.created_at,
-      }))
-
-      // Validate response data against schema
-      const validatedData = msgs.map(validateApiMessage)
-      return res.status(200).json(validatedData)
-    }
-
-    if (req.method === "POST") {
-      // Validate request body against schema
-      const body = req.body || {}
-      const validatedBody = validateCreateMessageRequest(body)
-      const role = validatedBody.role ?? "user"
-      const text = validatedBody.text ?? ""
-      const idem = validatedBody.idempotencyKey ?? null
-
-      const { data, error } = await supabase.rpc("rpc_append_message", {
-        p_conversation_id: conversationId,
-        p_role: role,
-        p_content: { text },
-        p_idempotency_key: idem,
+      requestLogger.info("Returning existing message due to idempotency", {
+        conversationId,
+        messageId: existingMessage.id,
       })
 
-      if (error) {
-        // Handle idempotency conflict by fetching the existing message
-        if ((error.code === "23505" || error.message?.includes("idempotency")) && idem) {
-          const { data: existingMessage, error: fetchError } = await supabase
-            .from("messages")
-            .select("id,role,content,created_at")
-            .eq("conversation_id", conversationId)
-            .eq("idempotency_key", idem)
-            .single()
-
-          if (fetchError) {
-            return res.status(500).json({
-              error: `Failed to fetch existing message: ${fetchError.message}`,
-            })
-          }
-
-          return res.status(200).json({
-            id: existingMessage.id,
-            role: existingMessage.role,
-            content: existingMessage.content,
-            created_at: existingMessage.created_at,
-          })
-        }
-
-        return res.status(500).json({ error: error.message })
-      }
-
-      // Validate response data against schema
-      const validatedData: CreateMessageResponse = data
-      return res.status(200).json(validatedData)
+      return sendSuccess(res, {
+        id: existingMessage.id,
+        role: existingMessage.role,
+        content: existingMessage.content,
+        created_at: existingMessage.created_at,
+      })
     }
 
-    return res.status(405).json({ error: "Method not allowed" })
-  } catch (error) {
-    console.error("Messages endpoint error:", error)
-    return res.status(500).json({
-      error: error instanceof Error ? error.message : "Unknown error",
+    requestLogger.error("Database error creating message", {
+      conversationId,
+      error: error.message,
+      errorCode: error.code,
+    })
+    return sendError(res, {
+      code: "DATABASE_ERROR",
+      message: "Failed to create message",
+      status: 500,
     })
   }
+
+  const validatedData: CreateMessageResponse = data
+  requestLogger.info("Successfully created message", {
+    conversationId,
+    messageId: validatedData.id,
+  })
+
+  return sendSuccess(res, validatedData, 201)
 }
+
+/**
+ * Main handler that routes to GET or POST logic
+ */
+async function handleMessages(req: AuthenticatedRequest, res: VercelResponse) {
+  if (req.method === "GET") {
+    return handleGetMessages(req, res)
+  } else if (req.method === "POST") {
+    // Apply validation middleware for POST requests only
+    const validationMiddleware = withValidation(validateCreateMessageRequest, "body")
+    const validatedHandler = validationMiddleware(handleCreateMessage as any)
+    return validatedHandler(req, res)
+  }
+}
+
+/**
+ * Composed handler with all middleware
+ */
+const handler = compose(
+  withRequestLogging,
+  withErrorHandling,
+  withRateLimit(RateLimits.STANDARD), // 100 requests/minute for CRUD operations
+  withMethods(["GET", "POST"]),
+  withAuth,
+)(handleMessages)
+
+/**
+ * Middleware composition helper
+ */
+function compose(...middlewares: any[]) {
+  return middlewares.reduce(
+    (a, b) =>
+      (...args: any[]) =>
+        a(b(...args)),
+  )
+}
+
+export default handler

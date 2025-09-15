@@ -18,7 +18,7 @@ export interface JWTClaims {
 
 /**
  * Decodes a JWT token's payload without verifying its signature.
- * This is used for extracting claims in the API worker, where Supabase
+ * This is used for extracting claims in the API functions, where Supabase
  * will perform the actual signature verification.
  *
  * @param token The JWT token string.

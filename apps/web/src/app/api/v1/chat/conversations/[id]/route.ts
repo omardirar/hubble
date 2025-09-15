@@ -1,31 +1,21 @@
-import { auth } from "@clerk/nextjs/server"
-import { getApiWorkerUrl } from "@hubble/utils"
+import { createDynamicProxyHandler } from "@hubble/utils/server"
 
-export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  // RLS enforcement occurs in the API Worker (via Supabase JWT). We only pass the JWT.
-  const { getToken } = await auth()
-  const token = await getToken()
-  if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 })
+/**
+ * Web App API Route: Chat Conversation by ID Proxy (Modernized)
+ *
+ * Handles PATCH requests for updating specific conversations using
+ * standardized proxy utilities with parameter validation.
+ *
+ * Features:
+ * - PATCH: Update conversation properties
+ * - Automatic parameter extraction and validation
+ * - Automatic JWT authentication with Clerk
+ * - Standardized error responses and logging
+ * - Proper request forwarding to API functions
+ */
 
-  const { id } = await ctx.params
-  const body = await req.json().catch(() => ({}))
-
-  // Proxy request to API worker
-  const apiUrl = getApiWorkerUrl()
-  const response = await fetch(`${apiUrl}/v1/chat/conversations/${id}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(body),
-  })
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
-    return Response.json(errorData, { status: response.status })
-  }
-
-  const data = await response.json()
-  return Response.json(data)
-}
+/**
+ * Handle PATCH requests to /api/v1/chat/conversations/[id]
+ * Uses dynamic proxy handler for parameter handling
+ */
+export const PATCH = createDynamicProxyHandler("/v1/chat/conversations/[id]")

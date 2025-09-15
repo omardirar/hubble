@@ -66,37 +66,35 @@ Both applications use environment-specific configurations:
 
 ## Deployment Process
 
-### GitHub Actions Deployment (Recommended)
+### Manual Deployment (Recommended)
 
-Deployments are handled automatically via GitHub Actions using the Vercel CLI:
+Deployments are handled manually via Vercel CLI or dashboard:
 
 #### Preview Deployments
 
-- **Trigger**: Pull requests to `main` branch
-- **Workflow**: `.github/workflows/deploy-vercel-preview.yml`
-- **Process**:
-  1. Deploys API functions first
-  2. Deploys web app after API functions succeed
-- **URLs**:
-  - API: `https://hubble-api-preview.vercel.app`
-  - Web: `https://hubble-web-preview.vercel.app`
+```bash
+# Deploy API functions to preview
+cd apps/api && vercel
+
+# Deploy web app to preview
+cd apps/web && vercel
+```
 
 #### Production Deployments
 
-- **Trigger**: Pushes to `main` branch
-- **Workflow**: `.github/workflows/deploy-vercel-prod.yml`
-- **Process**:
-  1. Deploys API functions first
-  2. Deploys web app after API functions succeed
-- **URLs**:
-  - API: `https://hubble-api.vercel.app`
-  - Web: `https://hubble-web.vercel.app`
+```bash
+# Deploy API functions to production
+cd apps/api && vercel --prod
 
-#### Manual Deployments
+# Deploy web app to production
+cd apps/web && vercel --prod
+```
 
-- **Trigger**: Workflow dispatch from GitHub Actions tab
-- **Available for**: Both preview and production environments
-- **Use case**: Emergency deployments or testing
+#### Automatic Git Integration
+
+- **Preview**: Automatic deployment on pull requests (if Git integration enabled)
+- **Production**: Automatic deployment on pushes to main branch (if Git integration enabled)
+- **URLs**: Provided by Vercel after deployment
 
 ### Local Development
 
@@ -127,29 +125,30 @@ vercel env add ANTHROPIC_API_KEY production
 vercel env add SUPABASE_URL production
 ```
 
-**3. Required GitHub Secrets:**
+**3. Vercel CLI Setup:**
 
-For CI/CD workflows, configure these in your GitHub repository:
+For manual deployments, install and configure Vercel CLI:
 
-**Secrets** (Settings → Secrets and variables → Actions):
+```bash
+# Install Vercel CLI
+npm i -g vercel
 
-- `VERCEL_TOKEN`: Vercel deployment token
-- `VERCEL_ORG_ID`: Vercel organization ID
-- `VERCEL_API_PROJECT_ID`: Vercel project ID for API functions
-- `VERCEL_WEB_PROJECT_ID`: Vercel project ID for web app
-- `TURBO_TOKEN`: Turbo remote cache token
+# Login to your account
+vercel login
 
-**Variables** (Settings → Secrets and variables → Actions):
-
-- `TURBO_TEAM`: Your Turbo team name
+# Link projects (run in each app directory)
+cd apps/api && vercel --confirm
+cd apps/web && vercel --confirm
+```
 
 ## Performance Optimization
 
-All workflows are optimized with:
+Deployments are optimized with:
 
-- **Turbo Cache**: Remote caching enabled for faster builds
-- **pnpm Cache**: Node.js package caching for faster dependency installation
-- **Sequential Deployment**: API deployed first, then web app for consistency
+- **Build Caching**: Vercel automatically caches builds for faster deployments
+- **pnpm Package Manager**: Fast, efficient dependency management
+- **Turbo Builds**: Monorepo-aware builds with task caching
+- **Edge Functions**: API functions deployed to edge locations
 - **Incremental Builds**: Only changed packages are rebuilt when possible
 
 ## Troubleshooting
