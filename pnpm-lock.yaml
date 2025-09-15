@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@vercel/related-projects':
+        specifier: ^1.0.0
+        version: 1.0.0
     devDependencies:
       '@changesets/cli':
         specifier: ^2.29.7
@@ -2305,6 +2309,9 @@ packages:
 
   '@vercel/redwood@2.3.6':
     resolution: {integrity: sha512-Rm9xECWNIJOwtPsZ1/XcgyJj95KM7cWwNHYPMw8dzFAnLQGyapGe/YHEjxV6POI2RF8R0nFmU1t+45XBweYJJA==}
+
+  '@vercel/related-projects@1.0.0':
+    resolution: {integrity: sha512-wGk91hdzpQMMSTCE9q6q5caKWMse9OzH3IeeC83SBZ/ZprvjPSusgftYBrbkDehV0gytRd22MFzYFaSwbVYiDw==}
 
   '@vercel/remix-builder@5.4.12':
     resolution: {integrity: sha512-25HHNUpIu3TfuZnphDDX7yG+4QugbxDq0bB8d1KCeOWsKH+z0Zscg7rchs3Pqy6kdhV/US6zH+YAogtwMvdDMg==}
@@ -8097,6 +8104,10 @@ snapshots:
       - encoding
       - rollup
       - supports-color
+
+  '@vercel/related-projects@1.0.0':
+    optionalDependencies:
+      ajv: 6.12.6
 
   '@vercel/remix-builder@5.4.12(rollup@4.50.1)':
     dependencies:

@@ -13,6 +13,7 @@
  */
 
 import { logger } from "./logger"
+import { withRelatedProject } from "@vercel/related-projects"
 
 /**
  * Get the API functions URL using Vercel Related Projects
@@ -50,26 +51,43 @@ export function getApiWorkerUrl(fallbackUrl?: string): string {
     return API_URLS.PRODUCTION
   }
 
-  // Preview: best-effort derivation using VERCEL_URL; fall back safely
+  // Preview: resolve via Related Projects; fall back safely
   if (env === "preview") {
-    const branchHost = process.env.VERCEL_URL // e.g. webproject-git-branch-team.vercel.app
-    if (branchHost) {
-      const derived = `https://${branchHost}`
-      logger.info("Derived preview API URL from VERCEL_URL", {
-        component: "api-url",
-        branchHost,
-        derived,
-      })
-      return derived
+    const webHost = process.env.VERCEL_URL
+    if (webHost) {
+      logger.info("Preview web host detected", { component: "api-url", webHost })
     }
 
-    // If branch URL is unavailable, use explicit env override or stable fallback
-    const chosen =
-      process.env.NEXT_PUBLIC_API_BASE_URL || fallbackUrl || API_URLS.PREVIEW || API_URLS.PRODUCTION
-    logger.warn("Using preview API fallback (no branch host)", {
-      component: "api-url",
-      chosen,
-    })
+    // Prefer explicit env override first
+    if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+      logger.info("Using NEXT_PUBLIC_API_BASE_URL for preview", {
+        component: "api-url",
+        chosen: process.env.NEXT_PUBLIC_API_BASE_URL,
+      })
+      return process.env.NEXT_PUBLIC_API_BASE_URL
+    }
+
+    // Try Related Projects to resolve the API project's preview URL
+    try {
+      const related = withRelatedProject({
+        projectName: "hubble-api",
+        defaultHost: API_URLS.PRODUCTION,
+      })
+      logger.info("Resolved preview API via Related Projects", {
+        component: "api-url",
+        related,
+      })
+      return related
+    } catch (e) {
+      logger.warn("Related Projects resolution failed in preview", {
+        component: "api-url",
+        error: e instanceof Error ? e.message : String(e),
+      })
+    }
+
+    // Final fallback for preview
+    const chosen = fallbackUrl || API_URLS.PREVIEW || API_URLS.PRODUCTION
+    logger.warn("Using preview fallback API URL", { component: "api-url", chosen })
     return chosen
   }
 
