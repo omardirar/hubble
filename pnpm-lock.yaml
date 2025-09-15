@@ -465,6 +465,9 @@ importers:
 
   packages/utils:
     dependencies:
+      '@clerk/nextjs':
+        specifier: ^6.31.10
+        version: 6.31.10(next@15.5.3(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@hubble/auth':
         specifier: workspace:*
         version: link:../auth

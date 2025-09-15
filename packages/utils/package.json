@@ -31,7 +31,8 @@
     "tailwind-merge": "^2.5.2",
     "@hubble/db": "workspace:*",
     "@hubble/env": "workspace:*",
-    "@hubble/auth": "workspace:*"
+    "@hubble/auth": "workspace:*",
+    "@clerk/nextjs": "^6.31.10"
   },
   "peerDependencies": {
     "next": ">=15.0.0",
