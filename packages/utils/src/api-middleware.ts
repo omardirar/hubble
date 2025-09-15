@@ -19,6 +19,10 @@ export interface AuthenticatedRequest extends VercelRequest {
     token: string
     supabase: any // Using any to avoid circular dependency
   }
+  // Explicitly ensure these properties are available (they should be from VercelRequest)
+  query: VercelRequest["query"]
+  body: VercelRequest["body"]
+  method: VercelRequest["method"]
 }
 
 export type AuthenticatedHandler = (req: AuthenticatedRequest, res: VercelResponse) => Promise<void>

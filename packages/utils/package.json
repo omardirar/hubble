@@ -23,7 +23,8 @@
   "devDependencies": {
     "typescript": "^5.5.0",
     "@hubble/tsconfig": "workspace:*",
-    "@hubble/eslint-config": "workspace:*"
+    "@hubble/eslint-config": "workspace:*",
+    "@types/node": "^20.0.0"
   },
   "dependencies": {
     "clsx": "^2.1.1",
