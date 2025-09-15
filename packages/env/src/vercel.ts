@@ -24,7 +24,8 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z
     .string()
     .min(1, "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is required"),
-  NEXT_PUBLIC_API_BASE_URL: z.string().url().optional(),
+  // Note: NEXT_PUBLIC_API_BASE_URL is no longer required with Related Projects
+  // NEXT_PUBLIC_API_BASE_URL: z.string().url().optional(),
 })
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>

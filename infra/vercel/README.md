@@ -7,7 +7,7 @@
 
 ## Authentication Integration
 
-This project uses the **native Clerk-Supabase integration** with a **proxy architecture**, which is the recommended approach as of 2024. This provides:
+This project uses the **native Clerk-Supabase integration** with a **proxy architecture** and **Vercel Related Projects**, which is the recommended approach as of 2024. This provides:
 
 - **Better Security**: Centralized authentication in API functions
 - **Easier Maintenance**: No JWT secret rotation issues
@@ -15,16 +15,17 @@ This project uses the **native Clerk-Supabase integration** with a **proxy archi
 - **Future-Proof**: Supported approach going forward
 - **Centralized Auth**: All authentication logic in API functions
 - **Enhanced Security**: No client-side database credentials
+- **Automatic URL Resolution**: Related Projects eliminate manual URL configuration
 
 ### Architecture
 
 ```text
-Browser → Next.js API Routes → Vercel Functions → Supabase
+Browser → Next.js API Routes → Vercel Functions (Related Projects) → Supabase
 ```
 
 - **Browser**: Uses `apiFetch` for all database operations
 - **Next.js API Routes**: Proxy requests to API functions with Clerk JWT tokens
-- **Vercel Functions**: Uses environment variables for database operations
+- **Vercel Functions**: Uses Related Projects for automatic URL resolution
 - **Supabase**: Enforces RLS policies based on Clerk JWT claims
 
 ## Deployment Strategy
@@ -59,10 +60,10 @@ Both applications use environment-specific configurations:
 
 ### Web App
 
-| Variable                            | Description            |
-| ----------------------------------- | ---------------------- |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk public key       |
-| `NEXT_PUBLIC_API_BASE_URL`          | API functions base URL |
+| Variable                            | Description                                                         |
+| ----------------------------------- | ------------------------------------------------------------------- |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk public key                                                    |
+| ~~`NEXT_PUBLIC_API_BASE_URL`~~      | ~~API functions base URL~~ (No longer needed with Related Projects) |
 
 ## Deployment Process
 

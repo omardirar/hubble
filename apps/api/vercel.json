@@ -24,13 +24,6 @@
       "dest": "/api/v1/chat/messages/$1"
     }
   ],
-  "env": {
-    "CLERK_SECRET_KEY": "@clerk-secret-key",
-    "ANTHROPIC_API_KEY": "@anthropic-api-key",
-    "SUPABASE_URL": "@supabase-url",
-    "SUPABASE_ANON_KEY": "@supabase-anon-key",
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase-service-role-key"
-  },
   "functions": {
     "api/**/*.ts": {
       "maxDuration": 30

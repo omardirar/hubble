@@ -4,16 +4,13 @@
   "devCommand": "pnpm dev",
   "installCommand": "pnpm install --frozen-lockfile",
   "outputDirectory": ".next",
+  "relatedProjects": ["prj_xqllHsbZlVLNU8xZhrM797SEegkN"],
   "rewrites": [
     {
       "source": "/api/v1/(.*)",
-      "destination": "https://hubble-api-git-migration-vercel.vercel.app/api/v1/$1"
+      "destination": "https://hubble-api.vercel.app/api/v1/$1"
     }
   ],
-  "env": {
-    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "@next-public-clerk-publishable-key",
-    "NEXT_PUBLIC_API_BASE_URL": "@next-public-api-base-url"
-  },
   "functions": {
     "app/api/v1/chat/route.ts": {
       "maxDuration": 30

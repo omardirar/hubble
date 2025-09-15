@@ -2,30 +2,33 @@
  * API URL Utilities
  *
  * This module provides utilities for determining the correct API URL
- * based on the current environment (development vs production).
+ * using Vercel's Related Projects feature for monorepo integration.
  *
  * Features:
+ * - Vercel Related Projects integration
  * - Environment-aware URL resolution
  * - Fallback to default URLs
  * - Centralized configuration
  * - Type-safe implementation
  */
 
+import { withRelatedProject } from "@vercel/related-projects"
+
 /**
- * Get the API functions URL based on the current environment
+ * Get the API functions URL using Vercel Related Projects
  *
- * This function determines the correct API functions URL to use based on
- * the current environment. In development, it uses the local Vercel dev server
- * running on localhost:3001. In production, it uses the configured
- * environment variable or falls back to the preview URL.
+ * This function uses Vercel's Related Projects feature to automatically
+ * resolve the correct API URL based on the deployment environment.
+ * In development, it uses the local Vercel dev server. In production,
+ * it uses the related project's URL.
  *
- * @param fallbackUrl - Optional fallback URL if environment variable is not set
+ * @param fallbackUrl - Optional fallback URL if related project is not available
  * @returns The appropriate API functions URL for the current environment
  *
  * @example
  * ```ts
  * // In development: returns "http://localhost:3001"
- * // In production: returns process.env.NEXT_PUBLIC_API_BASE_URL or fallback
+ * // In production: returns related project URL or fallback
  * const apiUrl = getApiWorkerUrl()
  * const response = await fetch(`${apiUrl}/v1/chat`)
  * ```
@@ -36,10 +39,18 @@ export function getApiWorkerUrl(fallbackUrl?: string): string {
     return "http://localhost:3001"
   }
 
-  // In production, use environment variable or fallback
-  return (
-    process.env.NEXT_PUBLIC_API_BASE_URL || fallbackUrl || "https://hubble-api-preview.vercel.app"
-  )
+  // In production, use Vercel Related Projects
+  try {
+    return withRelatedProject({
+      projectName: "hubble-api",
+      defaultHost: fallbackUrl || "https://hubble-api-preview.vercel.app",
+    })
+  } catch (error) {
+    // Fallback to environment variable or default if related projects fail
+    return (
+      process.env.NEXT_PUBLIC_API_BASE_URL || fallbackUrl || "https://hubble-api-preview.vercel.app"
+    )
+  }
 }
 
 /**
