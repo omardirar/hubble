@@ -13,6 +13,7 @@
  */
 
 import { withRelatedProject } from "@vercel/related-projects"
+import { logger } from "./logger"
 
 /**
  * Get the API functions URL using Vercel Related Projects
@@ -41,30 +42,61 @@ export function getApiWorkerUrl(fallbackUrl?: string): string {
 
   // In production/preview, use Vercel Related Projects
   try {
+    // Use Related Projects. Library supports name-based resolution at runtime.
     const relatedProjectUrl = withRelatedProject({
       projectName: "hubble-api",
       defaultHost: fallbackUrl || "https://hubble-api.vercel.app",
     })
 
-    // Log the resolved URL for debugging
+    // If we accidentally resolve to a web project preview domain, correct it
+    // Known bad pattern: hubble-api-git-<branch>-hubble-app.vercel.app (web project suffix)
+    const host = relatedProjectUrl.replace(/^https?:\/\//, "")
+    const seemsLikeWebPreview = host.includes("hubble-app.vercel.app")
+
+    // Log the resolved URL for debugging (preview only)
     if (process.env.VERCEL_ENV === "preview") {
-      console.log(`Related Projects resolved to: ${relatedProjectUrl}`)
+      logger.info("Related project URL resolved", {
+        component: "api-url",
+        resolvedUrl: relatedProjectUrl,
+        environment: process.env.NODE_ENV,
+        vercelEnv: process.env.VERCEL_ENV,
+        seemsLikeWebPreview,
+      })
+    }
+
+    if (seemsLikeWebPreview) {
+      const chosen =
+        fallbackUrl || process.env.NEXT_PUBLIC_API_BASE_URL || "https://hubble-api.vercel.app"
+      logger.warn("Using API URL fallback due to web preview host detection", {
+        component: "api-url",
+        chosen,
+      })
+      return chosen
     }
 
     return relatedProjectUrl
   } catch (error) {
-    console.warn("Failed to resolve related project URL:", error)
+    logger.warn("Failed to resolve related project URL", {
+      component: "api-url",
+      error: error instanceof Error ? error.message : String(error),
+    })
 
     // For preview environments, try to use a more reliable fallback
     if (process.env.VERCEL_ENV === "preview") {
       const previewFallback =
         process.env.NEXT_PUBLIC_API_BASE_URL || "https://hubble-api.vercel.app"
-      console.log(`Using preview fallback: ${previewFallback}`)
+      logger.info("Using preview API fallback", {
+        component: "api-url",
+        previewFallback,
+      })
       return previewFallback
     }
 
     // Fallback to environment variable or default if related projects fail
-    return process.env.NEXT_PUBLIC_API_BASE_URL || fallbackUrl || "https://hubble-api.vercel.app"
+    const chosen =
+      process.env.NEXT_PUBLIC_API_BASE_URL || fallbackUrl || "https://hubble-api.vercel.app"
+    logger.info("Using default API fallback", { component: "api-url", chosen })
+    return chosen
   }
 }
 

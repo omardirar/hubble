@@ -125,6 +125,26 @@ export function createProxyHandler(endpoint: string, options: ProxyOptions = {})
             responsePreview: responseText.substring(0, 200),
             parseError: parseError instanceof Error ? parseError.message : String(parseError),
           })
+
+          // Detect Vercel preview protection/auth HTML
+          const lower = responseText.toLowerCase()
+          const looksLikePreviewProtection =
+            lower.includes("<!doctype html") &&
+            (lower.includes("authentication required") ||
+              lower.includes("vercel") ||
+              lower.includes("protect"))
+
+          if (looksLikePreviewProtection) {
+            errorData = {
+              error: "Preview deployment blocked by protection",
+              code: "PREVIEW_PROTECTION",
+              details: shouldUseEnhancedLogging()
+                ? `The target ${response.url} returned an HTML protection page. Ensure the API preview has public access or configure tokens.`
+                : undefined,
+            }
+            return Response.json(errorData, { status: 401 })
+          }
+
           errorData = {
             error: "Invalid response format",
             code: "INVALID_RESPONSE",
