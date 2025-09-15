@@ -1,9 +1,30 @@
+/**
+ * Supabase client creation for browser/client-side usage
+ *
+ * This module provides functions to create Supabase clients for client-side
+ * usage with proper authentication and RLS policy enforcement using Vercel
+ * environment variables.
+ *
+ * Architecture:
+ * - Browser clients use anon key authentication and respect RLS policies
+ * - JWT tokens can be provided for authenticated requests using accessToken
+ * - All clients are configured for optimal browser usage (auto-refresh, persistence)
+ */
+
 import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js"
-import { readPublicEnv } from "@hubble/env"
 
 /**
  * Creates a Supabase client for browser/client-side usage with anon key authentication.
- * This client respects RLS policies and is safe to use in client-side code.
+ *
+ * This client is designed for use in browser environments and respects Row Level
+ * Security (RLS) policies. It uses the anonymous key which is safe to expose
+ * to the client and provides automatic token refresh and session persistence.
+ *
+ * Security considerations:
+ * - Uses anonymous key (safe for client-side exposure)
+ * - Respects RLS policies for data access control
+ * - JWT tokens can be provided for authenticated requests via accessToken
+ * - No service role key (prevents privilege escalation)
  *
  * @param options Optional configuration for the client
  * @param options.authToken Optional JWT token for authenticated requests
@@ -11,33 +32,29 @@ import { readPublicEnv } from "@hubble/env"
  * @throws Error if required environment variables are missing
  */
 export function createBrowserClient(options?: { authToken?: string }): SupabaseClient {
-  const env = readPublicEnv()
+  // Get Supabase configuration from environment variables
+  const url = process.env.SUPABASE_URL
+  const anonKey = process.env.SUPABASE_ANON_KEY
 
-  if (!env.NEXT_PUBLIC_SUPABASE_URL) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL. Set this environment variable in your .env.local file.\n\n" +
-        "Example:\n" +
-        "  NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co",
-    )
+  if (!url) {
+    throw new Error("Missing SUPABASE_URL environment variable")
+  }
+  if (!anonKey) {
+    throw new Error("Missing SUPABASE_ANON_KEY environment variable")
   }
 
-  if (!env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_ANON_KEY. Set this environment variable in your .env.local file.\n\n" +
-        "Example:\n" +
-        "  NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here",
-    )
-  }
-
+  // Configure client options for optimal browser usage
   const clientOptions: any = {
     auth: {
-      autoRefreshToken: true,
-      persistSession: true,
+      autoRefreshToken: true, // Automatically refresh expired tokens
+      persistSession: true, // Persist session across browser refreshes
     },
   }
 
-  // Add auth token if provided
+  // Add JWT token to requests if provided (for authenticated operations)
   if (options?.authToken) {
+    // For third-party JWT tokens (like Clerk), we need to pass the token
+    // in the Authorization header for Supabase to verify it and make it available to RLS
     clientOptions.global = {
       headers: {
         Authorization: `Bearer ${options.authToken}`,
@@ -45,12 +62,6 @@ export function createBrowserClient(options?: { authToken?: string }): SupabaseC
     }
   }
 
-  // Note: Regions are handled by the Supabase URL configuration
-  // The URL already contains the region information (e.g., https://project-id.supabase.co)
-
-  return createSupabaseClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    clientOptions,
-  )
+  // Create and return the Supabase client with anon key authentication
+  return createSupabaseClient(url, anonKey, clientOptions)
 }

@@ -1,23 +1,47 @@
 // @ts-nocheck
+/**
+ * Clerk Webhook Handler for Supabase
+ *
+ * This Deno-based webhook handler processes Clerk authentication events
+ * and synchronizes them with Supabase. It maintains a mirror of Clerk's
+ * user and organization data in the database for efficient querying and
+ * RLS policy enforcement.
+ *
+ * Features:
+ * - Webhook signature verification using Svix
+ * - Event logging and idempotency
+ * - User and organization data synchronization
+ * - Soft deletion with tombstone records
+ * - Error handling and diagnostic logging
+ *
+ * Architecture:
+ * - Receives webhook events from Clerk
+ * - Verifies webhook signatures for security
+ * - Routes events to appropriate handlers
+ * - Maintains normalized data in Supabase
+ * - Records raw event payloads for audit
+ */
+
 // Deno runtime
 import { Webhook } from "npm:svix"
 import { createClient } from "npm:@supabase/supabase-js"
-
+// Environment configuration
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
 const CLERK_WEBHOOK_SECRET = Deno.env.get("CLERK_WEBHOOK_SECRET")
 
+// Validate required environment variables
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !CLERK_WEBHOOK_SECRET) {
   throw new Error("Missing env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CLERK_WEBHOOK_SECRET")
 }
 
-// Create service client with proper configuration
+// Create service client with proper configuration for webhook processing
 const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: {
-    autoRefreshToken: false,
-    persistSession: false,
+    autoRefreshToken: false, // No token refresh needed for service role
+    persistSession: false, // No session persistence for stateless processing
   },
-}).schema("clerk")
+}).schema("clerk") // Use the clerk schema for all operations
 /* ───────────────────────────── utils ───────────────────────────── */ function toIso(ts) {
   if (ts == null) return null
   if (typeof ts === "number") return new Date(ts > 1e12 ? ts : ts * 1000).toISOString()
@@ -474,22 +498,49 @@ async function upsertOrgDomain(data) {
       break
   }
 }
-/* ───────────────────────────── serve ───────────────────────────── */ Deno.serve(async (req) => {
+/* ───────────────────────────── serve ───────────────────────────── */
+
+/**
+ * Main webhook handler function
+ *
+ * This function processes incoming webhook requests from Clerk, verifies
+ * their authenticity, and synchronizes the data with Supabase.
+ *
+ * Process:
+ * 1. Validate HTTP method (POST only)
+ * 2. Extract and validate Svix headers
+ * 3. Verify webhook signature for security
+ * 4. Parse and validate event payload
+ * 5. Record event and synchronize data
+ * 6. Handle errors with diagnostic logging
+ */
+Deno.serve(async (req) => {
+  // Only accept POST requests
   if (req.method !== "POST")
     return new Response("Method Not Allowed", {
       status: 405,
     })
+
+  // Extract required Svix headers for signature verification
   const id = req.headers.get("svix-id")
   const ts = req.headers.get("svix-timestamp")
   const sig = req.headers.get("svix-signature")
+
+  // Validate that all required headers are present
   if (!id || !ts || !sig)
     return new Response("Missing Svix headers", {
       status: 400,
     })
+
+  // Get the raw payload for signature verification
   const payload = await req.text()
+
+  // Create webhook verifier with the secret
   const wh = new Webhook(CLERK_WEBHOOK_SECRET)
   let evt
+
   try {
+    // Verify the webhook signature to ensure authenticity
     evt = wh.verify(payload, {
       "svix-id": id,
       "svix-timestamp": ts,
@@ -501,19 +552,26 @@ async function upsertOrgDomain(data) {
       status: 400,
     })
   }
+
+  // Extract event type and data
   const type = evt?.type
   const data = evt?.data ?? evt
+
+  // Validate that we have the required event information
   if (!type || !data)
     return new Response("Malformed payload", {
       status: 400,
     })
+
   try {
+    // Process the webhook event
     await recordEvent(id, type, data) // idempotent by svix id
     await route(type, data) // typed tables (or deletion)
     await upsertRaw(data, false) // latest snapshot (non-tombstone)
   } catch (e) {
     console.error("webhook.error", e)
-    // diagnostic event with a distinct key (won't clobber the original event)
+
+    // Record diagnostic event with a distinct key (won't clobber the original event)
     await db.from("events").upsert(
       {
         svix_message_id: `${id}-error`,
@@ -532,10 +590,13 @@ async function upsertOrgDomain(data) {
         onConflict: "svix_message_id",
       },
     )
+
     return new Response("Internal Error", {
       status: 500,
     })
   }
+
+  // Return success response
   return new Response("ok", {
     status: 200,
   })

@@ -19,8 +19,6 @@
       "@hubble/env": ["packages/env/src/index.ts"],
       "@hubble/db": ["packages/db/src/index.ts"],
       "@hubble/db/*": ["packages/db/src/*"],
-      "@hubble/workflows": ["packages/workflows/src/index.ts"],
-      "@hubble/workflows/*": ["packages/workflows/src/*"],
       "@hubble/utils": ["packages/utils/src/index.ts"],
       "@hubble/utils/*": ["packages/utils/src/*"],
       "@hubble/api-contracts": ["packages/api-contracts/src/index.ts"],
