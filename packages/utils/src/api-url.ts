@@ -50,12 +50,12 @@ export function getApiWorkerUrl(fallbackUrl?: string): string {
     return API_URLS.PRODUCTION
   }
 
-  // Preview: best-effort derivation using VERCEL_BRANCH_URL; fall back safely
+  // Preview: best-effort derivation using VERCEL_URL; fall back safely
   if (env === "preview") {
-    const branchHost = process.env.VERCEL_BRANCH_URL // e.g. webproject-git-branch-team.vercel.app
+    const branchHost = process.env.VERCEL_URL // e.g. webproject-git-branch-team.vercel.app
     if (branchHost) {
       const derived = `https://${branchHost}`
-      logger.info("Derived preview API URL from VERCEL_BRANCH_URL", {
+      logger.info("Derived preview API URL from VERCEL_URL", {
         component: "api-url",
         branchHost,
         derived,
