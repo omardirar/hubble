@@ -2,11 +2,8 @@
  * HTTP Fetch Utilities
  *
  * This module provides safe HTTP request utilities with proper error handling
- * and consistent error responses across the application. It includes Clerk
- * authentication integration for JWT token management.
+ * and consistent error responses across the application.
  */
-
-import { useAuth } from "@clerk/nextjs"
 
 /**
  * Safe fetch wrapper that throws errors for non-2xx responses

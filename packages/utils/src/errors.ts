@@ -34,43 +34,21 @@ export class AppError extends Error {
 /**
  * Standard API error codes for consistent error handling
  */
-export const ApiErrors = {
-  // Client errors (4xx)
-  VALIDATION_ERROR: { code: "VALIDATION_ERROR", message: "Invalid request data", status: 400 },
-  UNAUTHORIZED: { code: "UNAUTHORIZED", message: "Authentication required", status: 401 },
-  FORBIDDEN: { code: "FORBIDDEN", message: "Access denied", status: 403 },
-  NOT_FOUND: { code: "NOT_FOUND", message: "Resource not found", status: 404 },
-  RATE_LIMITED: { code: "RATE_LIMITED", message: "Too many requests", status: 429 },
+export const ApiErrorCodes = {
+  // Client errors
+  VALIDATION_ERROR: "VALIDATION_ERROR",
+  UNAUTHORIZED: "UNAUTHORIZED",
+  FORBIDDEN: "FORBIDDEN",
+  NOT_FOUND: "NOT_FOUND",
+  RATE_LIMITED: "RATE_LIMITED",
 
-  // Server errors (5xx)
-  INTERNAL_ERROR: { code: "INTERNAL_ERROR", message: "Internal server error", status: 500 },
-  UPSTREAM_ERROR: { code: "UPSTREAM_ERROR", message: "Upstream service error", status: 502 },
-  DATABASE_ERROR: { code: "DATABASE_ERROR", message: "Database operation failed", status: 500 },
+  // Server errors
+  INTERNAL_ERROR: "INTERNAL_ERROR",
+  UPSTREAM_ERROR: "UPSTREAM_ERROR",
+  DATABASE_ERROR: "DATABASE_ERROR",
+  UPSTREAM_AUTH_ERROR: "UPSTREAM_AUTH_ERROR",
+  ORG_NOT_FOUND: "ORG_NOT_FOUND",
 } as const
-
-/**
- * Send standardized success response
- */
-export function sendSuccess(res: any, data?: any, status: number = 200) {
-  return res.status(status).json(data)
-}
-
-/**
- * Send standardized error response
- */
-export function sendError(
-  res: any,
-  error: { code: string; message: string; status: number },
-  context?: Record<string, any>,
-) {
-  const response: any = {
-    error: error.code,
-    message: error.message,
-    ...context,
-  }
-
-  return res.status(error.status).json(response)
-}
 
 // TODO: Add HTTP→AppError mapping helpers
 //   Context: Provide utilities to convert fetch/Response errors to typed AppError instances for UI handling.
