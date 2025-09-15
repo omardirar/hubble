@@ -1,0 +1,2 @@
+# This directory is required by Vercel for deployment
+# Even though this is a functions-only project, Vercel expects a public directory
