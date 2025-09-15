@@ -43,13 +43,11 @@ export function getApiWorkerUrl(fallbackUrl?: string): string {
   try {
     return withRelatedProject({
       projectName: "hubble-api",
-      defaultHost: fallbackUrl || "https://hubble-api-preview.vercel.app",
+      defaultHost: fallbackUrl || "https://hubble-api.vercel.app",
     })
   } catch (error) {
     // Fallback to environment variable or default if related projects fail
-    return (
-      process.env.NEXT_PUBLIC_API_BASE_URL || fallbackUrl || "https://hubble-api-preview.vercel.app"
-    )
+    return process.env.NEXT_PUBLIC_API_BASE_URL || fallbackUrl || "https://hubble-api.vercel.app"
   }
 }
 
@@ -63,7 +61,7 @@ export const API_URLS = {
   /** Local development API server URL */
   LOCAL: "http://localhost:3001",
   /** Preview environment API URL */
-  PREVIEW: "https://hubble-api-preview.vercel.app",
+  PREVIEW: "https://hubble-api-git-main.vercel.app",
   /** Production environment API URL */
   PRODUCTION: "https://hubble-api.vercel.app",
 } as const

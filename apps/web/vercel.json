@@ -5,28 +5,11 @@
   "devCommand": "pnpm dev",
   "installCommand": "pnpm install --frozen-lockfile",
   "outputDirectory": ".next",
-  "relatedProjects": ["prj_xqllHsbZlVLNU8xZhrM797SEegkN"],
+  "relatedProjects": ["hubble-api"],
   "rewrites": [
     {
       "source": "/api/v1/(.*)",
       "destination": "https://hubble-api.vercel.app/api/v1/$1"
     }
-  ],
-  "functions": {
-    "app/api/v1/chat/route.ts": {
-      "maxDuration": 30
-    },
-    "app/api/v1/chat/conversations/route.ts": {
-      "maxDuration": 30
-    },
-    "app/api/v1/chat/conversations/[id]/route.ts": {
-      "maxDuration": 30
-    },
-    "app/api/v1/chat/messages/[conversationId]/route.ts": {
-      "maxDuration": 30
-    },
-    "app/api/v1/connect/route.ts": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }
