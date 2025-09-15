@@ -7,6 +7,14 @@
  */
 
 import { getApiWorkerUrl } from "./api-url"
+import { logger } from "./logger"
+
+/**
+ * Check if we should use enhanced logging (development or preview environments)
+ */
+function shouldUseEnhancedLogging(): boolean {
+  return process.env.NODE_ENV === "development" || process.env.VERCEL_ENV === "preview"
+}
 
 export interface ProxyOptions {
   /** Override the default API base URL */
@@ -35,7 +43,18 @@ export interface ProxyError {
  */
 export function createProxyHandler(endpoint: string, options: ProxyOptions = {}) {
   return async function proxyHandler(req: Request) {
+    // Create a logger for this proxy request
+    const proxyLogger = logger.child({
+      component: "proxy",
+      endpoint,
+      method: req.method,
+      userAgent: req.headers.get("user-agent"),
+    })
+
     try {
+      // Determine the API URL first
+      const apiUrl = options.apiUrl || getApiWorkerUrl()
+
       // Get Clerk token for authentication using dynamic import
       const { auth } = await import("@clerk/nextjs/server")
       const { getToken } = await auth()
@@ -43,7 +62,24 @@ export function createProxyHandler(endpoint: string, options: ProxyOptions = {})
 
       // Ensure user is authenticated
       if (!token) {
+        proxyLogger.warn("No Clerk token available for API request", {
+          apiUrl,
+          environment: process.env.NODE_ENV,
+          vercelEnv: process.env.VERCEL_ENV,
+        })
         return Response.json({ error: "Unauthorized" } as ProxyError, { status: 401 })
+      }
+
+      // Enhanced logging for development and preview
+      if (shouldUseEnhancedLogging()) {
+        proxyLogger.info("Making API request", {
+          apiUrl,
+          targetUrl: `${apiUrl}${endpoint}`,
+          tokenPrefix: token.substring(0, 20),
+          environment: process.env.NODE_ENV,
+          vercelEnv: process.env.VERCEL_ENV,
+          hasOptions: Object.keys(options).length > 0,
+        })
       }
 
       // Parse the request body if needed
@@ -56,9 +92,6 @@ export function createProxyHandler(endpoint: string, options: ProxyOptions = {})
           body = options.transformBody(body)
         }
       }
-
-      // Determine the API URL
-      const apiUrl = options.apiUrl || getApiWorkerUrl()
 
       // Prepare headers
       const headers: Record<string, string> = {
@@ -76,45 +109,65 @@ export function createProxyHandler(endpoint: string, options: ProxyOptions = {})
 
       // Handle API function errors
       if (!response.ok) {
+        // Read the response body once as text first
+        const responseText = await response.text()
         let errorData: ProxyError
+
         try {
-          errorData = await response.json()
+          // Try to parse the text as JSON
+          errorData = JSON.parse(responseText)
         } catch (parseError) {
           // If we can't parse JSON (e.g., HTML error page), create a generic error
-          const responseText = await response.text().catch(() => "Unknown error")
-          console.error(
-            `Failed to parse error response as JSON. Response text: ${responseText.substring(0, 200)}...`,
-          )
+          proxyLogger.error("Failed to parse error response as JSON", {
+            status: response.status,
+            contentType: response.headers.get("content-type"),
+            url: response.url,
+            responsePreview: responseText.substring(0, 200),
+            parseError: parseError instanceof Error ? parseError.message : String(parseError),
+          })
           errorData = {
             error: "Invalid response format",
             code: "INVALID_RESPONSE",
-            details:
-              process.env.NODE_ENV === "development"
-                ? `Expected JSON but received: ${responseText.substring(0, 100)}...`
-                : undefined,
+            details: shouldUseEnhancedLogging()
+              ? `Expected JSON but received: ${responseText.substring(0, 100)}...`
+              : undefined,
           }
         }
         return Response.json(errorData, { status: response.status })
       }
 
       // Parse and optionally transform the successful response
+      const successResponseText = await response.text()
+
+      // Enhanced logging for successful responses in development and preview
+      if (shouldUseEnhancedLogging()) {
+        proxyLogger.info("Received successful response", {
+          status: response.status,
+          contentType: response.headers.get("content-type"),
+          responseSize: successResponseText.length,
+          responsePreview: successResponseText.substring(0, 200),
+        })
+      }
+
       let data: any
       try {
-        data = await response.json()
+        data = JSON.parse(successResponseText)
       } catch (parseError) {
         // If we can't parse JSON from a successful response, something is wrong
-        const responseText = await response.text().catch(() => "Unknown response")
-        console.error(
-          `Failed to parse successful response as JSON. Response text: ${responseText.substring(0, 200)}...`,
-        )
+        proxyLogger.error("Failed to parse successful response as JSON", {
+          status: response.status,
+          contentType: response.headers.get("content-type"),
+          url: response.url,
+          responsePreview: successResponseText.substring(0, 200),
+          parseError: parseError instanceof Error ? parseError.message : String(parseError),
+        })
         return Response.json(
           {
             error: "Invalid response format",
             code: "INVALID_SUCCESS_RESPONSE",
-            details:
-              process.env.NODE_ENV === "development"
-                ? `Expected JSON but received: ${responseText.substring(0, 100)}...`
-                : undefined,
+            details: shouldUseEnhancedLogging()
+              ? `Expected JSON but received: ${successResponseText.substring(0, 100)}...`
+              : undefined,
           } as ProxyError,
           { status: 502 },
         )
@@ -128,14 +181,25 @@ export function createProxyHandler(endpoint: string, options: ProxyOptions = {})
     } catch (err) {
       // Handle unexpected errors (network issues, parsing errors, etc.)
       const msg = err instanceof Error ? err.message : String(err)
+      const error = err instanceof Error ? err : new Error(msg)
 
-      // Special handling for connection errors in development
+      // Special handling for connection errors in development and preview
       if (
-        process.env.NODE_ENV === "development" &&
+        shouldUseEnhancedLogging() &&
         (msg.includes("ECONNREFUSED") || msg.includes("Failed to fetch"))
       ) {
         const devApiUrl = options.apiUrl || getApiWorkerUrl()
-        console.error(`API server not running at ${devApiUrl}. Please start the API server.`)
+        proxyLogger.error(
+          "API server connection failed",
+          {
+            apiUrl: devApiUrl,
+            endpoint,
+            environment: process.env.NODE_ENV,
+            vercelEnv: process.env.VERCEL_ENV,
+            errorMessage: msg,
+          },
+          error,
+        )
         return Response.json(
           {
             error: "API server not running",
@@ -146,13 +210,23 @@ export function createProxyHandler(endpoint: string, options: ProxyOptions = {})
         )
       }
 
-      console.error(`Proxy error for ${endpoint}:`, err)
+      proxyLogger.error(
+        "Proxy request failed",
+        {
+          endpoint,
+          errorMessage: msg,
+          errorType: error.constructor.name,
+          environment: process.env.NODE_ENV,
+          vercelEnv: process.env.VERCEL_ENV,
+        },
+        error,
+      )
 
       return Response.json(
         {
           error: "Proxy error",
           code: "INTERNAL_PROXY_ERROR",
-          details: process.env.NODE_ENV === "development" ? msg : undefined,
+          details: shouldUseEnhancedLogging() ? msg : undefined,
         } as ProxyError,
         { status: 500 },
       )
