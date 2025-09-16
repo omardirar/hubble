@@ -1,4 +1,4 @@
-import preset from "@hubble/ui/tailwind.preset"
+import preset from "@hubble/ui/styles/tailwind.preset"
 
 const config = {
   // Ensure Tailwind scans both the app and shared UI package

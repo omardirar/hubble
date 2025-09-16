@@ -1,4 +1,7 @@
 packages:
-  - "apps/*"
-  - "servers/*"
-  - "packages/*"
+  - apps/*
+  - servers/*
+  - packages/*
+
+ignoredBuiltDependencies:
+  - "@vercel/speed-insights"
