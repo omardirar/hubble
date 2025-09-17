@@ -9,19 +9,9 @@
     "src/app/api/v1/chat/route.ts": {
       "maxDuration": 30
     },
-    "src/app/api/connect/enable/route.ts": {
-      "runtime": "nodejs22.x"
-    },
-    "src/app/api/connect/status/route.ts": {
-      "runtime": "nodejs22.x"
-    },
     "src/app/api/connect/stream/route.ts": {
-      "runtime": "nodejs22.x",
       "maxDuration": 300,
       "memory": 1024
-    },
-    "src/app/api/queues/provision/route.ts": {
-      "runtime": "nodejs22.x"
     }
   }
 }
