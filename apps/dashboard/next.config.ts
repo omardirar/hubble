@@ -85,6 +85,7 @@ const nextConfig: NextConfig = {
         "https://*.clerk.com", // Clerk CDN connections
         "https://*.clerk.accounts.dev", // Clerk accounts connections
         "https://*.vercel.app", // Allow connections to vercel.app domains
+        "https://*.hubble.systems", // Allow connections to self-hosted domain
         isProd ? null : "ws://localhost:*", // WebSocket for HMR in development
         isProd ? null : "http://localhost:*", // HTTP for HMR in development
       ]
