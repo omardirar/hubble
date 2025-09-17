@@ -249,6 +249,9 @@ $$;
 -- Set function ownership to postgres for SECURITY DEFINER execution
 ALTER FUNCTION public.ensure_tenant_exists(text) OWNER TO postgres;
 
+-- Ensure postgres user has necessary schema privileges for SECURITY DEFINER function
+GRANT USAGE, CREATE ON SCHEMA public TO postgres;
+
 -- RPC grants to ensure accessibility via PostgREST
 GRANT EXECUTE ON FUNCTION public.ensure_tenant_exists(text) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.sync_clerk_organizations_into_tenants() TO service_role;
@@ -266,6 +269,7 @@ CREATE POLICY tenants_update_org
   WITH CHECK (org_id = (SELECT public.current_org_id()));
 
 -- Grant necessary permissions for tenant operations
+GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT INSERT ON TABLE public.tenants TO authenticated;
 GRANT UPDATE ON TABLE public.tenants TO authenticated;
 

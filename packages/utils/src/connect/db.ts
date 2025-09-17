@@ -24,6 +24,13 @@ export class TenantNotFoundError extends Error {
   }
 }
 
+export class TenantCreationError extends Error {
+  constructor(orgId: string, message: string) {
+    super(`Failed to create tenant for organization ${orgId}: ${message}`)
+    this.name = "TenantCreationError"
+  }
+}
+
 export async function insertProvisionRun(orgId: string): Promise<{ correlation_id: string }> {
   const db = createServiceClient()
   // Ensure tenant row exists (syncs from Clerk FDW when available)
@@ -34,7 +41,7 @@ export async function insertProvisionRun(orgId: string): Promise<{ correlation_i
       throw new TenantNotFoundError(orgId)
     }
     if (errorCode === "P0002") {
-      throw new Error(`Failed to create tenant: ${ensureResult.error.message}`)
+      throw new TenantCreationError(orgId, ensureResult.error.message)
     }
     throw new Error(`Tenant creation failed: ${ensureResult.error.message}`)
   }
