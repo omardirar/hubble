@@ -17,6 +17,18 @@ const serverEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY is required"),
   ANTHROPIC_MODEL: z.string().optional().default("claude-3-5-sonnet-latest"),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).optional().default("info"),
+  // Connect feature env (optional at global level; validated on demand)
+  MD_ADMIN_TOKEN: z.string().optional(),
+  FIVETRAN_API_KEY: z.string().optional(),
+  FIVETRAN_API_SECRET: z.string().optional(),
+  QSTASH_TOKEN: z.string().optional(),
+  QSTASH_CURRENT_SIGNING_KEY: z.string().optional(),
+  QSTASH_NEXT_SIGNING_KEY: z.string().optional(),
+  UPSTASH_REDIS_REST_URL: z.string().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+  // Optional: websocket pub/sub for SSE
+  UPSTASH_REDIS_WS_URL: z.string().optional(),
+  UPSTASH_REDIS_WS_TOKEN: z.string().optional(),
 })
 
 // Public environment variables schema
@@ -116,6 +128,28 @@ export function getClerkConfig() {
     secretKey: serverEnv.CLERK_SECRET_KEY,
     publishableKey: publicEnv.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
   }
+}
+
+/**
+ * Strictly validate and return Connect-related environment variables.
+ * Use this at runtime for Connect routes/consumers to ensure secrets are present.
+ */
+export function getConnectEnv() {
+  const schema = z.object({
+    MD_ADMIN_TOKEN: z.string().min(1, "MD_ADMIN_TOKEN required"),
+    FIVETRAN_API_KEY: z.string().min(1, "FIVETRAN_API_KEY required"),
+    FIVETRAN_API_SECRET: z.string().min(1, "FIVETRAN_API_SECRET required"),
+    QSTASH_TOKEN: z.string().min(1, "QSTASH_TOKEN required"),
+    QSTASH_CURRENT_SIGNING_KEY: z.string().min(1, "QSTASH_CURRENT_SIGNING_KEY required"),
+    QSTASH_NEXT_SIGNING_KEY: z.string().min(1, "QSTASH_NEXT_SIGNING_KEY required"),
+    UPSTASH_REDIS_REST_URL: z.string().url("UPSTASH_REDIS_REST_URL must be URL"),
+    UPSTASH_REDIS_REST_TOKEN: z.string().min(1, "UPSTASH_REDIS_REST_TOKEN required"),
+    // If SSE is enabled via pub/sub over websockets, validate these as well
+    UPSTASH_REDIS_WS_URL: z.string().url("UPSTASH_REDIS_WS_URL must be URL").optional(),
+    UPSTASH_REDIS_WS_TOKEN: z.string().min(1, "UPSTASH_REDIS_WS_TOKEN required").optional(),
+  })
+
+  return schema.parse(process.env)
 }
 
 /**

@@ -34,6 +34,27 @@ begin
   end if;
 end$$;
 
+-- Vault setter helper (SECURITY DEFINER) for server role to upsert a secret by name
+create or replace function public.vault_set(p_name text, p_secret text)
+returns void
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+begin
+  if not public._vault_available() then
+    raise exception 'Supabase Vault is not enabled in this environment. Enable it in Dashboard → Database → Extensions.' using errcode = 'P0001';
+  end if;
+  insert into vault.secrets(name, secret)
+  values (p_name, p_secret)
+  on conflict (name) do update set secret = excluded.secret;
+end;
+$$;
+
+alter function public.vault_set(text, text) owner to postgres;
+revoke all on function public.vault_set(text, text) from public, anon, authenticated;
+grant execute on function public.vault_set(text, text) to service_role;
+
 -- enable supabase vault extension if available (hosted projects enable via dashboard)
 do $$
 begin
