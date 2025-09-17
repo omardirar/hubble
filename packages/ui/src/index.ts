@@ -6,3 +6,4 @@
 export * from "./ui"
 export * from "./blocks"
 export * from "./hooks"
+export * from "./styles"

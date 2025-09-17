@@ -12,3 +12,11 @@ export * from "./anthropic-client" // Anthropic API client
 export * from "./database-operations" // Database operation utilities
 export * from "./errors" // Error handling utilities
 export * from "./id" // ID generation utilities
+// Connect feature server-only helpers
+export * from "./connect/qstash"
+export * from "./connect/redis"
+export * from "./connect/motherduck"
+export * from "./connect/fivetran"
+export * from "./connect/db"
+export * from "./connect/provision-job"
+export * from "./connect/stream"

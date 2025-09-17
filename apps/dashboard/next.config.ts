@@ -64,6 +64,8 @@ const nextConfig: NextConfig = {
         isProd ? null : "'unsafe-eval'", // Only allow eval in development
         "https://*.clerk.com", // Clerk CDN scripts
         "https://*.clerk.accounts.dev", // Clerk accounts scripts
+        "https://*.hubble.systems", // self-hosted clerk scripts
+        "https://*.vercel.app", // Allow connections to vercel.app domain
         // Some dev tooling may use blob: URLs
         isProd ? null : "blob:",
       ]
@@ -83,6 +85,7 @@ const nextConfig: NextConfig = {
         "https://*.clerk.com", // Clerk CDN connections
         "https://*.clerk.accounts.dev", // Clerk accounts connections
         "https://*.vercel.app", // Allow connections to vercel.app domains
+        "https://*.hubble.systems", // Allow connections to self-hosted domain
         isProd ? null : "ws://localhost:*", // WebSocket for HMR in development
         isProd ? null : "http://localhost:*", // HTTP for HMR in development
       ]

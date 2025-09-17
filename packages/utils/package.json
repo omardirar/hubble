@@ -30,9 +30,12 @@
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.5.2",
     "@hubble/db": "workspace:*",
+    "@hubble/api-contracts": "workspace:*",
     "@hubble/env": "workspace:*",
     "@hubble/auth": "workspace:*",
-    "@clerk/nextjs": "^6.31.10"
+    "@clerk/nextjs": "^6.31.10",
+    "@upstash/qstash": "^2.6.0",
+    "@upstash/redis": "^1.34.3"
   },
   "peerDependencies": {
     "next": ">=15.0.0",

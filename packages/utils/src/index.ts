@@ -15,3 +15,9 @@
 
 // Re-export client-safe utilities for backward compatibility
 export * from "./client"
+export * from "./cn"
+export * from "./fetch"
+export * from "./id"
+export * from "./logger"
+export * from "./chat"
+// Server-only modules (qstash/redis/db ops) are available under "@hubble/utils/server"

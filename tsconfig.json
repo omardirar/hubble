@@ -8,8 +8,6 @@
     { "path": "./packages/db" },
     { "path": "./packages/auth" },
     { "path": "./packages/api-contracts" },
-    { "path": "./packages/workflows" },
-    { "path": "./apps/web" },
-    { "path": "./apps/api" }
+    { "path": "./apps/dashboard" }
   ]
 }
