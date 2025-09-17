@@ -64,6 +64,8 @@ const nextConfig: NextConfig = {
         isProd ? null : "'unsafe-eval'", // Only allow eval in development
         "https://*.clerk.com", // Clerk CDN scripts
         "https://*.clerk.accounts.dev", // Clerk accounts scripts
+        "https://*.hubble.systems", // self-hosted clerk scripts
+        "https://*.vercel.app", // Allow connections to vercel.app domain
         // Some dev tooling may use blob: URLs
         isProd ? null : "blob:",
       ]
