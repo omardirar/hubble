@@ -209,10 +209,12 @@ $$;
 CREATE OR REPLACE FUNCTION ensure_tenant_exists(p_org_id text)
 RETURNS void
 LANGUAGE plpgsql
+SECURITY DEFINER
 SET search_path = public, pg_catalog
 AS $$
 DECLARE
   v_rowcount integer;
+  v_error_message text;
 BEGIN
   IF EXISTS (SELECT 1 FROM public.tenants WHERE org_id = p_org_id) THEN
     RETURN;
@@ -237,9 +239,15 @@ BEGIN
   EXCEPTION
     WHEN undefined_table THEN
       RAISE EXCEPTION 'Clerk FDW not available to sync tenant %', p_org_id USING errcode = 'P0001';
+    WHEN OTHERS THEN
+      v_error_message := SQLERRM;
+      RAISE EXCEPTION 'Failed to create tenant %: %', p_org_id, v_error_message USING errcode = 'P0002';
   END;
 END;
 $$;
+
+-- Set function ownership to postgres for SECURITY DEFINER execution
+ALTER FUNCTION public.ensure_tenant_exists(text) OWNER TO postgres;
 
 -- RPC grants to ensure accessibility via PostgREST
 GRANT EXECUTE ON FUNCTION public.ensure_tenant_exists(text) TO anon, authenticated, service_role;

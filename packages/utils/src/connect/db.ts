@@ -29,10 +29,14 @@ export async function insertProvisionRun(orgId: string): Promise<{ correlation_i
   // Ensure tenant row exists (syncs from Clerk FDW when available)
   const ensureResult = await db.rpc("ensure_tenant_exists", { p_org_id: orgId })
   if (ensureResult.error) {
-    if ((ensureResult.error as any)?.code === "P0001") {
+    const errorCode = (ensureResult.error as any)?.code
+    if (errorCode === "P0001") {
       throw new TenantNotFoundError(orgId)
     }
-    throw ensureResult.error
+    if (errorCode === "P0002") {
+      throw new Error(`Failed to create tenant: ${ensureResult.error.message}`)
+    }
+    throw new Error(`Tenant creation failed: ${ensureResult.error.message}`)
   }
   // Provisioning runs start in "pending"; returning correlation id ties subsequent steps together.
   const { data, error } = await db

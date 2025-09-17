@@ -40,6 +40,10 @@ export async function POST(request: Request) {
 
         reqLogger.error("connect.enable.insert_failed", {
           error: error instanceof Error ? error.message : String(error),
+          errorCode:
+            error instanceof Error && "code" in error
+              ? (error as { code?: string }).code
+              : undefined,
           orgId: auth.orgId,
         })
         return NextResponse.json(
