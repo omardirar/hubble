@@ -46,6 +46,9 @@ AS $$
   );
 $$;
 
+ALTER FUNCTION public._vault_available()
+  SET search_path = pg_catalog, public;
+
 CREATE OR REPLACE FUNCTION public.vault_set(p_name text, p_secret text)
 RETURNS void
 LANGUAGE plpgsql

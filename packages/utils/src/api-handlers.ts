@@ -118,19 +118,30 @@ export function createApiHandler(
 }
 
 /**
- * Verify organization exists in Clerk mirror
+ * Verify organization exists in Clerk mirror and ensure tenant exists
  */
 export async function verifyOrganization(
   supabase: ReturnType<typeof createBrowserClient>,
   orgId: string,
   logger: Logger,
 ): Promise<boolean> {
+  // First check if org exists in Clerk
   const { data: orgData, error: orgError } = await supabase.rpc("get_org_from_clerk_mirror", {
     p_org_id: orgId,
   })
 
   if (orgError || !orgData) {
     logger.error("Organization not found in Clerk mirror", { error: orgError?.message })
+    return false
+  }
+
+  // Ensure tenant exists in tenants table
+  const { error: tenantError } = await supabase.rpc("ensure_tenant_exists", {
+    p_org_id: orgId,
+  })
+
+  if (tenantError) {
+    logger.error("Failed to ensure tenant exists", { error: tenantError.message })
     return false
   }
 

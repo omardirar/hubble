@@ -132,6 +132,37 @@ CREATE TRIGGER trg_events_block
 BEFORE UPDATE OR DELETE ON public.events
 FOR EACH STATEMENT EXECUTE FUNCTION public.block_update_delete();
 
+-- Assign monotonically increasing event_seq per correlation_id on insert.
+CREATE OR REPLACE FUNCTION public.set_event_seq()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_next bigint;
+BEGIN
+  IF NEW.correlation_id IS NULL THEN
+    -- Ensure a correlation is always present to maintain ordering semantics
+    NEW.correlation_id := (extensions.gen_random_uuid())::text;
+  END IF;
+
+  IF NEW.event_seq IS NULL THEN
+    SELECT coalesce(MAX(e.event_seq), 0) + 1
+      INTO v_next
+    FROM public.events e
+    WHERE e.correlation_id = NEW.correlation_id;
+    NEW.event_seq := v_next;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+ALTER FUNCTION public.set_event_seq() SET search_path = pg_catalog, public;
+
+DROP TRIGGER IF EXISTS trg_events_set_seq ON public.events;
+CREATE TRIGGER trg_events_set_seq
+BEFORE INSERT ON public.events
+FOR EACH ROW EXECUTE FUNCTION public.set_event_seq();
+
 ALTER TABLE public.tenants             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tenant_destinations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.provisioning_runs   ENABLE ROW LEVEL SECURITY;
@@ -140,22 +171,22 @@ ALTER TABLE public.events              ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenants_select_org ON public.tenants;
 CREATE POLICY tenants_select_org
   ON public.tenants FOR SELECT
-  USING (org_id = public.current_org_id());
+  USING (org_id = (SELECT public.current_org_id()));
 
 DROP POLICY IF EXISTS dest_select_org ON public.tenant_destinations;
 CREATE POLICY dest_select_org
   ON public.tenant_destinations FOR SELECT
-  USING (org_id = public.current_org_id());
+  USING (org_id = (SELECT public.current_org_id()));
 
 DROP POLICY IF EXISTS runs_select_org ON public.provisioning_runs;
 CREATE POLICY runs_select_org
   ON public.provisioning_runs FOR SELECT
-  USING (org_id = public.current_org_id());
+  USING (org_id = (SELECT public.current_org_id()));
 
 DROP POLICY IF EXISTS events_select_org ON public.events;
 CREATE POLICY events_select_org
   ON public.events FOR SELECT
-  USING (org_id = public.current_org_id());
+  USING (org_id = (SELECT public.current_org_id()));
 
 -- Helper to mirror Clerk organizations into tenants when using the FDW.
 CREATE OR REPLACE FUNCTION sync_clerk_organizations_into_tenants()
@@ -209,3 +240,26 @@ BEGIN
   END;
 END;
 $$;
+
+-- RPC grants to ensure accessibility via PostgREST
+GRANT EXECUTE ON FUNCTION public.ensure_tenant_exists(text) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.sync_clerk_organizations_into_tenants() TO service_role;
+
+-- Add RLS policies for tenants table
+DROP POLICY IF EXISTS tenants_insert_org ON public.tenants;
+CREATE POLICY tenants_insert_org
+  ON public.tenants FOR INSERT
+  WITH CHECK (org_id = (SELECT public.current_org_id()));
+
+DROP POLICY IF EXISTS tenants_update_org ON public.tenants;
+CREATE POLICY tenants_update_org
+  ON public.tenants FOR UPDATE
+  USING (org_id = (SELECT public.current_org_id()))
+  WITH CHECK (org_id = (SELECT public.current_org_id()));
+
+-- Grant necessary permissions for tenant operations
+GRANT INSERT ON TABLE public.tenants TO authenticated;
+GRANT UPDATE ON TABLE public.tenants TO authenticated;
+
+-- Ensure a single destination row per tenant for upserts
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_dest_org ON public.tenant_destinations(org_id);
