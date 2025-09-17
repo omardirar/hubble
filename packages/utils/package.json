@@ -30,6 +30,7 @@
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.5.2",
     "@hubble/db": "workspace:*",
+    "@hubble/api-contracts": "workspace:*",
     "@hubble/env": "workspace:*",
     "@hubble/auth": "workspace:*",
     "@clerk/nextjs": "^6.31.10",

@@ -1,23 +1,17 @@
 import { NextResponse } from "next/server"
-import { createApiHandler } from "@hubble/utils/server"
-import { getStatus } from "@hubble/utils/server"
-import { StatusResponseSchema } from "@hubble/api-contracts/connect"
+import { createApiHandler, getStatus, RunNotFoundError } from "@hubble/utils/server"
 
 export const runtime = "nodejs"
 
 export async function GET(request: Request) {
-  const url = new URL(request.url)
-  const correlation_id = url.searchParams.get("correlation_id") || ""
   return createApiHandler(
-    async (_req: Request, auth, reqLogger) => {
+    async (req: Request, auth, reqLogger) => {
       const reqId = crypto.randomUUID()
-      if (!auth) {
-        return NextResponse.json(
-          { error: { code: "UNAUTHORIZED", message: "Unauthorized" }, request_id: reqId },
-          { status: 401 },
-        )
-      }
-      if (!correlation_id) {
+      const url = new URL(req.url)
+      const correlationId = url.searchParams.get("correlation_id")?.trim() ?? ""
+
+      // Reject early so clients get immediate feedback before hitting Supabase.
+      if (!correlationId) {
         return NextResponse.json(
           {
             error: { code: "VALIDATION_ERROR", message: "correlation_id is required" },
@@ -26,15 +20,30 @@ export async function GET(request: Request) {
           { status: 400 },
         )
       }
+
       try {
-        const result = await getStatus(auth.orgId, correlation_id)
-        StatusResponseSchema.parse(result)
+        // Server utilities enforce org scoping and return schema-safe payloads.
+        const result = await getStatus(auth!.orgId, correlationId)
         return NextResponse.json(result)
-      } catch (e) {
-        reqLogger.error("status.failed", { error: String(e), correlation_id })
+      } catch (error) {
+        if (error instanceof RunNotFoundError) {
+          return NextResponse.json(
+            { error: { code: "NOT_FOUND", message: "Run not found" }, request_id: reqId },
+            { status: 404 },
+          )
+        }
+
+        // Log unexpected failures to help trace upstream connectivity or parsing issues.
+        reqLogger.error("connect.status.failed", {
+          error: error instanceof Error ? error.message : String(error),
+          correlation_id: correlationId,
+        })
         return NextResponse.json(
-          { error: { code: "NOT_FOUND", message: "Run not found" }, request_id: reqId },
-          { status: 404 },
+          {
+            error: { code: "INTERNAL_ERROR", message: "Failed to retrieve run status" },
+            request_id: reqId,
+          },
+          { status: 500 },
         )
       }
     },

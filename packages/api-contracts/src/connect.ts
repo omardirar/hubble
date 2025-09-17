@@ -17,6 +17,7 @@ export const ProvisionStepSchema = z.enum([
   "CONFIGURE_COMPUTE",
   "CREATE_FIVETRAN_DESTINATION",
   "TEST_DESTINATION",
+  "ERROR",
   "READY",
 ])
 export type ProvisionStep = z.infer<typeof ProvisionStepSchema>
