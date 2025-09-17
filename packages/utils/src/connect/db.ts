@@ -17,15 +17,35 @@ export class RunNotFoundError extends Error {
   }
 }
 
+export class TenantNotFoundError extends Error {
+  constructor(orgId: string) {
+    super(`Tenant ${orgId} not found`)
+    this.name = "TenantNotFoundError"
+  }
+}
+
 export async function insertProvisionRun(orgId: string): Promise<{ correlation_id: string }> {
   const db = createServiceClient()
+  // Ensure tenant row exists (syncs from Clerk FDW when available)
+  const ensureResult = await db.rpc("ensure_tenant_exists", { p_org_id: orgId })
+  if (ensureResult.error) {
+    if ((ensureResult.error as any)?.code === "P0001") {
+      throw new TenantNotFoundError(orgId)
+    }
+    throw ensureResult.error
+  }
   // Provisioning runs start in "pending"; returning correlation id ties subsequent steps together.
   const { data, error } = await db
     .from("provisioning_runs")
     .insert({ org_id: orgId, status: "pending" })
     .select("correlation_id")
     .single()
-  if (error) throw error
+  if (error) {
+    if ((error as { code?: string }).code === "23503") {
+      throw new TenantNotFoundError(orgId)
+    }
+    throw error
+  }
   return { correlation_id: data.correlation_id as string }
 }
 

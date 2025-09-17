@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createApiHandler } from "@hubble/utils/server"
 import { insertProvisionRun } from "@hubble/utils/server"
 import { enqueueProvisionJob } from "@hubble/utils/server"
+import { TenantNotFoundError } from "@hubble/utils/server"
 import { EnableResponseSchema } from "@hubble/api-contracts/connect"
 
 export const runtime = "nodejs" // Ensure Node runtime for SDKs
@@ -17,7 +18,38 @@ export async function POST(request: Request) {
         )
       }
       // Create run in DB
-      const { correlation_id } = await insertProvisionRun(auth.orgId)
+      let correlation_id: string
+      try {
+        const run = await insertProvisionRun(auth.orgId)
+        correlation_id = run.correlation_id
+      } catch (error) {
+        if (error instanceof TenantNotFoundError) {
+          reqLogger.warn("connect.enable.tenant_missing", { orgId: auth.orgId })
+          return NextResponse.json(
+            {
+              error: {
+                code: "TENANT_NOT_FOUND",
+                message:
+                  "Tenant record not found. Please sync organization metadata before enabling Connect.",
+              },
+              request_id: reqId,
+            },
+            { status: 409 },
+          )
+        }
+
+        reqLogger.error("connect.enable.insert_failed", {
+          error: error instanceof Error ? error.message : String(error),
+          orgId: auth.orgId,
+        })
+        return NextResponse.json(
+          {
+            error: { code: "INTERNAL_ERROR", message: "Failed to start provisioning run" },
+            request_id: reqId,
+          },
+          { status: 500 },
+        )
+      }
 
       // Enqueue provisioning job via QStash, targeting our own API consumer
       // Derive base URL from request headers (supports Vercel/Next)
