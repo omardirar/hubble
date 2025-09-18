@@ -14,15 +14,12 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async (req: any, auth, logger) => {
       // Parse and validate request body
-      const validatedRequest = await parseRequestBody(req, validateChatRequest, logger)
-      if (validatedRequest instanceof Response) {
-        return validatedRequest
-      }
-
-      const prompt = validatedRequest.text.trim()
+      const { text } = await parseRequestBody(req, validateChatRequest, logger)
+      const prompt = text.trim()
 
       logger.info("Processing chat request", {
         userId: auth!.userId,
+        orgId: auth!.orgId,
         promptLength: prompt.length,
       })
 
@@ -34,6 +31,7 @@ export async function POST(request: NextRequest) {
 
       logger.info("Chat request completed successfully", {
         userId: auth!.userId,
+        orgId: auth!.orgId,
         replyLength: validatedResponse.reply.length,
       })
 
@@ -41,7 +39,6 @@ export async function POST(request: NextRequest) {
     },
     {
       requireAuth: true,
-      requireOrg: false,
       loggerContext: { endpoint: "/api/v1/chat" },
     },
   )(request)

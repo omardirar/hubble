@@ -62,7 +62,7 @@ export async function createConnectStatusStream(
 
       const poll = async () => {
         try {
-          const latest = await getStatus(orgId, correlationId)
+          const latest = await getStatus(orgId, correlationId, lastSeq)
           emitEvents(latest)
         } catch (error) {
           if (error instanceof RunNotFoundError) {

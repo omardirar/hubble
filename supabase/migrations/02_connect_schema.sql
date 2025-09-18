@@ -183,6 +183,22 @@ CREATE POLICY runs_select_org
   ON public.provisioning_runs FOR SELECT
   USING (org_id = (SELECT public.current_org_id()));
 
+DROP POLICY IF EXISTS runs_insert_org ON public.provisioning_runs;
+CREATE POLICY runs_insert_org
+  ON public.provisioning_runs FOR INSERT
+  WITH CHECK (org_id = (SELECT public.current_org_id()));
+
+DROP POLICY IF EXISTS runs_update_org ON public.provisioning_runs;
+CREATE POLICY runs_update_org
+  ON public.provisioning_runs FOR UPDATE
+  USING (org_id = (SELECT public.current_org_id()))
+  WITH CHECK (org_id = (SELECT public.current_org_id()));
+
+DROP POLICY IF EXISTS runs_delete_org ON public.provisioning_runs;
+CREATE POLICY runs_delete_org
+  ON public.provisioning_runs FOR DELETE
+  USING (org_id = (SELECT public.current_org_id()));
+
 DROP POLICY IF EXISTS events_select_org ON public.events;
 CREATE POLICY events_select_org
   ON public.events FOR SELECT
@@ -252,6 +268,12 @@ ALTER FUNCTION public.ensure_tenant_exists(text) OWNER TO postgres;
 -- Ensure postgres user has necessary schema privileges for SECURITY DEFINER function
 GRANT USAGE, CREATE ON SCHEMA public TO postgres;
 
+-- Ensure service_role has necessary schema privileges to call SECURITY DEFINER function
+GRANT USAGE, CREATE ON SCHEMA public TO service_role;
+
+-- Ensure service_role can execute the function
+GRANT EXECUTE ON FUNCTION public.ensure_tenant_exists(text) TO service_role;
+
 -- RPC grants to ensure accessibility via PostgREST
 GRANT EXECUTE ON FUNCTION public.ensure_tenant_exists(text) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.sync_clerk_organizations_into_tenants() TO service_role;
@@ -272,6 +294,16 @@ CREATE POLICY tenants_update_org
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT INSERT ON TABLE public.tenants TO authenticated;
 GRANT UPDATE ON TABLE public.tenants TO authenticated;
+
+-- Grant necessary permissions for provisioning runs operations
+GRANT INSERT ON TABLE public.provisioning_runs TO authenticated;
+GRANT UPDATE ON TABLE public.provisioning_runs TO authenticated;
+GRANT SELECT ON TABLE public.provisioning_runs TO authenticated;
+
+-- Grant necessary permissions for service_role on provisioning runs
+GRANT INSERT ON TABLE public.provisioning_runs TO service_role;
+GRANT UPDATE ON TABLE public.provisioning_runs TO service_role;
+GRANT SELECT ON TABLE public.provisioning_runs TO service_role;
 
 -- Ensure a single destination row per tenant for upserts
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_dest_org ON public.tenant_destinations(org_id);

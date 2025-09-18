@@ -1,6 +1,12 @@
 import { createServiceClient } from "@hubble/db"
 import { connect } from "@hubble/api-contracts"
-import { acquireLock, releaseLock, publishEvent } from "./redis"
+import {
+  acquireLock,
+  releaseLock,
+  publishEvent,
+  type LockHandle,
+  RedisUnavailableError,
+} from "@hubble/redis"
 import { appendEvent, updateProvisionRun, upsertTenantDestination } from "./db"
 import { mdCreateServiceAccount, mdIssueToken, mdCreateDatabase } from "./motherduck"
 import { fivetranUpsertMotherDuckDestination, fivetranTestDestination } from "./fivetran"
@@ -11,6 +17,13 @@ export class LockNotAcquiredError extends Error {
   constructor(lockKey: string) {
     super(`Failed to acquire lock: ${lockKey}`)
     this.name = "LockNotAcquiredError"
+  }
+}
+
+export class LockServiceUnavailableError extends Error {
+  constructor(lockKey: string) {
+    super(`Lock service unavailable for key: ${lockKey}`)
+    this.name = "LockServiceUnavailableError"
   }
 }
 
@@ -56,8 +69,17 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
   const lockKey = `provision:org:${orgId}`
   const channel = `provision:events:${correlationId}`
 
-  const acquired = await acquireLock(lockKey, LOCK_TTL_MS)
-  if (!acquired) {
+  let lock: LockHandle | null = null
+  try {
+    lock = await acquireLock(lockKey, LOCK_TTL_MS)
+  } catch (error) {
+    if (error instanceof RedisUnavailableError) {
+      throw new LockServiceUnavailableError(lockKey)
+    }
+    throw error
+  }
+
+  if (!lock) {
     throw new LockNotAcquiredError(lockKey)
   }
 
@@ -137,6 +159,15 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     }
     throw new ProvisionJobFailedError(message)
   } finally {
-    await releaseLock(lockKey)
+    if (lock) {
+      try {
+        await releaseLock(lock)
+      } catch (error) {
+        console.warn("connect.lock.release_failed", {
+          key: lock.key,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
   }
 }

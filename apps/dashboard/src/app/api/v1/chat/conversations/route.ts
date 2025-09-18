@@ -50,16 +50,11 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async (req: any, auth, logger) => {
       // Parse and validate request body
-      const validatedRequest = await parseRequestBody(
+      const { title = "New Chat" } = await parseRequestBody(
         req,
         validateCreateConversationRequest,
         logger,
       )
-      if (validatedRequest instanceof Response) {
-        return validatedRequest
-      }
-
-      const { title = "New Chat" } = validatedRequest
 
       logger.info("Creating conversation", {
         userId: auth!.userId,

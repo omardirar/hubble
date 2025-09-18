@@ -97,8 +97,24 @@ export async function appendEvent(
   return { event_seq: data.event_seq as number, ts: data.created_at as string }
 }
 
-export async function getStatus(orgId: string, correlationId: string): Promise<StatusResponse> {
+export async function getStatus(
+  orgId: string,
+  correlationId: string,
+  sinceEventSeq?: number,
+): Promise<StatusResponse> {
   const db = createServiceClient()
+
+  const eventsQuery = db
+    .from("events")
+    .select("event_seq, payload, created_at")
+    .eq("org_id", orgId)
+    .eq("correlation_id", correlationId)
+    .order("event_seq", { ascending: true })
+
+  if (typeof sinceEventSeq === "number" && Number.isFinite(sinceEventSeq)) {
+    eventsQuery.gt("event_seq", sinceEventSeq)
+  }
+
   // Fetch run metadata and timeline concurrently for minimal round-trips.
   const [runResult, eventsResult] = await Promise.all([
     db
@@ -107,12 +123,7 @@ export async function getStatus(orgId: string, correlationId: string): Promise<S
       .eq("correlation_id", correlationId)
       .eq("org_id", orgId)
       .single(),
-    db
-      .from("events")
-      .select("event_seq, payload, created_at")
-      .eq("org_id", orgId)
-      .eq("correlation_id", correlationId)
-      .order("event_seq", { ascending: true }),
+    eventsQuery,
   ])
 
   if (runResult.error) {

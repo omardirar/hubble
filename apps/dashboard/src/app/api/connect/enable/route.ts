@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server"
-import { createApiHandler } from "@hubble/utils/server"
-import { insertProvisionRun } from "@hubble/utils/server"
-import { enqueueProvisionJob } from "@hubble/utils/server"
-import { TenantNotFoundError } from "@hubble/utils/server"
+import {
+  createApiHandler,
+  insertProvisionRun,
+  dispatchQStashJson,
+  QStashPublishError,
+  TenantNotFoundError,
+} from "@hubble/utils/server"
 import { EnableResponseSchema } from "@hubble/api-contracts/connect"
 
 export const runtime = "nodejs" // Ensure Node runtime for SDKs
@@ -63,9 +66,23 @@ export async function POST(request: Request) {
         (host.startsWith("localhost") ? "http" : "https")) as "http" | "https"
       const baseUrl = `${protocol}://${host}`
       try {
-        await enqueueProvisionJob(baseUrl, { org_id: auth.orgId, correlation_id })
-      } catch (e) {
-        reqLogger.error("qstash.enqueue.failed", { error: String(e) })
+        await dispatchQStashJson({
+          targetUrl: new URL("/api/queues/provision", baseUrl).toString(),
+          body: { org_id: auth.orgId, correlation_id },
+          dedupeKey: correlation_id,
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        reqLogger.error("qstash.enqueue.failed", { error: message })
+        if (error instanceof QStashPublishError) {
+          return NextResponse.json(
+            {
+              error: { code: "ENQUEUE_FAILED", message: "Failed to enqueue provisioning" },
+              request_id: reqId,
+            },
+            { status: 502 },
+          )
+        }
         return NextResponse.json(
           {
             error: { code: "ENQUEUE_FAILED", message: "Failed to enqueue provisioning" },

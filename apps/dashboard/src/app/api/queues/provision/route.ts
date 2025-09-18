@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server"
-import { verifySignatureAppRouter } from "@upstash/qstash/nextjs"
 import {
   LockNotAcquiredError,
+  LockServiceUnavailableError,
   processProvisionJob,
   ProvisionJobFailedError,
+  withQStashVerification,
 } from "@hubble/utils/server"
-import { getConnectEnv } from "@hubble/env"
 
 export const runtime = "nodejs"
-
-const { QSTASH_CURRENT_SIGNING_KEY, QSTASH_NEXT_SIGNING_KEY } = getConnectEnv()
 
 const handler = async (request: Request) => {
   const { org_id, correlation_id } = (await request.json().catch(() => ({}))) as {
@@ -28,6 +26,9 @@ const handler = async (request: Request) => {
     if (error instanceof LockNotAcquiredError) {
       return new Response("lock-not-acquired", { status: 409 })
     }
+    if (error instanceof LockServiceUnavailableError) {
+      return new Response("lock-unavailable", { status: 503 })
+    }
     if (error instanceof ProvisionJobFailedError) {
       return new Response("failed", { status: 502 })
     }
@@ -35,7 +36,6 @@ const handler = async (request: Request) => {
   }
 }
 
-export const POST = verifySignatureAppRouter(handler, {
-  currentSigningKey: QSTASH_CURRENT_SIGNING_KEY,
-  nextSigningKey: QSTASH_NEXT_SIGNING_KEY,
+export const POST = withQStashVerification(handler, {
+  skipVerification: process.env.NODE_ENV !== "production",
 })
