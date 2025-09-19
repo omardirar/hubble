@@ -28,7 +28,7 @@ export async function createConnectStatusStream(
         org_id: orgId,
         retry: retries,
       })
-      initialStatus = await getStatus(orgId, correlationId, undefined, false, authToken)
+      initialStatus = await getStatus(orgId, correlationId, undefined, true, authToken)
       logger.info("connect.stream.initial_status_success", {
         correlation_id: correlationId,
         org_id: orgId,
@@ -142,7 +142,7 @@ export async function createConnectStatusStream(
         if (closed) return
 
         try {
-          const latest = await getStatus(orgId, correlationId, lastSeq, false, authToken)
+          const latest = await getStatus(orgId, correlationId, lastSeq, true, authToken)
           emitEvents(latest)
           consecutiveErrors = 0 // Reset error counter on success
         } catch (error) {
