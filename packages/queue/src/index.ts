@@ -24,7 +24,7 @@ export interface PublishOptions<TBody = unknown> {
   targetUrl: string
   body: TBody
   dedupeKey?: string
-  method?: string
+  method?: "POST" | "GET" | "PUT" | "DELETE" | "PATCH"
   headers?: Record<string, string>
 }
 
@@ -34,35 +34,9 @@ export interface PublishResult {
   response?: unknown
 }
 
-function getPublishEndpoint(targetUrl: string) {
-  // Use the correct QStash API format with target URL in the path (NOT encoded)
-  return `https://qstash.upstash.io/v2/publish/${targetUrl}`
-}
-
-export function shouldBypassQStash(targetUrl: string): boolean {
-  const forceBypass = process.env.QSTASH_BYPASS === "1"
-  if (forceBypass) {
-    return true
-  }
-
-  if (process.env.NODE_ENV !== "development") {
-    return false
-  }
-
-  try {
-    const url = new URL(targetUrl)
-    const host = url.hostname.toLowerCase()
-    if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0") {
-      return true
-    }
-    if (host.endsWith(".local")) {
-      return true
-    }
-  } catch (error) {
-    console.warn("qstash.bypass.invalid_url", { targetUrl, error })
-  }
-
-  return false
+function getPublishEndpoint() {
+  // Use the correct QStash API format - target URL goes in Upstash-Url header
+  return `https://qstash.upstash.io/v2/publish`
 }
 
 export async function publishJson<TBody = unknown>(
@@ -70,7 +44,7 @@ export async function publishJson<TBody = unknown>(
 ): Promise<PublishResult> {
   const { targetUrl, body, dedupeKey, method = "POST", headers } = options
   const { token } = getQStashConfig()
-  const endpoint = getPublishEndpoint(targetUrl)
+  const endpoint = getPublishEndpoint()
 
   try {
     const controller = new AbortController()
@@ -81,6 +55,7 @@ export async function publishJson<TBody = unknown>(
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
+        "Upstash-Url": targetUrl,
         "Upstash-Method": method,
         ...(dedupeKey ? { "Upstash-Deduplication-Id": dedupeKey } : {}),
         ...headers,

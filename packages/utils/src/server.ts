@@ -34,7 +34,6 @@ export {
   publishJson as publishQStashJson,
   dispatchJson as dispatchQStashJson,
   withQStashVerification,
-  shouldBypassQStash,
   type PublishOptions as QStashPublishOptions,
   type PublishResult as QStashPublishResult,
   QStashError,
