@@ -48,7 +48,7 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        name: username,
+        username: username,
         // Service accounts are created as regular users with specific permissions
         // The API will handle the service account designation
       }),
@@ -85,8 +85,8 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
       throw new Error(`MotherDuck API error: ${res.status} ${res.statusText} - ${errorBody}`)
     }
 
-    const data = (await res.json().catch(() => ({}))) as { name?: string; username?: string }
-    const createdUsername = data.name || data.username || username
+    const data = (await res.json().catch(() => ({}))) as { username?: string; name?: string }
+    const createdUsername = data.username || data.name || username
 
     logger.info("connect.motherduck.create_service_account.success", {
       username: createdUsername,
