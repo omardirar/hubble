@@ -56,6 +56,9 @@ export async function publishJson<TBody = unknown>(
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
         "Upstash-Method": method,
+        ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+          ? { "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET }
+          : {}),
         ...(dedupeKey ? { "Upstash-Deduplication-Id": dedupeKey } : {}),
         ...headers,
       },
