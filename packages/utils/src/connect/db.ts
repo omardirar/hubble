@@ -72,15 +72,31 @@ export async function updateProvisionRun(
     updates,
   })
 
+  // Filter out error_message if it doesn't exist in the schema
+  // This is a temporary workaround until the migration is applied
+  const filteredUpdates = { ...updates }
+  if ("error_message" in filteredUpdates) {
+    // Store error message in metadata instead
+    const errorMessage = filteredUpdates.error_message
+    delete filteredUpdates.error_message
+
+    if (typeof errorMessage === "string" && errorMessage.length > 0) {
+      filteredUpdates.metadata = {
+        ...((filteredUpdates.metadata as Record<string, unknown>) || {}),
+        error_message: errorMessage,
+      }
+    }
+  }
+
   const { error } = await db
     .from("provisioning_runs")
-    .update(updates)
+    .update(filteredUpdates)
     .eq("correlation_id", correlationId)
 
   if (error) {
     logger.error("connect.db.update_provision_run_failed", {
       correlation_id: correlationId,
-      updates,
+      updates: filteredUpdates,
       error: error.message,
     })
     throw error
@@ -100,7 +116,11 @@ export async function appendEvent(
   message?: string,
 ): Promise<{ event_seq: number; ts: string }> {
   const db = createServiceClient()
-  // event_seq is bigserial with unique index per correlation; rely on DB monotonicity
+
+  // Use timestamp-based sequence to avoid permission issues with the auto-generated sequence
+  const timestamp = Date.now()
+  const event_seq = Math.floor(timestamp / 1000) // Use seconds as sequence
+
   const payload = { step, status, message }
   const { data, error } = await db
     .from("events")
@@ -110,6 +130,7 @@ export async function appendEvent(
       type: `provision.${step.toLowerCase()}.${status}`,
       correlation_id: correlationId,
       payload,
+      event_seq: event_seq,
     })
     .select("event_seq, created_at")
     .single()
@@ -141,7 +162,7 @@ export async function getStatus(
   const [runResult, eventsResult] = await Promise.all([
     db
       .from("provisioning_runs")
-      .select("status, md_db_name, fivetran_destination_id")
+      .select("status, md_db_name, fivetran_destination_id, metadata")
       .eq("correlation_id", correlationId)
       .eq("org_id", orgId)
       .single(),
@@ -203,8 +224,21 @@ export async function getStatus(
     })
   }
 
+  // Check if there are any error events in the timeline
+  const hasErrorEvent = timeline.some((event) => event.status === "failed")
+  const hasErrorInMetadata =
+    runResult.data.metadata &&
+    typeof runResult.data.metadata === "object" &&
+    "error_message" in (runResult.data.metadata as Record<string, unknown>)
+
+  // Determine the actual status
+  let actualStatus = String(runResult.data.status ?? "pending")
+  if (hasErrorEvent || hasErrorInMetadata) {
+    actualStatus = "failed"
+  }
+
   const result = {
-    status: String(runResult.data.status ?? "pending"),
+    status: actualStatus,
     md_db_name:
       typeof runResult.data.md_db_name === "string" && runResult.data.md_db_name.length > 0
         ? runResult.data.md_db_name
