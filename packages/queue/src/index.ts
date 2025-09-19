@@ -34,9 +34,9 @@ export interface PublishResult {
   response?: unknown
 }
 
-function getPublishEndpoint() {
-  // Use the correct QStash API format - target URL goes in Upstash-Url header
-  return `https://qstash.upstash.io/v2/publish`
+function getPublishEndpoint(targetUrl: string) {
+  // Use the correct QStash API format with target URL in the path
+  return `https://qstash.upstash.io/v2/publish/${targetUrl}`
 }
 
 export async function publishJson<TBody = unknown>(
@@ -44,7 +44,7 @@ export async function publishJson<TBody = unknown>(
 ): Promise<PublishResult> {
   const { targetUrl, body, dedupeKey, method = "POST", headers } = options
   const { token } = getQStashConfig()
-  const endpoint = getPublishEndpoint()
+  const endpoint = getPublishEndpoint(targetUrl)
 
   try {
     const controller = new AbortController()
@@ -55,7 +55,6 @@ export async function publishJson<TBody = unknown>(
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
-        "Upstash-Url": targetUrl,
         "Upstash-Method": method,
         ...(dedupeKey ? { "Upstash-Deduplication-Id": dedupeKey } : {}),
         ...headers,
