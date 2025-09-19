@@ -14,7 +14,8 @@ export async function POST(request: Request) {
 
           let body: unknown
           try {
-            body = await request.json()
+            const text = await req.text()
+            body = text ? JSON.parse(text) : {}
           } catch (error) {
             reqLogger.error("queues.provision.invalid_json", {
               error: error instanceof Error ? error.message : String(error),

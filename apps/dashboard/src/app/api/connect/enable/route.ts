@@ -19,7 +19,8 @@ export async function POST(request: Request) {
       // Validate request body
       let requestBody: unknown
       try {
-        requestBody = await request.json()
+        const text = await request.text()
+        requestBody = text ? JSON.parse(text) : {}
       } catch (error) {
         reqLogger.error("connect.enable.invalid_json", {
           error: error instanceof Error ? error.message : String(error),
