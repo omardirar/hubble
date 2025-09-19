@@ -35,6 +35,7 @@ export interface PublishResult {
 }
 
 function getPublishEndpoint(targetUrl: string) {
+  // Always use production QStash API as the development server has issues with localhost URLs
   return `https://qstash.upstash.io/v2/publish/${encodeURIComponent(targetUrl)}`
 }
 
@@ -85,7 +86,14 @@ export async function publishJson<TBody = unknown>(
     })
 
     if (!res.ok) {
-      throw new QStashPublishError(`QStash publish failed with status ${res.status}`)
+      let errorDetails = ""
+      try {
+        const errorBody = await res.text()
+        errorDetails = ` - ${errorBody}`
+      } catch {
+        // Ignore if we can't parse the error body
+      }
+      throw new QStashPublishError(`QStash publish failed with status ${res.status}${errorDetails}`)
     }
 
     const payload = await res.json().catch(() => ({}))
@@ -107,16 +115,7 @@ export async function publishJson<TBody = unknown>(
   }
 }
 
-export async function dispatchJson<TBody>(
-  options: PublishOptions<TBody> & { directHandler?: (body: TBody) => Promise<void> },
-): Promise<PublishResult> {
-  const { targetUrl, body, directHandler } = options
-
-  if (directHandler && shouldBypassQStash(targetUrl)) {
-    await directHandler(body)
-    return { bypassed: true }
-  }
-
+export async function dispatchJson<TBody>(options: PublishOptions<TBody>): Promise<PublishResult> {
   return publishJson(options)
 }
 

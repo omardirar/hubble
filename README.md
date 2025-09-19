@@ -59,6 +59,7 @@ An AI‑powered Marketing Assistant with a full‑stack Next.js 15 app, Clerk au
   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
   - `CLERK_SECRET_KEY`
 - Upstash QStash
+  - `QSTASH_URL` (default: `https://qstash.upstash.io`)
   - `QSTASH_TOKEN`
   - `QSTASH_CURRENT_SIGNING_KEY`
   - `QSTASH_NEXT_SIGNING_KEY`
@@ -144,9 +145,17 @@ An AI‑powered Marketing Assistant with a full‑stack Next.js 15 app, Clerk au
 
 #### QStash behaviour
 
-- `dispatchQStashJson` respects `QSTASH_BYPASS=1` or localhost targets to execute jobs inline during development (useful for rapid iteration without public callbacks).
+- **Local Development**: Use `pnpm dev:qstash` to start the QStash development server locally. This provides full QStash functionality including schedules, URL groups, workflows, and event logs.
+- **Production**: Uses the hosted QStash service at `https://qstash.upstash.io`.
+- `dispatchQStashJson` automatically detects the environment and uses the appropriate QStash endpoint.
 - `withQStashVerification` wraps handlers with signature verification unless `NODE_ENV !== production`; rotate signing keys by populating both `current` and `next` envs.
 - All publish requests include `Upstash-Deduplication-Id = correlation_id` for ingress idempotency.
+
+#### Local Development Setup
+
+1. Start QStash development server: `pnpm dev:qstash`
+2. Copy the provided credentials to your `.env.local` file
+3. Start your application: `pnpm dev`
 
 #### Database artifacts
 

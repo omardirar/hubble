@@ -14,12 +14,26 @@ export async function POST(request: Request) {
   return createApiHandler(
     async (_req: Request, auth, reqLogger) => {
       const reqId = crypto.randomUUID()
+
       if (!auth) {
+        reqLogger.error("connect.enable.unauthorized", {})
         return NextResponse.json(
           { error: { code: "UNAUTHORIZED", message: "Unauthorized" }, request_id: reqId },
           { status: 401 },
         )
       }
+
+      if (!auth.orgId) {
+        reqLogger.error("connect.enable.no_org", { userId: auth.userId })
+        return NextResponse.json(
+          {
+            error: { code: "NO_ORGANIZATION", message: "No organization found" },
+            request_id: reqId,
+          },
+          { status: 400 },
+        )
+      }
+
       // Create run in DB
       let correlation_id: string
       try {
@@ -58,23 +72,54 @@ export async function POST(request: Request) {
         )
       }
 
-      // Enqueue provisioning job via QStash, targeting our own API consumer
-      // Derive base URL from request headers (supports Vercel/Next)
+      // Enqueue provisioning job via QStash
       const headers = new Headers(request.headers)
       const host = headers.get("x-forwarded-host") ?? headers.get("host") ?? "localhost:3000"
       const protocol = (headers.get("x-forwarded-proto") ??
         (host.startsWith("localhost") ? "http" : "https")) as "http" | "https"
       const baseUrl = `${protocol}://${host}`
+      const targetUrl = new URL("/api/queues/provision", baseUrl).toString()
+
       try {
+        reqLogger.info("connect.enable.enqueuing_job", {
+          targetUrl,
+          orgId: auth.orgId,
+          correlationId: correlation_id,
+        })
+
         await dispatchQStashJson({
-          targetUrl: new URL("/api/queues/provision", baseUrl).toString(),
+          targetUrl,
           body: { org_id: auth.orgId, correlation_id },
           dedupeKey: correlation_id,
         })
+
+        reqLogger.info("connect.enable.job_enqueued", {
+          orgId: auth.orgId,
+          correlationId: correlation_id,
+        })
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
-        reqLogger.error("qstash.enqueue.failed", { error: message })
+        reqLogger.error("qstash.enqueue.failed", {
+          error: message,
+          orgId: auth.orgId,
+          correlationId: correlation_id,
+        })
         if (error instanceof QStashPublishError) {
+          // Check if it's a development server token error
+          if (message.includes("development server token")) {
+            return NextResponse.json(
+              {
+                error: {
+                  code: "QSTASH_CONFIG_ERROR",
+                  message:
+                    "Invalid QStash configuration. Please check your QSTASH_TOKEN and QSTASH_URL in .env.local. You may be using a development server token with production QStash.",
+                },
+                request_id: reqId,
+              },
+              { status: 502 },
+            )
+          }
+
           return NextResponse.json(
             {
               error: { code: "ENQUEUE_FAILED", message: "Failed to enqueue provisioning" },
@@ -93,10 +138,9 @@ export async function POST(request: Request) {
       }
 
       const body = { correlation_id, status: "pending" as const, request_id: reqId }
-      // Validate response contract
       EnableResponseSchema.parse(body)
       return NextResponse.json(body)
     },
     { requireAuth: true, requireOrg: true, loggerContext: { endpoint: "/api/connect/enable" } },
-  )(request as unknown as Request)
+  )(request)
 }

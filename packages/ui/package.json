@@ -23,6 +23,7 @@
   "peerDependencies": {
     "@clerk/nextjs": "^6.0.0",
     "@clerk/themes": "^2.0.0",
+    "motion": "^11.0.0",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-checkbox": "^1.0.0",
     "@radix-ui/react-dialog": "^1.0.0",

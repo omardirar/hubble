@@ -7,6 +7,7 @@ import {
   type LockHandle,
   RedisUnavailableError,
 } from "@hubble/redis"
+import { logger } from "../logger"
 import { appendEvent, updateProvisionRun, upsertTenantDestination } from "./db"
 import { mdCreateServiceAccount, mdIssueToken, mdCreateDatabase } from "./motherduck"
 import { fivetranUpsertMotherDuckDestination, fivetranTestDestination } from "./fivetran"
@@ -48,6 +49,29 @@ const logStepFactory =
     extra?: Record<string, unknown>,
   ) => {
     const { event_seq, ts } = await appendEvent(orgId, correlationId, step, status, message)
+
+    // Enhanced logging with structured context
+    const logContext = {
+      correlation_id: correlationId,
+      org_id: orgId,
+      step,
+      status,
+      event_seq,
+      ts,
+      message,
+      ...(extra ?? {}),
+    }
+
+    // Log to structured logger with appropriate level
+    if (status === "failed") {
+      logger.error("connect.provision.step.failed", logContext)
+    } else if (status === "succeeded") {
+      logger.info("connect.provision.step.succeeded", logContext)
+    } else {
+      logger.info("connect.provision.step.progress", logContext)
+    }
+
+    // Publish to Redis for real-time updates
     await publishEvent(channel, {
       correlation_id: correlationId,
       step,
@@ -69,10 +93,29 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
   const lockKey = `provision:org:${orgId}`
   const channel = `provision:events:${correlationId}`
 
+  // Enhanced logging for job start
+  logger.info("connect.provision.job.started", {
+    correlation_id: correlationId,
+    org_id: orgId,
+    lock_key: lockKey,
+    channel,
+  })
+
   let lock: LockHandle | null = null
   try {
+    logger.info("connect.provision.lock.attempting", {
+      correlation_id: correlationId,
+      org_id: orgId,
+      lock_key: lockKey,
+    })
     lock = await acquireLock(lockKey, LOCK_TTL_MS)
   } catch (error) {
+    logger.error("connect.provision.lock.acquire_failed", {
+      correlation_id: correlationId,
+      org_id: orgId,
+      lock_key: lockKey,
+      error: error instanceof Error ? error.message : String(error),
+    })
     if (error instanceof RedisUnavailableError) {
       throw new LockServiceUnavailableError(lockKey)
     }
@@ -80,8 +123,20 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
   }
 
   if (!lock) {
+    logger.warn("connect.provision.lock.not_acquired", {
+      correlation_id: correlationId,
+      org_id: orgId,
+      lock_key: lockKey,
+    })
     throw new LockNotAcquiredError(lockKey)
   }
+
+  logger.info("connect.provision.lock.acquired", {
+    correlation_id: correlationId,
+    org_id: orgId,
+    lock_key: lockKey,
+    lock_token: lock.token,
+  })
 
   const logStep = logStepFactory(orgId, correlationId, channel)
 
@@ -142,18 +197,41 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
       fivetran_destination_id: destination_id,
       finished_at: new Date().toISOString(),
     })
+
+    logger.info("connect.provision.job.completed", {
+      correlation_id: correlationId,
+      org_id: orgId,
+      md_db_name: mdDbName,
+      md_sa_username: mdSaUsername,
+      fivetran_destination_id: destination_id,
+    })
+
     await logStep("READY", "succeeded")
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+
+    logger.error("connect.provision.job.failed", {
+      correlation_id: correlationId,
+      org_id: orgId,
+      error: message,
+      error_stack: error instanceof Error ? error.stack : undefined,
+    })
+
     try {
       await logStep("ERROR", "failed", message)
     } catch (loggingError) {
-      console.error("connect.logstep.error", loggingError)
+      logger.error("connect.logstep.error", {
+        correlation_id: correlationId,
+        org_id: orgId,
+        error: loggingError instanceof Error ? loggingError.message : String(loggingError),
+      })
     }
+
     await updateProvisionRun(correlationId, {
       status: "failed",
       finished_at: new Date().toISOString(),
     })
+
     if (error instanceof ProvisionJobFailedError) {
       throw error
     }
@@ -162,8 +240,15 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     if (lock) {
       try {
         await releaseLock(lock)
+        logger.info("connect.provision.lock.released", {
+          correlation_id: correlationId,
+          org_id: orgId,
+          lock_key: lock.key,
+        })
       } catch (error) {
-        console.warn("connect.lock.release_failed", {
+        logger.warn("connect.lock.release_failed", {
+          correlation_id: correlationId,
+          org_id: orgId,
           key: lock.key,
           error: error instanceof Error ? error.message : String(error),
         })
