@@ -27,7 +27,7 @@ export async function createConnectStatusStream(
         org_id: orgId,
         retry: retries,
       })
-      initialStatus = await getStatus(orgId, correlationId)
+      initialStatus = await getStatus(orgId, correlationId, undefined, false)
       logger.info("connect.stream.initial_status_success", {
         correlation_id: correlationId,
         org_id: orgId,
@@ -122,7 +122,7 @@ export async function createConnectStatusStream(
 
       const poll = async () => {
         try {
-          const latest = await getStatus(orgId, correlationId, lastSeq)
+          const latest = await getStatus(orgId, correlationId, lastSeq, false)
           emitEvents(latest)
         } catch (error) {
           if (error instanceof RunNotFoundError) {

@@ -1,4 +1,4 @@
-import { createServiceClient } from "@hubble/db"
+import { createServiceClient, createBrowserClient } from "@hubble/db"
 import { connect } from "@hubble/api-contracts"
 
 // Shared schemas ensure DB accessors stay aligned with API contracts at compile/runtime.
@@ -101,8 +101,9 @@ export async function getStatus(
   orgId: string,
   correlationId: string,
   sinceEventSeq?: number,
+  useServiceClient: boolean = true,
 ): Promise<StatusResponse> {
-  const db = createServiceClient()
+  const db = useServiceClient ? createServiceClient() : createBrowserClient()
 
   const eventsQuery = db
     .from("events")
