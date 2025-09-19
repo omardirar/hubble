@@ -1,57 +1,104 @@
 import { NextResponse } from "next/server"
-import { createApiHandler } from "@hubble/utils/server"
+import { createApiHandler, withQStashVerification } from "@hubble/utils/server"
 import { processProvisionJob } from "@hubble/utils/connect/provision-job"
+import { validateProvisionJobPayload } from "@hubble/api-contracts/connect"
 
 export const runtime = "nodejs"
 
 export async function POST(request: Request) {
-  return createApiHandler(
-    async (_req: Request, auth, reqLogger) => {
-      const body = await request.json()
-      const { org_id, correlation_id } = body
+  return withQStashVerification(
+    async (req: Request) => {
+      return createApiHandler(
+        async (_req: Request, auth, reqLogger) => {
+          const reqId = crypto.randomUUID()
 
-      reqLogger.info("queues.provision.job_started", {
-        orgId: org_id,
-        correlationId: correlation_id,
-      })
+          let body: unknown
+          try {
+            body = await request.json()
+          } catch (error) {
+            reqLogger.error("queues.provision.invalid_json", {
+              error: error instanceof Error ? error.message : String(error),
+            })
+            return NextResponse.json(
+              {
+                error: { code: "INVALID_JSON", message: "Invalid JSON in request body" },
+                request_id: reqId,
+              },
+              { status: 400 },
+            )
+          }
 
-      try {
-        // Call the real provisioning job
-        await processProvisionJob({
-          orgId: org_id,
-          correlationId: correlation_id,
-        })
+          let validatedPayload
+          try {
+            validatedPayload = validateProvisionJobPayload(body)
+          } catch (error) {
+            reqLogger.error("queues.provision.validation_failed", {
+              error: error instanceof Error ? error.message : String(error),
+              body,
+            })
+            return NextResponse.json(
+              {
+                error: { code: "VALIDATION_ERROR", message: "Invalid request payload" },
+                request_id: reqId,
+              },
+              { status: 400 },
+            )
+          }
 
-        reqLogger.info("queues.provision.job_completed", {
-          orgId: org_id,
-          correlationId: correlation_id,
-        })
+          const { org_id, correlation_id } = validatedPayload
 
-        return NextResponse.json({ success: true })
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        const errorDetails =
-          error instanceof Error
-            ? {
-                name: error.name,
-                message: error.message,
-                stack: error.stack,
-              }
-            : error
+          reqLogger.info("queues.provision.job_started", {
+            orgId: org_id,
+            correlationId: correlation_id,
+          })
 
-        reqLogger.error("queues.provision.job_failed", {
-          error: message,
-          errorDetails,
-          orgId: org_id,
-          correlationId: correlation_id,
-        })
+          try {
+            // Call the real provisioning job
+            await processProvisionJob({
+              orgId: org_id,
+              correlationId: correlation_id,
+            })
 
-        return NextResponse.json(
-          { error: "Provisioning job failed", details: errorDetails },
-          { status: 500 },
-        )
-      }
+            reqLogger.info("queues.provision.job_completed", {
+              orgId: org_id,
+              correlationId: correlation_id,
+            })
+
+            return NextResponse.json({ success: true })
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            const errorDetails =
+              error instanceof Error
+                ? {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack,
+                  }
+                : error
+
+            reqLogger.error("queues.provision.job_failed", {
+              error: message,
+              errorDetails,
+              orgId: org_id,
+              correlationId: correlation_id,
+            })
+
+            return NextResponse.json(
+              {
+                error: {
+                  code: "PROVISIONING_FAILED",
+                  message: "Provisioning job failed",
+                  details: errorDetails,
+                },
+                request_id: reqId,
+              },
+              { status: 500 },
+            )
+          }
+        },
+        { requireAuth: false, loggerContext: { endpoint: "/api/queues/provision" } },
+      )(req)
     },
-    { requireAuth: false, loggerContext: { endpoint: "/api/queues/provision" } },
+    { skipVerification: false },
   )(request)
 }

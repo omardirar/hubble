@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Button } from "@hubble/ui"
+import { Button, ErrorBoundary } from "@hubble/ui"
 import { Terminal, AnimatedSpan, TypingAnimation } from "@hubble/ui"
 
 // Map real provisioning steps to terminal commands
@@ -17,6 +17,8 @@ function getStepCommand(step: string): string {
 
   return stepMap[step] || step.toLowerCase().replace(/_/g, "-")
 }
+
+const MAX_TERMINAL_CONTENT = 1000 // Limit terminal content to prevent memory leaks
 
 export default function Page() {
   const [isLoading, setIsLoading] = useState(false)
@@ -83,61 +85,41 @@ export default function Page() {
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
-          console.log("SSE Event:", data)
 
           // Map real provisioning steps to terminal commands
           const stepCommand = getStepCommand(data.step)
 
-          // Add real provisioning step to terminal
-          setTerminalContent((prev) => [
-            ...prev,
-            <AnimatedSpan key={`step-${data.event_seq}`} delay={0}>
-              $ hubble {stepCommand}
-            </AnimatedSpan>,
-            <TypingAnimation key={`progress-${data.event_seq}`} delay={500} duration={60}>
-              {data.message}
-            </TypingAnimation>,
-            <AnimatedSpan key={`result-${data.event_seq}`} delay={1000}>
-              {data.status === "succeeded" ? "✓" : data.status === "failed" ? "❌" : "⏳"}{" "}
-              {data.message}
-            </AnimatedSpan>,
-          ])
+          // Add real provisioning step to terminal with memory cleanup
+          setTerminalContent((prev) => {
+            const newContent = [
+              ...prev,
+              <AnimatedSpan key={`step-${data.event_seq}`} delay={0}>
+                $ hubble {stepCommand}
+              </AnimatedSpan>,
+              <TypingAnimation key={`progress-${data.event_seq}`} delay={500} duration={60}>
+                {data.message}
+              </TypingAnimation>,
+              <AnimatedSpan key={`result-${data.event_seq}`} delay={1000}>
+                {data.status === "succeeded" ? "✓" : data.status === "failed" ? "❌" : "⏳"}{" "}
+                {data.message}
+              </AnimatedSpan>,
+            ]
+
+            // Keep only the last MAX_TERMINAL_CONTENT items to prevent memory leaks
+            return newContent.length > MAX_TERMINAL_CONTENT
+              ? newContent.slice(-MAX_TERMINAL_CONTENT)
+              : newContent
+          })
         } catch (error) {
           console.error("Error parsing SSE data:", error)
         }
       }
 
-      eventSource.addEventListener("update", (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          console.log("SSE Update:", data)
-
-          // Map real provisioning steps to terminal commands
-          const stepCommand = getStepCommand(data.step)
-
-          // Add real provisioning step to terminal
-          setTerminalContent((prev) => [
-            ...prev,
-            <AnimatedSpan key={`step-${data.event_seq}`} delay={0}>
-              $ hubble {stepCommand}
-            </AnimatedSpan>,
-            <TypingAnimation key={`progress-${data.event_seq}`} delay={500} duration={60}>
-              {data.message}
-            </TypingAnimation>,
-            <AnimatedSpan key={`result-${data.event_seq}`} delay={1000}>
-              {data.status === "succeeded" ? "✓" : data.status === "failed" ? "❌" : "⏳"}{" "}
-              {data.message}
-            </AnimatedSpan>,
-          ])
-        } catch (error) {
-          console.error("Error parsing SSE update:", error)
-        }
-      })
+      // Note: onmessage already handles update events, so we don't need addEventListener("update")
 
       eventSource.addEventListener("end", (event) => {
         try {
           const data = JSON.parse(event.data)
-          console.log("SSE End:", data)
 
           setTerminalContent((prev) => [
             ...prev,
@@ -156,8 +138,7 @@ export default function Page() {
         }
       })
 
-      eventSource.onerror = (error) => {
-        console.error("SSE Error:", error)
+      eventSource.onerror = (_error) => {
         setTerminalContent((prev) => [
           ...prev,
           <AnimatedSpan key="sse-error" delay={0}>
@@ -168,7 +149,6 @@ export default function Page() {
         eventSourceRef.current = null
       }
     } catch (error) {
-      console.error("Error enabling connect:", error)
       setTerminalContent([
         <AnimatedSpan key="error" delay={0}>
           $ hubble connect enable
@@ -183,32 +163,34 @@ export default function Page() {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-4">Connect</h1>
-          <p className="text-muted-foreground mb-6">
-            Set up your data pipeline with MotherDuck and Fivetran integration.
-          </p>
-        </div>
-
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Button onClick={handleEnable} disabled={isLoading} className="min-w-[120px]">
-              {isLoading ? "Enabling..." : "Enable"}
-            </Button>
-            {correlationId && (
-              <span className="text-sm text-muted-foreground">Run ID: {correlationId}</span>
-            )}
+    <ErrorBoundary>
+      <div className="container mx-auto py-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-4">Connect</h1>
+            <p className="text-muted-foreground mb-6">
+              Set up your data pipeline with MotherDuck and Fivetran integration.
+            </p>
           </div>
 
-          {terminalContent.length > 0 && (
-            <div className="mt-8">
-              <Terminal>{terminalContent}</Terminal>
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <Button onClick={handleEnable} disabled={isLoading} className="min-w-[120px]">
+                {isLoading ? "Enabling..." : "Enable"}
+              </Button>
+              {correlationId && (
+                <span className="text-sm text-muted-foreground">Run ID: {correlationId}</span>
+              )}
             </div>
-          )}
+
+            {terminalContent.length > 0 && (
+              <div className="mt-8">
+                <Terminal>{terminalContent}</Terminal>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </ErrorBoundary>
   )
 }

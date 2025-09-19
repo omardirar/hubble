@@ -15,6 +15,7 @@ export async function createConnectStatusStream(
   orgId: string,
   correlationId: string,
   logger: StreamLogger,
+  authToken?: string,
 ): Promise<Response> {
   let initialStatus: connect.StatusResponse
   let retries = 0
@@ -27,7 +28,7 @@ export async function createConnectStatusStream(
         org_id: orgId,
         retry: retries,
       })
-      initialStatus = await getStatus(orgId, correlationId, undefined, false)
+      initialStatus = await getStatus(orgId, correlationId, undefined, false, authToken)
       logger.info("connect.stream.initial_status_success", {
         correlation_id: correlationId,
         org_id: orgId,
@@ -77,6 +78,8 @@ export async function createConnectStatusStream(
   }
 
   let cleanup: () => void = () => {}
+  const CONNECTION_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
+  const MAX_TERMINAL_CONTENT = 1000 // Limit terminal content to prevent memory leaks
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -85,6 +88,7 @@ export async function createConnectStatusStream(
       let closed = false
       let heartbeatId: ReturnType<typeof setInterval> | null = null
       let pollerId: ReturnType<typeof setInterval> | null = null
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
 
       const heartbeat = () => {
         if (closed) return
@@ -96,6 +100,7 @@ export async function createConnectStatusStream(
         closed = true
         if (heartbeatId) clearInterval(heartbeatId)
         if (pollerId) clearInterval(pollerId)
+        if (timeoutId) clearTimeout(timeoutId)
         controller.close()
       }
 
@@ -103,15 +108,25 @@ export async function createConnectStatusStream(
 
       const emitEvents = (status: connect.StatusResponse) => {
         if (closed) return
-        const newItems = status.timeline.filter((event) => event.event_seq > lastSeq)
+
+        // Use atomic operations to prevent race conditions
+        const currentLastSeq = lastSeq
+        const newItems = status.timeline.filter((event) => event.event_seq > currentLastSeq)
+
+        // Update lastSeq atomically after filtering
+        if (newItems.length > 0) {
+          lastSeq = Math.max(currentLastSeq, ...newItems.map((item) => item.event_seq))
+        }
+
         for (const item of newItems) {
+          if (closed) return // Check again before each emit
           controller.enqueue(encoder.encode(`id: ${item.event_seq}\n`))
           controller.enqueue(encoder.encode(`event: update\n`))
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(item)}\n\n`))
-          lastSeq = Math.max(lastSeq, item.event_seq)
         }
 
         if (status.status === "ready" || status.status === "failed") {
+          if (closed) return // Final check before ending
           controller.enqueue(encoder.encode(`event: end\n`))
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ status: status.status })}\n\n`),
@@ -120,11 +135,19 @@ export async function createConnectStatusStream(
         }
       }
 
+      let consecutiveErrors = 0
+      const maxConsecutiveErrors = 5
+
       const poll = async () => {
+        if (closed) return
+
         try {
-          const latest = await getStatus(orgId, correlationId, lastSeq, false)
+          const latest = await getStatus(orgId, correlationId, lastSeq, false, authToken)
           emitEvents(latest)
+          consecutiveErrors = 0 // Reset error counter on success
         } catch (error) {
+          consecutiveErrors++
+
           if (error instanceof RunNotFoundError) {
             logger.warn("connect.stream.run_not_found", {
               correlation_id: correlationId,
@@ -144,12 +167,49 @@ export async function createConnectStatusStream(
           logger.error("connect.stream.poll_failed", {
             error: error instanceof Error ? error.message : String(error),
             correlation_id: correlationId,
+            consecutive_errors: consecutiveErrors,
+            max_consecutive_errors: maxConsecutiveErrors,
           })
+
+          // Close stream after too many consecutive errors
+          if (consecutiveErrors >= maxConsecutiveErrors) {
+            logger.error("connect.stream.max_errors_reached", {
+              correlation_id: correlationId,
+              consecutive_errors: consecutiveErrors,
+            })
+            if (!closed) {
+              controller.enqueue(encoder.encode(`event: end\n`))
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ status: "failed", reason: "polling_errors" })}\n\n`,
+                ),
+              )
+            }
+            closeStream()
+          }
         }
       }
 
       controller.enqueue(encoder.encode(`retry: 5000\n\n`))
       heartbeatId = setInterval(heartbeat, 25_000)
+
+      // Set connection timeout
+      timeoutId = setTimeout(() => {
+        logger.warn("connect.stream.connection_timeout", {
+          correlation_id: correlationId,
+          org_id: orgId,
+          timeout_ms: CONNECTION_TIMEOUT_MS,
+        })
+        if (!closed) {
+          controller.enqueue(encoder.encode(`event: end\n`))
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ status: "timeout", reason: "connection_timeout" })}\n\n`,
+            ),
+          )
+        }
+        closeStream()
+      }, CONNECTION_TIMEOUT_MS)
 
       emitEvents(initialStatus)
       if (closed) {

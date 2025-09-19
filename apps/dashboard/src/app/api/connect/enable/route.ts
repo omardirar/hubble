@@ -2,11 +2,12 @@ import { NextResponse } from "next/server"
 import {
   createApiHandler,
   insertProvisionRun,
+  updateProvisionRun,
   dispatchQStashJson,
   QStashPublishError,
   TenantNotFoundError,
 } from "@hubble/utils/server"
-import { EnableResponseSchema } from "@hubble/api-contracts/connect"
+import { EnableResponseSchema, validateEnableRequest } from "@hubble/api-contracts/connect"
 
 export const runtime = "nodejs" // Ensure Node runtime for SDKs
 
@@ -14,6 +15,39 @@ export async function POST(request: Request) {
   return createApiHandler(
     async (_req: Request, auth, reqLogger) => {
       const reqId = crypto.randomUUID()
+
+      // Validate request body
+      let requestBody: unknown
+      try {
+        requestBody = await request.json()
+      } catch (error) {
+        reqLogger.error("connect.enable.invalid_json", {
+          error: error instanceof Error ? error.message : String(error),
+        })
+        return NextResponse.json(
+          {
+            error: { code: "INVALID_JSON", message: "Invalid JSON in request body" },
+            request_id: reqId,
+          },
+          { status: 400 },
+        )
+      }
+
+      try {
+        validateEnableRequest(requestBody)
+      } catch (error) {
+        reqLogger.error("connect.enable.validation_failed", {
+          error: error instanceof Error ? error.message : String(error),
+          body: requestBody,
+        })
+        return NextResponse.json(
+          {
+            error: { code: "VALIDATION_ERROR", message: "Invalid request payload" },
+            request_id: reqId,
+          },
+          { status: 400 },
+        )
+      }
 
       if (!auth) {
         reqLogger.error("connect.enable.unauthorized", {})
@@ -104,6 +138,27 @@ export async function POST(request: Request) {
           orgId: auth.orgId,
           correlationId: correlation_id,
         })
+
+        // Clean up the failed provisioning run
+        try {
+          await updateProvisionRun(correlation_id, {
+            status: "failed",
+            finished_at: new Date().toISOString(),
+            error_message: message,
+          })
+          reqLogger.info("connect.enable.cleanup_completed", {
+            orgId: auth.orgId,
+            correlationId: correlation_id,
+          })
+        } catch (cleanupError) {
+          reqLogger.error("connect.enable.cleanup_failed", {
+            orgId: auth.orgId,
+            correlationId: correlation_id,
+            cleanupError:
+              cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+          })
+        }
+
         if (error instanceof QStashPublishError) {
           // Check if it's a development server token error
           if (message.includes("development server token")) {

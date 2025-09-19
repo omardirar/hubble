@@ -152,12 +152,34 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
 
     await logStep("ISSUE_SA_TOKEN", "started")
     const { token } = await mdIssueToken(mdSaUsername)
+
+    // Try primary vault method first
     try {
       await db.rpc("vault_set", { p_name: `md_sa_token:${orgId}`, p_secret: token })
-    } catch {
-      await db
-        .from("vault.secrets" as never)
-        .upsert({ name: `md_sa_token:${orgId}`, secret: token } as never)
+    } catch (primaryError) {
+      logger.warn("connect.provision.vault_primary_failed", {
+        correlation_id: correlationId,
+        org_id: orgId,
+        error: primaryError instanceof Error ? primaryError.message : String(primaryError),
+      })
+
+      // Fallback to direct table insert
+      try {
+        await db
+          .from("vault.secrets" as never)
+          .upsert({ name: `md_sa_token:${orgId}`, secret: token } as never)
+      } catch (fallbackError) {
+        logger.error("connect.provision.vault_fallback_failed", {
+          correlation_id: correlationId,
+          org_id: orgId,
+          primaryError: primaryError instanceof Error ? primaryError.message : String(primaryError),
+          fallbackError:
+            fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+        })
+        throw new ProvisionJobFailedError(
+          `Failed to store service account token: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
+        )
+      }
     }
     await logStep("ISSUE_SA_TOKEN", "succeeded")
 
@@ -189,6 +211,7 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     }
     await logStep("TEST_DESTINATION", "succeeded")
 
+    // Update tenant destination and provisioning run
     await upsertTenantDestination(orgId, mdDbName, mdSaUsername, destination_id)
     await updateProvisionRun(correlationId, {
       status: "ready",
@@ -227,6 +250,7 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
       })
     }
 
+    // Update provisioning run to failed state
     await updateProvisionRun(correlationId, {
       status: "failed",
       finished_at: new Date().toISOString(),

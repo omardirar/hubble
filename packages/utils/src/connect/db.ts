@@ -1,5 +1,6 @@
 import { createServiceClient, createBrowserClient } from "@hubble/db"
 import { connect } from "@hubble/api-contracts"
+import { logger } from "../logger"
 
 // Shared schemas ensure DB accessors stay aligned with API contracts at compile/runtime.
 const { TimelineEventSchema, StatusResponseSchema } = connect
@@ -102,8 +103,9 @@ export async function getStatus(
   correlationId: string,
   sinceEventSeq?: number,
   useServiceClient: boolean = true,
+  authToken?: string,
 ): Promise<StatusResponse> {
-  const db = useServiceClient ? createServiceClient() : createBrowserClient()
+  const db = useServiceClient ? createServiceClient() : createBrowserClient({ authToken })
 
   const eventsQuery = db
     .from("events")
@@ -143,6 +145,8 @@ export async function getStatus(
   }
 
   const timeline: TimelineEvent[] = []
+  const invalidEvents: Array<{ event: unknown; errors: unknown }> = []
+
   // Validate each stored payload so downstream consumers never see malformed timeline items.
   for (const event of eventsResult.data ?? []) {
     const payload = (event.payload ?? {}) as Record<string, unknown>
@@ -156,7 +160,28 @@ export async function getStatus(
     const parsed = TimelineEventSchema.safeParse(candidate)
     if (parsed.success) {
       timeline.push(parsed.data)
+    } else {
+      // Log invalid events instead of silently dropping them
+      invalidEvents.push({ event: candidate, errors: parsed.error })
+      logger.warn("connect.db.timeline_validation_failed", {
+        correlation_id: correlationId,
+        org_id: orgId,
+        event_seq: event.event_seq,
+        errors: parsed.error.issues,
+        raw_event: event,
+      })
     }
+  }
+
+  // If we have too many invalid events, this might indicate a data corruption issue
+  if (invalidEvents.length > 0) {
+    logger.error("connect.db.timeline_validation_errors", {
+      correlation_id: correlationId,
+      org_id: orgId,
+      invalid_count: invalidEvents.length,
+      total_events: eventsResult.data?.length ?? 0,
+      invalid_events: invalidEvents,
+    })
   }
 
   const result = {

@@ -73,6 +73,9 @@ export async function publishJson<TBody = unknown>(
   const endpoint = getPublishEndpoint(targetUrl)
 
   try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+
     const res = await fetch(endpoint, {
       method: "POST",
       headers: {
@@ -83,7 +86,10 @@ export async function publishJson<TBody = unknown>(
         ...headers,
       },
       body: JSON.stringify(body),
+      signal: controller.signal,
     })
+
+    clearTimeout(timeoutId)
 
     if (!res.ok) {
       let errorDetails = ""
@@ -111,6 +117,12 @@ export async function publishJson<TBody = unknown>(
     if (error instanceof QStashError) {
       throw error
     }
+
+    // Handle timeout errors specifically
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new QStashPublishError("QStash request timed out after 30 seconds", { cause: error })
+    }
+
     throw new QStashPublishError("Failed to publish to QStash", { cause: error })
   }
 }

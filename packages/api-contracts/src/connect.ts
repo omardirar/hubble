@@ -35,6 +35,12 @@ export type ProvisionEventStatus = z.infer<typeof ProvisionEventStatusSchema>
 export const EnableRequestSchema = z.object({}) // org_id is derived from auth context
 export type EnableRequest = z.infer<typeof EnableRequestSchema>
 
+export const ProvisionJobPayloadSchema = z.object({
+  org_id: z.string().min(1),
+  correlation_id: z.string().min(1),
+})
+export type ProvisionJobPayload = z.infer<typeof ProvisionJobPayloadSchema>
+
 // ----------------------------------------------------------------------------
 // Responses
 // ----------------------------------------------------------------------------
@@ -80,4 +86,8 @@ export function validateStatusResponse(data: unknown): StatusResponse {
 
 export function validateTimelineEvent(data: unknown): TimelineEvent {
   return TimelineEventSchema.parse(data)
+}
+
+export function validateProvisionJobPayload(data: unknown): ProvisionJobPayload {
+  return ProvisionJobPayloadSchema.parse(data)
 }
