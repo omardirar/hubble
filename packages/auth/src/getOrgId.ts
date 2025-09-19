@@ -9,6 +9,32 @@
 import { createServiceClient } from "@hubble/db"
 
 /**
+ * Determines the appropriate Clerk schema name based on the current environment.
+ */
+function getClerkSchemaName(): string {
+  // Check for development environment
+  if (process.env.NODE_ENV === "development") {
+    return "clerk_dev"
+  }
+
+  // Check for Vercel preview environment
+  if (process.env.VERCEL_ENV === "preview") {
+    return "clerk_dev"
+  }
+
+  // Default to production schema
+  return "clerk"
+}
+
+/**
+ * Gets the full table name for a Clerk table based on the current environment.
+ */
+function getClerkTableName(tableName: string): string {
+  const schema = getClerkSchemaName()
+  return `${schema}.${tableName}`
+}
+
+/**
  * Retrieves the organization ID for a specific user from Clerk data.
  *
  * This function queries the Clerk mirror tables in Supabase to find
@@ -24,7 +50,7 @@ export async function getOrgId(userId: string): Promise<string | null> {
 
   // First, try to find an active organization membership
   const { data: membership } = await supabase
-    .from("organization_memberships")
+    .from(getClerkTableName("organization_memberships"))
     .select("organization_id")
     .eq("user_id", userId)
     .is("deleted_at", null)
@@ -38,7 +64,7 @@ export async function getOrgId(userId: string): Promise<string | null> {
 
   // Fallback: check if user has a primary organization
   const { data: user } = await supabase
-    .from("users")
+    .from(getClerkTableName("users"))
     .select("primary_organization_id")
     .eq("user_id", userId)
     .single()

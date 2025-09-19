@@ -14,11 +14,17 @@ create server clerk_server foreign data wrapper wasm_wrapper options (
 );
 
 create schema if not exists clerk;
+create schema if not exists clerk_dev;
 
 -- create all the foreign tables
 import foreign schema clerk
 from
   server clerk_server into clerk;
+
+-- create all the foreign tables for dev schema
+import foreign schema clerk
+from
+  server clerk_server into clerk_dev;
 
 -- Restrictive: avoid exposing FDW tables via PostgREST by default
 -- Create minimal views only if needed by app; otherwise, keep FDW tables non-exposed.
@@ -33,14 +39,35 @@ drop view if exists public.users;
 -- grant select on public.organization_memberships to authenticated;
 
 -- Simple existence RPC used by API handlers
+-- This function dynamically checks the appropriate schema based on environment
 create or replace function public.get_org_from_clerk_mirror(p_org_id text)
 returns boolean
-language sql
+language plpgsql
 stable
 security definer
 set search_path = pg_catalog, public
 as $$
-  select exists(select 1 from clerk.organizations o where o.id = p_org_id);
+declare
+  v_schema_name text;
+  result boolean;
+begin
+  -- Determine schema based on environment
+  -- Check if we should use dev schema by looking for a specific marker
+  -- In development/preview, use clerk_dev; otherwise use clerk
+  if current_setting('app.environment', true) in ('development', 'preview') or
+     current_setting('app.environment', true) is null then
+    v_schema_name := 'clerk_dev';
+  else
+    v_schema_name := 'clerk';
+  end if;
+
+  -- Check if organization exists in the appropriate schema
+  execute format('select exists(select 1 from %I.organizations o where o.id = $1)', v_schema_name)
+  using p_org_id
+  into result;
+
+  return result;
+end;
 $$;
 
 alter function public.get_org_from_clerk_mirror(text) owner to postgres;

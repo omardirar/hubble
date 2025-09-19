@@ -10,6 +10,7 @@ import { auth } from "@clerk/nextjs/server"
 import { createBrowserClient } from "@hubble/db"
 import { logger } from "./logger"
 import { extractJWTClaims } from "@hubble/auth"
+import { getClerkRpcName } from "./clerk-schema"
 import {
   ApiErrorCodes,
   AppError,
@@ -140,9 +141,12 @@ export async function verifyOrganization(
   logger: Logger,
 ): Promise<boolean> {
   // First check if org exists in Clerk
-  const { data: orgData, error: orgError } = await supabase.rpc("get_org_from_clerk_mirror", {
-    p_org_id: orgId,
-  })
+  const { data: orgData, error: orgError } = await supabase.rpc(
+    getClerkRpcName("get_org_from_clerk_mirror"),
+    {
+      p_org_id: orgId,
+    },
+  )
 
   if (orgError || !orgData) {
     logger.error("Organization not found in Clerk mirror", { error: orgError?.message })

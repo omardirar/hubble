@@ -210,15 +210,29 @@ RETURNS void
 LANGUAGE plpgsql
 SET search_path = public, pg_catalog
 AS $$
+DECLARE
+  v_schema_name text;
 BEGIN
-  INSERT INTO public.tenants (org_id, slug, status)
-  SELECT
-    o.id,
-    coalesce(nullif(trim(o.slug), ''), o.id),
-    'provisioning'
-  FROM clerk.organizations o
-  ON CONFLICT (org_id) DO UPDATE
-    SET slug = excluded.slug;
+  -- Determine schema based on environment
+  -- In development/preview, use clerk_dev; otherwise use clerk
+  -- Default to clerk_dev if environment is not set (for development)
+  if current_setting('app.environment', true) in ('development', 'preview') or
+     current_setting('app.environment', true) is null then
+    v_schema_name := 'clerk_dev';
+  else
+    v_schema_name := 'clerk';
+  end if;
+
+  -- Insert tenants from the appropriate schema
+  EXECUTE format('
+    INSERT INTO public.tenants (org_id, slug, status)
+    SELECT
+      o.id,
+      coalesce(nullif(trim(o.slug), ''''), o.id),
+      ''provisioning''
+    FROM %I.organizations o
+    ON CONFLICT (org_id) DO UPDATE
+      SET slug = excluded.slug', v_schema_name);
 END;
 $$;
 
@@ -231,21 +245,34 @@ AS $$
 DECLARE
   v_rowcount integer;
   v_error_message text;
+  v_schema_name text;
 BEGIN
   IF EXISTS (SELECT 1 FROM public.tenants WHERE org_id = p_org_id) THEN
     RETURN;
   END IF;
 
+  -- Determine schema based on environment
+  -- In development/preview, use clerk_dev; otherwise use clerk
+  -- Default to clerk_dev if environment is not set (for development)
+  if current_setting('app.environment', true) in ('development', 'preview') or
+     current_setting('app.environment', true) is null then
+    v_schema_name := 'clerk_dev';
+  else
+    v_schema_name := 'clerk';
+  end if;
+
   BEGIN
-    INSERT INTO public.tenants (org_id, slug, status)
-    SELECT
-      o.id,
-      coalesce(nullif(trim(o.slug), ''), o.id),
-      'provisioning'
-    FROM clerk.organizations o
-    WHERE o.id = p_org_id
-    ON CONFLICT (org_id) DO UPDATE
-      SET slug = excluded.slug;
+    EXECUTE format('
+      INSERT INTO public.tenants (org_id, slug, status)
+      SELECT
+        o.id,
+        coalesce(nullif(trim(o.slug), ''''), o.id),
+        ''provisioning''
+      FROM %I.organizations o
+      WHERE o.id = $1
+      ON CONFLICT (org_id) DO UPDATE
+        SET slug = excluded.slug', v_schema_name)
+    USING p_org_id;
 
     GET DIAGNOSTICS v_rowcount = ROW_COUNT;
 
