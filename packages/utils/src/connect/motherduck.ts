@@ -23,20 +23,35 @@ async function httpFetch(url: string, opts: HttpOptions = {}): Promise<Response>
 }
 
 /**
- * Minimal MotherDuck admin client.
- * NOTE: Endpoints are placeholders; replace with real MotherDuck Admin API endpoints.
+ * MotherDuck admin client using the official REST API.
+ * Based on MotherDuck REST API documentation: https://motherduck.com/docs/sql-reference/rest-api/motherduck-rest-api/
  */
 export async function mdCreateServiceAccount(username: string): Promise<{ username: string }> {
   const { MD_ADMIN_TOKEN } = getConnectEnv()
 
+  // Debug logging to verify token is loaded
+  console.log("MotherDuck API Debug:", {
+    hasToken: !!MD_ADMIN_TOKEN,
+    tokenLength: MD_ADMIN_TOKEN?.length || 0,
+    username,
+  })
+
   try {
-    const res = await httpFetch("https://api.motherduck.com/admin/service-accounts", {
+    // Create a new user (service account) using MotherDuck REST API
+    const res = await httpFetch("https://api.motherduck.com/users", {
       method: "POST",
-      headers: { Authorization: `Bearer ${MD_ADMIN_TOKEN}` },
-      body: JSON.stringify({ username }),
+      headers: {
+        Authorization: `Bearer ${MD_ADMIN_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: username,
+        // Note: MotherDuck API may not support type field
+        // Service accounts are created as regular users with specific permissions
+      }),
     })
 
-    if (res.status === 409) return { username }
+    if (res.status === 409) return { username } // User already exists
 
     if (!res.ok) {
       let errorBody = ""
@@ -61,12 +76,28 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
 export async function mdIssueToken(username: string): Promise<{ token: string }> {
   const { MD_ADMIN_TOKEN } = getConnectEnv()
 
+  // Debug logging to verify token is loaded
+  console.log("MotherDuck Issue Token Debug:", {
+    hasToken: !!MD_ADMIN_TOKEN,
+    tokenLength: MD_ADMIN_TOKEN?.length || 0,
+    username,
+  })
+
   try {
+    // Create an access token for the user using MotherDuck REST API
     const res = await httpFetch(
-      `https://api.motherduck.com/admin/service-accounts/${encodeURIComponent(username)}/tokens`,
+      `https://api.motherduck.com/users/${encodeURIComponent(username)}/tokens`,
       {
         method: "POST",
-        headers: { Authorization: `Bearer ${MD_ADMIN_TOKEN}` },
+        headers: {
+          Authorization: `Bearer ${MD_ADMIN_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: `${username}_token`,
+          // Note: MotherDuck API may not support expires_in field
+          // Token expiration should be set via MotherDuck UI or different API
+        }),
       },
     )
 
@@ -81,9 +112,10 @@ export async function mdIssueToken(username: string): Promise<{ token: string }>
       throw new Error(`MotherDuck API error: ${res.status} ${res.statusText} - ${errorBody}`)
     }
 
-    const data = (await res.json().catch(() => ({}))) as { token?: string }
-    if (!data.token) throw new Error("MotherDuck API returned no token")
-    return { token: data.token }
+    const data = (await res.json().catch(() => ({}))) as { token?: string; access_token?: string }
+    const token = data.token || data.access_token
+    if (!token) throw new Error("MotherDuck API returned no token")
+    return { token }
   } catch (error) {
     if (error instanceof Error) {
       throw new Error(`Failed to issue MotherDuck token for '${username}': ${error.message}`)
@@ -94,10 +126,17 @@ export async function mdIssueToken(username: string): Promise<{ token: string }>
 
 export async function mdCreateDatabase(dbName: string, saToken: string): Promise<void> {
   try {
+    // MotherDuck databases are created via the databases API
+    // This creates a new database in the MotherDuck organization
     const res = await httpFetch("https://api.motherduck.com/databases", {
       method: "POST",
-      headers: { Authorization: `Bearer ${saToken}` },
-      body: JSON.stringify({ name: dbName }),
+      headers: {
+        Authorization: `Bearer ${saToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: dbName,
+      }),
     })
 
     if (res.status === 409) return // Database already exists
