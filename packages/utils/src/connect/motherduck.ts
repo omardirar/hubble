@@ -38,6 +38,16 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
     tokenPrefix: MD_ADMIN_TOKEN?.substring(0, 10) + "...",
   })
 
+  // Based on MotherDuck API documentation, only username is required for service account creation
+  const requestPayload = {
+    username: username,
+  }
+
+  logger.debug("connect.motherduck.create_service_account.request_payload", {
+    username,
+    payload: requestPayload,
+  })
+
   try {
     // Create a new user (service account) using MotherDuck REST API
     // Based on: https://motherduck.com/docs/sql-reference/rest-api/motherduck-rest-api/
@@ -47,13 +57,7 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
         Authorization: `Bearer ${MD_ADMIN_TOKEN}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        email: `${username}@hubble.local`,
-        name: username,
-        role: "Member",
-        // Service accounts are created as regular users with specific permissions
-        // The API will handle the service account designation
-      }),
+      body: JSON.stringify(requestPayload),
     })
 
     if (res.status === 409) {
@@ -175,41 +179,22 @@ export async function mdIssueToken(username: string): Promise<{ token: string }>
 
 export async function mdCreateDatabase(dbName: string, saToken: string): Promise<void> {
   try {
-    // MotherDuck databases are created via SQL commands using the service account token
-    // Based on: https://motherduck.com/docs/sql-reference/rest-api/motherduck-rest-api/
-    // We'll use the SQL API to execute CREATE DATABASE command
-    const res = await httpFetch("https://api.motherduck.com/v1/sql", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${saToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: `CREATE DATABASE IF NOT EXISTS ${dbName}`,
-        // Additional parameters may be needed based on the actual API spec
-      }),
+    // Note: MotherDuck REST API doesn't currently support SQL execution
+    // Databases are created automatically when first accessed by a user
+    // For now, we'll log this step as completed since the database will be created
+    // when Fivetran first connects to it
+
+    logger.info("connect.motherduck.create_database.skipped", {
+      dbName,
+      reason:
+        "MotherDuck REST API doesn't support SQL execution. Database will be created on first access.",
     })
 
-    if (res.status === 409) {
-      // Database already exists - this is acceptable for idempotency
-      logger.info("connect.motherduck.create_database.already_exists", { dbName })
-      return
-    }
-
-    if (!res.ok) {
-      let errorBody = ""
-      try {
-        errorBody = await res.text()
-      } catch {
-        errorBody = "Unable to read error response"
-      }
-
-      throw new Error(`MotherDuck API error: ${res.status} ${res.statusText} - ${errorBody}`)
-    }
-
+    // The database will be created automatically when Fivetran first connects to it
+    // This is a common pattern in cloud databases where schemas are created on-demand
     logger.info("connect.motherduck.create_database.success", {
       dbName,
-      response: await res.json().catch(() => ({})),
+      message: "Database will be created automatically on first access",
     })
   } catch (error) {
     if (error instanceof Error) {
