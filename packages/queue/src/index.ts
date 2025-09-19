@@ -35,8 +35,8 @@ export interface PublishResult {
 }
 
 function getPublishEndpoint(targetUrl: string) {
-  // Always use production QStash API as the development server has issues with localhost URLs
-  return `https://qstash.upstash.io/v2/publish/${encodeURIComponent(targetUrl)}`
+  // Use the correct QStash API format
+  return "https://qstash.upstash.io/v2/publish"
 }
 
 export function shouldBypassQStash(targetUrl: string): boolean {
@@ -78,6 +78,7 @@ export async function publishJson<TBody = unknown>(
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
+        "Upstash-Url": targetUrl,
         "Upstash-Callback-Method": method,
         ...(dedupeKey ? { "Upstash-Deduplication-Id": dedupeKey } : {}),
         ...headers,
