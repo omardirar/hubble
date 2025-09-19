@@ -2,6 +2,7 @@ import { connect } from "@hubble/api-contracts"
 import { getStatus, RunNotFoundError } from "./db"
 
 export type StreamLogger = {
+  info: (message: string, meta?: Record<string, unknown>) => void
   warn: (message: string, meta?: Record<string, unknown>) => void
   error: (message: string, meta?: Record<string, unknown>) => void
 }
@@ -15,7 +16,66 @@ export async function createConnectStatusStream(
   correlationId: string,
   logger: StreamLogger,
 ): Promise<Response> {
-  const initialStatus = await getStatus(orgId, correlationId)
+  let initialStatus: connect.StatusResponse
+  let retries = 0
+  const maxRetries = 3
+
+  while (retries < maxRetries) {
+    try {
+      logger.info("connect.stream.fetching_initial_status", {
+        correlation_id: correlationId,
+        org_id: orgId,
+        retry: retries,
+      })
+      initialStatus = await getStatus(orgId, correlationId)
+      logger.info("connect.stream.initial_status_success", {
+        correlation_id: correlationId,
+        org_id: orgId,
+        status: initialStatus.status,
+        timeline_length: initialStatus.timeline.length,
+      })
+      break
+    } catch (error) {
+      retries++
+      logger.warn("connect.stream.initial_status_attempt_failed", {
+        error: error instanceof Error ? error.message : String(error),
+        errorDetails:
+          error instanceof Error
+            ? {
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+              }
+            : error,
+        correlation_id: correlationId,
+        org_id: orgId,
+        retry: retries,
+        maxRetries,
+      })
+
+      if (retries >= maxRetries) {
+        logger.error("connect.stream.initial_status_failed", {
+          error: error instanceof Error ? error.message : String(error),
+          errorDetails:
+            error instanceof Error
+              ? {
+                  name: error.name,
+                  message: error.message,
+                  stack: error.stack,
+                }
+              : error,
+          correlation_id: correlationId,
+          org_id: orgId,
+          retries,
+        })
+        throw error
+      }
+
+      // Wait a bit before retrying (exponential backoff)
+      await new Promise((resolve) => setTimeout(resolve, 1000 * retries))
+    }
+  }
+
   let cleanup: () => void = () => {}
 
   const stream = new ReadableStream<Uint8Array>({

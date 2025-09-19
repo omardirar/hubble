@@ -34,6 +34,14 @@ export async function GET(request: Request) {
 
         reqLogger.error("connect.stream.bootstrap_failed", {
           error: error instanceof Error ? error.message : String(error),
+          errorDetails:
+            error instanceof Error
+              ? {
+                  name: error.name,
+                  message: error.message,
+                  stack: error.stack,
+                }
+              : error,
           correlation_id: correlationId,
         })
         return NextResponse.json(
