@@ -117,9 +117,9 @@ export async function appendEvent(
 ): Promise<{ event_seq: number; ts: string }> {
   const db = createServiceClient()
 
-  // Use timestamp-based sequence to avoid permission issues with the auto-generated sequence
+  // Use microsecond timestamp to ensure uniqueness and avoid constraint violations
   const timestamp = Date.now()
-  const event_seq = Math.floor(timestamp / 1000) // Use seconds as sequence
+  const event_seq = timestamp // Use full millisecond timestamp for uniqueness
 
   const payload = { step, status, message }
   const { data, error } = await db

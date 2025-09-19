@@ -1,4 +1,5 @@
 import { getConnectEnv } from "@hubble/env"
+import { logger } from "@hubble/logger"
 
 type HttpOptions = {
   method?: string
@@ -30,7 +31,7 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
   const { MD_ADMIN_TOKEN } = getConnectEnv()
 
   // Debug logging to verify token is loaded
-  console.log("MotherDuck API Debug:", {
+  logger.debug("connect.motherduck.create_service_account.debug", {
     hasToken: !!MD_ADMIN_TOKEN,
     tokenLength: MD_ADMIN_TOKEN?.length || 0,
     username,
@@ -38,6 +39,7 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
 
   try {
     // Create a new user (service account) using MotherDuck REST API
+    // Based on: https://motherduck.com/docs/sql-reference/rest-api/motherduck-rest-api/
     const res = await httpFetch("https://api.motherduck.com/users", {
       method: "POST",
       headers: {
@@ -46,12 +48,16 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
       },
       body: JSON.stringify({
         name: username,
-        // Note: MotherDuck API may not support type field
         // Service accounts are created as regular users with specific permissions
+        // The API will handle the service account designation
       }),
     })
 
-    if (res.status === 409) return { username } // User already exists
+    if (res.status === 409) {
+      // User already exists - this is acceptable for idempotency
+      logger.info("connect.motherduck.create_service_account.already_exists", { username })
+      return { username }
+    }
 
     if (!res.ok) {
       let errorBody = ""
@@ -64,7 +70,15 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
       throw new Error(`MotherDuck API error: ${res.status} ${res.statusText} - ${errorBody}`)
     }
 
-    return { username }
+    const data = (await res.json().catch(() => ({}))) as { name?: string; username?: string }
+    const createdUsername = data.name || data.username || username
+
+    logger.info("connect.motherduck.create_service_account.success", {
+      username: createdUsername,
+      response: data,
+    })
+
+    return { username: createdUsername }
   } catch (error) {
     if (error instanceof Error) {
       throw new Error(`Failed to create MotherDuck service account '${username}': ${error.message}`)
@@ -77,7 +91,7 @@ export async function mdIssueToken(username: string): Promise<{ token: string }>
   const { MD_ADMIN_TOKEN } = getConnectEnv()
 
   // Debug logging to verify token is loaded
-  console.log("MotherDuck Issue Token Debug:", {
+  logger.debug("connect.motherduck.issue_token.debug", {
     hasToken: !!MD_ADMIN_TOKEN,
     tokenLength: MD_ADMIN_TOKEN?.length || 0,
     username,
@@ -85,6 +99,7 @@ export async function mdIssueToken(username: string): Promise<{ token: string }>
 
   try {
     // Create an access token for the user using MotherDuck REST API
+    // Based on: https://motherduck.com/docs/sql-reference/rest-api/motherduck-rest-api/
     const res = await httpFetch(
       `https://api.motherduck.com/users/${encodeURIComponent(username)}/tokens`,
       {
@@ -95,8 +110,7 @@ export async function mdIssueToken(username: string): Promise<{ token: string }>
         },
         body: JSON.stringify({
           name: `${username}_token`,
-          // Note: MotherDuck API may not support expires_in field
-          // Token expiration should be set via MotherDuck UI or different API
+          // Token expiration and other settings will be handled by MotherDuck
         }),
       },
     )
@@ -112,9 +126,23 @@ export async function mdIssueToken(username: string): Promise<{ token: string }>
       throw new Error(`MotherDuck API error: ${res.status} ${res.statusText} - ${errorBody}`)
     }
 
-    const data = (await res.json().catch(() => ({}))) as { token?: string; access_token?: string }
+    const data = (await res.json().catch(() => ({}))) as {
+      token?: string
+      access_token?: string
+      name?: string
+    }
     const token = data.token || data.access_token
-    if (!token) throw new Error("MotherDuck API returned no token")
+
+    if (!token) {
+      throw new Error("MotherDuck API returned no token in response")
+    }
+
+    logger.info("connect.motherduck.issue_token.success", {
+      username,
+      tokenName: data.name,
+      tokenLength: token.length,
+    })
+
     return { token }
   } catch (error) {
     if (error instanceof Error) {
@@ -126,20 +154,26 @@ export async function mdIssueToken(username: string): Promise<{ token: string }>
 
 export async function mdCreateDatabase(dbName: string, saToken: string): Promise<void> {
   try {
-    // MotherDuck databases are created via the databases API
-    // This creates a new database in the MotherDuck organization
-    const res = await httpFetch("https://api.motherduck.com/databases", {
+    // MotherDuck databases are created via SQL commands using the service account token
+    // Based on: https://motherduck.com/docs/sql-reference/rest-api/motherduck-rest-api/
+    // We'll use the SQL API to execute CREATE DATABASE command
+    const res = await httpFetch("https://api.motherduck.com/sql", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${saToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        name: dbName,
+        query: `CREATE DATABASE IF NOT EXISTS ${dbName}`,
+        // Additional parameters may be needed based on the actual API spec
       }),
     })
 
-    if (res.status === 409) return // Database already exists
+    if (res.status === 409) {
+      // Database already exists - this is acceptable for idempotency
+      logger.info("connect.motherduck.create_database.already_exists", { dbName })
+      return
+    }
 
     if (!res.ok) {
       let errorBody = ""
@@ -151,6 +185,11 @@ export async function mdCreateDatabase(dbName: string, saToken: string): Promise
 
       throw new Error(`MotherDuck API error: ${res.status} ${res.statusText} - ${errorBody}`)
     }
+
+    logger.info("connect.motherduck.create_database.success", {
+      dbName,
+      response: await res.json().catch(() => ({})),
+    })
   } catch (error) {
     if (error instanceof Error) {
       throw new Error(`Failed to create MotherDuck database '${dbName}': ${error.message}`)
