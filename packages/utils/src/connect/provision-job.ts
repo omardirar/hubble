@@ -151,19 +151,37 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
       await mdCreateServiceAccount(mdSaUsername)
       await logStep("CREATE_SERVICE_ACCOUNT", "succeeded")
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
+      // Enhanced error logging for debugging
+      let errorMessage: string
+      let errorDetails: Record<string, any>
+
+      if (error instanceof Error) {
+        errorMessage = error.message || error.name || "Unknown error"
+        errorDetails = {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        }
+      } else if (typeof error === "string") {
+        errorMessage = error
+        errorDetails = { error: error }
+      } else if (error && typeof error === "object") {
+        errorMessage = (error as any).message || (error as any).error || JSON.stringify(error)
+        errorDetails = {
+          type: typeof error,
+          constructor: error.constructor?.name,
+          ...error,
+        }
+      } else {
+        errorMessage = String(error)
+        errorDetails = { error: String(error) }
+      }
+
       logger.error("connect.provision.create_service_account_failed", {
         correlation_id: correlationId,
         org_id: orgId,
         error: errorMessage,
-        error_details:
-          error instanceof Error
-            ? {
-                name: error.name,
-                message: error.message,
-                stack: error.stack,
-              }
-            : { error: String(error) },
+        error_details: JSON.parse(JSON.stringify(errorDetails)),
       })
       await logStep("CREATE_SERVICE_ACCOUNT", "failed", errorMessage)
       throw error
@@ -250,15 +268,32 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
 
     await logStep("READY", "succeeded")
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    const errorDetails =
-      error instanceof Error
-        ? {
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-          }
-        : { error: String(error) }
+    // Better error message extraction
+    let message: string
+    let errorDetails: Record<string, any>
+
+    if (error instanceof Error) {
+      message = error.message || error.name || "Unknown error"
+      errorDetails = {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      }
+    } else if (typeof error === "string") {
+      message = error
+      errorDetails = { error: error }
+    } else if (error && typeof error === "object") {
+      // Handle objects that might not be Error instances
+      message = (error as any).message || (error as any).error || JSON.stringify(error)
+      errorDetails = {
+        type: typeof error,
+        constructor: error.constructor?.name,
+        ...error,
+      }
+    } else {
+      message = String(error)
+      errorDetails = { error: String(error) }
+    }
 
     // Ensure error details are properly serialized
     const serializedErrorDetails = JSON.parse(JSON.stringify(errorDetails))
@@ -270,6 +305,22 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
       error_details: serializedErrorDetails,
     })
 
+    // Update provisioning run to failed state first
+    try {
+      await updateProvisionRun(correlationId, {
+        status: "failed",
+        finished_at: new Date().toISOString(),
+        error_message: message,
+      })
+    } catch (updateError) {
+      logger.error("connect.provision.update_failed", {
+        correlation_id: correlationId,
+        org_id: orgId,
+        error: updateError instanceof Error ? updateError.message : String(updateError),
+      })
+    }
+
+    // Try to log the error step (this might fail, but we've already updated the status)
     try {
       await logStep("ERROR", "failed", message)
     } catch (loggingError) {
@@ -279,13 +330,6 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
         error: loggingError instanceof Error ? loggingError.message : String(loggingError),
       })
     }
-
-    // Update provisioning run to failed state
-    await updateProvisionRun(correlationId, {
-      status: "failed",
-      finished_at: new Date().toISOString(),
-      error_message: message,
-    })
 
     if (error instanceof ProvisionJobFailedError) {
       throw error

@@ -66,11 +66,30 @@ export async function updateProvisionRun(
   updates: Record<string, unknown>,
 ): Promise<void> {
   const db = createServiceClient()
+
+  logger.debug("connect.db.update_provision_run", {
+    correlation_id: correlationId,
+    updates,
+  })
+
   const { error } = await db
     .from("provisioning_runs")
     .update(updates)
     .eq("correlation_id", correlationId)
-  if (error) throw error
+
+  if (error) {
+    logger.error("connect.db.update_provision_run_failed", {
+      correlation_id: correlationId,
+      updates,
+      error: error.message,
+    })
+    throw error
+  }
+
+  logger.debug("connect.db.update_provision_run_success", {
+    correlation_id: correlationId,
+    updates,
+  })
 }
 
 export async function appendEvent(

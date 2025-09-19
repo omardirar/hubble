@@ -109,6 +109,13 @@ export async function createConnectStatusStream(
       const emitEvents = (status: connect.StatusResponse) => {
         if (closed) return
 
+        // Debug logging to see what status we're getting
+        logger.info("connect.stream.status_update", {
+          correlation_id: correlationId,
+          status: status.status,
+          timeline_length: status.timeline.length,
+        })
+
         // Use atomic operations to prevent race conditions
         const currentLastSeq = lastSeq
         const newItems = status.timeline.filter((event) => event.event_seq > currentLastSeq)
@@ -127,6 +134,11 @@ export async function createConnectStatusStream(
 
         if (status.status === "ready" || status.status === "failed") {
           if (closed) return // Final check before ending
+          logger.info("connect.stream.ending", {
+            correlation_id: correlationId,
+            status: status.status,
+            reason: "final_status_reached",
+          })
           controller.enqueue(encoder.encode(`event: end\n`))
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ status: status.status })}\n\n`),

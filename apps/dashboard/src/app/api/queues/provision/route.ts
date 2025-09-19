@@ -67,15 +67,34 @@ export async function POST(request: Request) {
 
             return NextResponse.json({ success: true })
           } catch (error) {
-            const message = error instanceof Error ? error.message : String(error)
-            const errorDetails =
-              error instanceof Error
-                ? {
-                    name: error.name,
-                    message: error.message,
-                    stack: error.stack,
-                  }
-                : { error: String(error) }
+            // Better error message extraction
+            let message: string
+            let errorDetails: Record<string, unknown>
+
+            if (error instanceof Error) {
+              message = error.message || error.name || "Unknown error"
+              errorDetails = {
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+              }
+            } else if (typeof error === "string") {
+              message = error
+              errorDetails = { error: error }
+            } else if (error && typeof error === "object") {
+              // Handle objects that might not be Error instances
+              const errorObj = error as Record<string, unknown>
+              message =
+                (errorObj.message as string) || (errorObj.error as string) || JSON.stringify(error)
+              errorDetails = {
+                type: typeof error,
+                constructor: error.constructor?.name,
+                ...errorObj,
+              }
+            } else {
+              message = String(error)
+              errorDetails = { error: String(error) }
+            }
 
             // Ensure error details are properly serialized
             const serializedErrorDetails = JSON.parse(JSON.stringify(errorDetails))
