@@ -75,11 +75,11 @@ export async function POST(request: Request) {
                     message: error.message,
                     stack: error.stack,
                   }
-                : error
+                : { error: String(error) }
 
             reqLogger.error("queues.provision.job_failed", {
               error: message,
-              errorDetails,
+              error_details: errorDetails,
               orgId: org_id,
               correlationId: correlation_id,
             })

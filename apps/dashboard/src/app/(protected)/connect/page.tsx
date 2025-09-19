@@ -130,6 +130,16 @@ export default function Page() {
             <AnimatedSpan key="final-result" delay={500}>
               {data.status === "ready" ? "✓ Connect setup complete!" : "❌ Setup failed"}
             </AnimatedSpan>,
+            ...(data.status === "failed" && correlationId
+              ? [
+                  <AnimatedSpan key="final-correlation" delay={1000}>
+                    Run ID: {correlationId}
+                  </AnimatedSpan>,
+                  <AnimatedSpan key="final-help" delay={1500}>
+                    Check logs for detailed error information.
+                  </AnimatedSpan>,
+                ]
+              : []),
           ])
 
           eventSource.close()
@@ -150,12 +160,21 @@ export default function Page() {
         eventSourceRef.current = null
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error"
+      const correlationInfo = correlationId ? ` (Run ID: ${correlationId})` : ""
+
       setTerminalContent([
         <AnimatedSpan key="error" delay={0}>
           $ hubble connect enable
         </AnimatedSpan>,
         <AnimatedSpan key="error-message" delay={1000}>
-          ❌ Error: {error instanceof Error ? error.message : "Unknown error"}
+          ❌ Error: {errorMessage}
+        </AnimatedSpan>,
+        <AnimatedSpan key="error-correlation" delay={2000}>
+          {correlationInfo}
+        </AnimatedSpan>,
+        <AnimatedSpan key="error-help" delay={3000}>
+          Please check the logs for more details or try again.
         </AnimatedSpan>,
       ])
     } finally {

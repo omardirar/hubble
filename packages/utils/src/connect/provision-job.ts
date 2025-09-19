@@ -232,12 +232,20 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     await logStep("READY", "succeeded")
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+    const errorDetails =
+      error instanceof Error
+        ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          }
+        : { error: String(error) }
 
     logger.error("connect.provision.job.failed", {
       correlation_id: correlationId,
       org_id: orgId,
       error: message,
-      error_stack: error instanceof Error ? error.stack : undefined,
+      error_details: errorDetails,
     })
 
     try {
@@ -254,6 +262,7 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     await updateProvisionRun(correlationId, {
       status: "failed",
       finished_at: new Date().toISOString(),
+      error_message: message,
     })
 
     if (error instanceof ProvisionJobFailedError) {
