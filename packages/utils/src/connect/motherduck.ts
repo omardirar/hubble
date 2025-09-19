@@ -35,12 +35,13 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
     hasToken: !!MD_ADMIN_TOKEN,
     tokenLength: MD_ADMIN_TOKEN?.length || 0,
     username,
+    tokenPrefix: MD_ADMIN_TOKEN?.substring(0, 10) + "...",
   })
 
   try {
     // Create a new user (service account) using MotherDuck REST API
     // Based on: https://motherduck.com/docs/sql-reference/rest-api/motherduck-rest-api/
-    const res = await httpFetch("https://api.motherduck.com/users", {
+    const res = await httpFetch("https://api.motherduck.com/v1/users", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${MD_ADMIN_TOKEN}`,
@@ -66,6 +67,20 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
       } catch {
         errorBody = "Unable to read error response"
       }
+
+      // Enhanced error logging for debugging
+      logger.error("connect.motherduck.create_service_account.api_error", {
+        status: res.status,
+        statusText: res.statusText,
+        errorBody,
+        username,
+        url: "https://api.motherduck.com/v1/users",
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${MD_ADMIN_TOKEN?.substring(0, 10)}...`,
+          "Content-Type": "application/json",
+        },
+      })
 
       throw new Error(`MotherDuck API error: ${res.status} ${res.statusText} - ${errorBody}`)
     }
@@ -101,7 +116,7 @@ export async function mdIssueToken(username: string): Promise<{ token: string }>
     // Create an access token for the user using MotherDuck REST API
     // Based on: https://motherduck.com/docs/sql-reference/rest-api/motherduck-rest-api/
     const res = await httpFetch(
-      `https://api.motherduck.com/users/${encodeURIComponent(username)}/tokens`,
+      `https://api.motherduck.com/v1/users/${encodeURIComponent(username)}/tokens`,
       {
         method: "POST",
         headers: {
@@ -157,7 +172,7 @@ export async function mdCreateDatabase(dbName: string, saToken: string): Promise
     // MotherDuck databases are created via SQL commands using the service account token
     // Based on: https://motherduck.com/docs/sql-reference/rest-api/motherduck-rest-api/
     // We'll use the SQL API to execute CREATE DATABASE command
-    const res = await httpFetch("https://api.motherduck.com/sql", {
+    const res = await httpFetch("https://api.motherduck.com/v1/sql", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${saToken}`,
