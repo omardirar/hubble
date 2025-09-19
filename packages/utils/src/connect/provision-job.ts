@@ -7,7 +7,7 @@ import {
   type LockHandle,
   RedisUnavailableError,
 } from "@hubble/redis"
-import { logger } from "../logger"
+import { logger } from "@hubble/logger"
 import { appendEvent, updateProvisionRun, upsertTenantDestination } from "./db"
 import { mdCreateServiceAccount, mdIssueToken, mdCreateDatabase } from "./motherduck"
 import { fivetranUpsertMotherDuckDestination, fivetranTestDestination } from "./fivetran"
@@ -147,8 +147,27 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     const mdSaUsername = `sa_${orgId}`
 
     await logStep("CREATE_SERVICE_ACCOUNT", "started")
-    await mdCreateServiceAccount(mdSaUsername)
-    await logStep("CREATE_SERVICE_ACCOUNT", "succeeded")
+    try {
+      await mdCreateServiceAccount(mdSaUsername)
+      await logStep("CREATE_SERVICE_ACCOUNT", "succeeded")
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      logger.error("connect.provision.create_service_account_failed", {
+        correlation_id: correlationId,
+        org_id: orgId,
+        error: errorMessage,
+        error_details:
+          error instanceof Error
+            ? {
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+              }
+            : { error: String(error) },
+      })
+      await logStep("CREATE_SERVICE_ACCOUNT", "failed", errorMessage)
+      throw error
+    }
 
     await logStep("ISSUE_SA_TOKEN", "started")
     const { token } = await mdIssueToken(mdSaUsername)
@@ -241,11 +260,14 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
           }
         : { error: String(error) }
 
+    // Ensure error details are properly serialized
+    const serializedErrorDetails = JSON.parse(JSON.stringify(errorDetails))
+
     logger.error("connect.provision.job.failed", {
       correlation_id: correlationId,
       org_id: orgId,
       error: message,
-      error_details: errorDetails,
+      error_details: serializedErrorDetails,
     })
 
     try {

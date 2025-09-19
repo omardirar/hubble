@@ -33,6 +33,7 @@
     "@hubble/api-contracts": "workspace:*",
     "@hubble/env": "workspace:*",
     "@hubble/auth": "workspace:*",
+    "@hubble/logger": "workspace:*",
     "@hubble/queue": "workspace:*",
     "@hubble/redis": "workspace:*",
     "@clerk/nextjs": "^6.31.10",

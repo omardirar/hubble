@@ -6,7 +6,7 @@
  * server-only dependencies.
  */
 
-export * from "./logger" // Structured logging utilities
+export * from "@hubble/logger" // Structured logging utilities
 export * from "./api-handlers" // API route handler utilities
 export * from "./anthropic-client" // Anthropic API client
 export * from "./database-operations" // Database operation utilities

@@ -77,9 +77,12 @@ export async function POST(request: Request) {
                   }
                 : { error: String(error) }
 
+            // Ensure error details are properly serialized
+            const serializedErrorDetails = JSON.parse(JSON.stringify(errorDetails))
+
             reqLogger.error("queues.provision.job_failed", {
               error: message,
-              error_details: errorDetails,
+              error_details: serializedErrorDetails,
               orgId: org_id,
               correlationId: correlation_id,
             })

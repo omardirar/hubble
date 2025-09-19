@@ -1,5 +1,5 @@
 {
-  "name": "@hubble/auth",
+  "name": "@hubble/logger",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -16,11 +16,6 @@
   },
   "license": "MIT",
   "sideEffects": false,
-  "dependencies": {
-    "@hubble/db": "workspace:*",
-    "@hubble/logger": "workspace:*",
-    "@clerk/nextjs": "^5.0.0"
-  },
   "devDependencies": {
     "typescript": "^5.5.0",
     "@hubble/tsconfig": "workspace:*",

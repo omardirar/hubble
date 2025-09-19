@@ -6,7 +6,7 @@
  */
 
 import { getAnthropicConfig } from "@hubble/env"
-import { logger } from "./logger"
+import { logger } from "@hubble/logger"
 import { handleUpstreamError } from "./api-handlers"
 
 type Logger = ReturnType<typeof logger.child>

@@ -19,6 +19,7 @@
     "@hubble/auth": "workspace:*",
     "@hubble/db": "workspace:*",
     "@hubble/env": "workspace:*",
+    "@hubble/logger": "workspace:*",
     "@hubble/ui": "workspace:*",
     "@hubble/utils": "workspace:*",
     "@upstash/qstash": "^2.6.0",

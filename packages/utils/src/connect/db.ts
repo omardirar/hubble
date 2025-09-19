@@ -1,6 +1,6 @@
 import { createServiceClient, createBrowserClient } from "@hubble/db"
 import { connect } from "@hubble/api-contracts"
-import { logger } from "../logger"
+import { logger } from "@hubble/logger"
 
 // Shared schemas ensure DB accessors stay aligned with API contracts at compile/runtime.
 const { TimelineEventSchema, StatusResponseSchema } = connect

@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { logger } from "@hubble/logger"
 import { Button } from "./button"
 
 interface ErrorBoundaryState {
@@ -24,7 +25,16 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("ErrorBoundary caught an error:", error, errorInfo)
+    // Log the error using structured logging
+    logger.error(
+      "ui.error_boundary.caught_error",
+      {
+        error: error.message,
+        stack: error.stack,
+        componentStack: errorInfo.componentStack,
+      },
+      error,
+    )
   }
 
   resetError = () => {

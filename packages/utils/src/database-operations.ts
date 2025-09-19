@@ -6,7 +6,7 @@
  */
 
 import { createBrowserClient } from "@hubble/db"
-import { logger } from "./logger"
+import { logger } from "@hubble/logger"
 import { ApiErrorCodes } from "./errors"
 import { NextResponse } from "next/server"
 

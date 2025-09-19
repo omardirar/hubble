@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Button, ErrorBoundary } from "@hubble/ui"
 import { Terminal, AnimatedSpan, TypingAnimation } from "@hubble/ui"
+import { logger } from "@hubble/logger"
 
 // Map real provisioning steps to terminal commands
 function getStepCommand(step: string): string {
@@ -112,7 +113,10 @@ export default function Page() {
               : newContent
           })
         } catch (error) {
-          console.error("Error parsing SSE data:", error)
+          logger.error("connect.sse.parse_error", {
+            error: error instanceof Error ? error.message : String(error),
+            correlationId: data.correlation_id,
+          })
         }
       }
 
@@ -145,7 +149,10 @@ export default function Page() {
           eventSource.close()
           eventSourceRef.current = null
         } catch (error) {
-          console.error("Error parsing SSE end:", error)
+          logger.error("connect.sse.end_parse_error", {
+            error: error instanceof Error ? error.message : String(error),
+            correlationId,
+          })
         }
       })
 

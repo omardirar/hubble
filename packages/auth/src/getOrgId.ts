@@ -7,6 +7,7 @@
  */
 
 import { createServiceClient } from "@hubble/db"
+import { logger } from "@hubble/logger"
 
 /**
  * Determines the appropriate Clerk schema name based on the current environment.
@@ -102,7 +103,9 @@ export async function getUserAndOrgFromToken(token: string): Promise<{
       orgId: claims.orgId,
     }
   } catch (error) {
-    console.error("Error extracting user and org from token:", error)
+    logger.error("auth.token_extraction_failed", {
+      error: error instanceof Error ? error.message : String(error),
+    })
     return null
   }
 }
@@ -126,7 +129,9 @@ export async function getCurrentOrgId(): Promise<string | null> {
 
   // Ensure we're running on the server
   if (typeof window !== "undefined") {
-    console.warn("getCurrentOrgId cannot be called from client-side code")
+    logger.warn("auth.client_side_warning", {
+      message: "getCurrentOrgId cannot be called from client-side code",
+    })
     return null
   }
 
@@ -142,7 +147,10 @@ export async function getCurrentOrgId(): Promise<string | null> {
     // Use the existing getOrgId function to fetch from database
     return await getOrgId(userId)
   } catch (error) {
-    console.warn("getCurrentOrgId failed - ensure Clerk auth context is available:", error)
+    logger.warn("auth.get_current_org_failed", {
+      error: error instanceof Error ? error.message : String(error),
+      message: "getCurrentOrgId failed - ensure Clerk auth context is available",
+    })
     return null
   }
 }

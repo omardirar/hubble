@@ -69,6 +69,9 @@ importers:
       '@hubble/env':
         specifier: workspace:*
         version: link:../../packages/env
+      '@hubble/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
       '@hubble/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -266,6 +269,9 @@ importers:
       '@hubble/db':
         specifier: workspace:*
         version: link:../db
+      '@hubble/logger':
+        specifier: workspace:*
+        version: link:../logger
       next:
         specifier: '>=15.0.0'
         version: 15.5.3(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -339,6 +345,28 @@ importers:
         specifier: ^10.1.0
         version: 10.1.8(eslint@9.35.0(jiti@2.5.1))
 
+  packages/logger:
+    dependencies:
+      next:
+        specifier: '>=15.0.0'
+        version: 15.5.3(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      react:
+        specifier: '>=19.0.0'
+        version: 19.1.0
+      react-dom:
+        specifier: '>=19.0.0'
+        version: 19.1.0(react@19.1.0)
+    devDependencies:
+      '@hubble/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@hubble/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.2
+
   packages/prettier-config: {}
 
   packages/queue:
@@ -398,6 +426,9 @@ importers:
       '@hubble/db':
         specifier: workspace:*
         version: link:../db
+      '@hubble/logger':
+        specifier: workspace:*
+        version: link:../logger
       '@hubble/utils':
         specifier: workspace:*
         version: link:../utils
@@ -540,6 +571,9 @@ importers:
       '@hubble/env':
         specifier: workspace:*
         version: link:../env
+      '@hubble/logger':
+        specifier: workspace:*
+        version: link:../logger
       '@hubble/queue':
         specifier: workspace:*
         version: link:../queue
