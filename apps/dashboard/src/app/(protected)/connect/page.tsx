@@ -1,17 +1,47 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@hubble/ui"
 import { Terminal, AnimatedSpan, TypingAnimation } from "@hubble/ui"
 
+// Map real provisioning steps to terminal commands
+function getStepCommand(step: string): string {
+  const stepMap: Record<string, string> = {
+    CREATE_SERVICE_ACCOUNT: "motherduck create-service-account",
+    ISSUE_SA_TOKEN: "motherduck issue-token",
+    CREATE_TENANT_DATABASE: "motherduck create-database",
+    CONFIGURE_COMPUTE: "motherduck configure-compute",
+    CREATE_FIVETRAN_DESTINATION: "fivetran create-destination",
+    TEST_DESTINATION: "fivetran test-destination",
+  }
+
+  return stepMap[step] || step.toLowerCase().replace(/_/g, "-")
+}
+
 export default function Page() {
   const [isLoading, setIsLoading] = useState(false)
-  const [_correlationId, setCorrelationId] = useState<string | null>(null)
+  const [correlationId, setCorrelationId] = useState<string | null>(null)
   const [terminalContent, setTerminalContent] = useState<React.ReactNode[]>([])
+  const eventSourceRef = useRef<EventSource | null>(null)
+
+  // Clean up EventSource on unmount
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+      }
+    }
+  }, [])
 
   const handleEnable = async () => {
     setIsLoading(true)
     setTerminalContent([])
+    setCorrelationId(null)
+
+    // Close any existing EventSource
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
+    }
 
     try {
       const response = await fetch("/api/connect/enable", {
@@ -44,90 +74,107 @@ export default function Page() {
         </AnimatedSpan>,
       ])
 
-      // Simulate additional steps (in a real implementation, you'd connect to SSE)
-      setTimeout(() => {
-        setTerminalContent((prev) => [
-          ...prev,
-          <AnimatedSpan key="lock" delay={5000}>
-            $ hubble lock acquire
-          </AnimatedSpan>,
-          <TypingAnimation key="lock-progress" delay={6000} duration={60}>
-            Acquiring distributed lock...
-          </TypingAnimation>,
-          <AnimatedSpan key="lock-success" delay={8000}>
-            ✓ Lock acquired successfully
-          </AnimatedSpan>,
-        ])
-      }, 5000)
+      // Connect to real-time SSE stream
+      const eventSource = new EventSource(
+        `/api/connect/stream?correlation_id=${data.correlation_id}`,
+      )
+      eventSourceRef.current = eventSource
 
-      setTimeout(() => {
-        setTerminalContent((prev) => [
-          ...prev,
-          <AnimatedSpan key="md-account" delay={9000}>
-            $ hubble motherduck create-service-account
-          </AnimatedSpan>,
-          <TypingAnimation key="md-progress" delay={10000} duration={70}>
-            Creating MotherDuck service account...
-          </TypingAnimation>,
-          <AnimatedSpan key="md-success" delay={12000}>
-            ✓ Service account created
-          </AnimatedSpan>,
-        ])
-      }, 9000)
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          console.log("SSE Event:", data)
 
-      setTimeout(() => {
-        setTerminalContent((prev) => [
-          ...prev,
-          <AnimatedSpan key="md-db" delay={13000}>
-            $ hubble motherduck create-database
-          </AnimatedSpan>,
-          <TypingAnimation key="db-progress" delay={14000} duration={60}>
-            Creating tenant database...
-          </TypingAnimation>,
-          <AnimatedSpan key="db-success" delay={16000}>
-            ✓ Database created successfully
-          </AnimatedSpan>,
-        ])
-      }, 13000)
+          // Map real provisioning steps to terminal commands
+          const stepCommand = getStepCommand(data.step)
 
-      setTimeout(() => {
-        setTerminalContent((prev) => [
-          ...prev,
-          <AnimatedSpan key="fivetran" delay={17000}>
-            $ hubble fivetran create-destination
-          </AnimatedSpan>,
-          <TypingAnimation key="fivetran-progress" delay={18000} duration={80}>
-            Creating Fivetran destination...
-          </TypingAnimation>,
-          <AnimatedSpan key="fivetran-success" delay={20000}>
-            ✓ Fivetran destination configured
-          </AnimatedSpan>,
-        ])
-      }, 17000)
+          // Add real provisioning step to terminal
+          setTerminalContent((prev) => [
+            ...prev,
+            <AnimatedSpan key={`step-${data.event_seq}`} delay={0}>
+              $ hubble {stepCommand}
+            </AnimatedSpan>,
+            <TypingAnimation key={`progress-${data.event_seq}`} delay={500} duration={60}>
+              {data.message}
+            </TypingAnimation>,
+            <AnimatedSpan key={`result-${data.event_seq}`} delay={1000}>
+              {data.status === "succeeded" ? "✓" : data.status === "failed" ? "❌" : "⏳"}{" "}
+              {data.message}
+            </AnimatedSpan>,
+          ])
+        } catch (error) {
+          console.error("Error parsing SSE data:", error)
+        }
+      }
 
-      setTimeout(() => {
+      eventSource.addEventListener("update", (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          console.log("SSE Update:", data)
+
+          // Map real provisioning steps to terminal commands
+          const stepCommand = getStepCommand(data.step)
+
+          // Add real provisioning step to terminal
+          setTerminalContent((prev) => [
+            ...prev,
+            <AnimatedSpan key={`step-${data.event_seq}`} delay={0}>
+              $ hubble {stepCommand}
+            </AnimatedSpan>,
+            <TypingAnimation key={`progress-${data.event_seq}`} delay={500} duration={60}>
+              {data.message}
+            </TypingAnimation>,
+            <AnimatedSpan key={`result-${data.event_seq}`} delay={1000}>
+              {data.status === "succeeded" ? "✓" : data.status === "failed" ? "❌" : "⏳"}{" "}
+              {data.message}
+            </AnimatedSpan>,
+          ])
+        } catch (error) {
+          console.error("Error parsing SSE update:", error)
+        }
+      })
+
+      eventSource.addEventListener("end", (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          console.log("SSE End:", data)
+
+          setTerminalContent((prev) => [
+            ...prev,
+            <AnimatedSpan key="final-status" delay={0}>
+              $ hubble connect status
+            </AnimatedSpan>,
+            <AnimatedSpan key="final-result" delay={500}>
+              {data.status === "ready" ? "✓ Connect setup complete!" : "❌ Setup failed"}
+            </AnimatedSpan>,
+          ])
+
+          eventSource.close()
+          eventSourceRef.current = null
+        } catch (error) {
+          console.error("Error parsing SSE end:", error)
+        }
+      })
+
+      eventSource.onerror = (error) => {
+        console.error("SSE Error:", error)
         setTerminalContent((prev) => [
           ...prev,
-          <AnimatedSpan key="test" delay={21000}>
-            $ hubble test-connection
-          </AnimatedSpan>,
-          <TypingAnimation key="test-progress" delay={22000} duration={50}>
-            Testing connection...
-          </TypingAnimation>,
-          <AnimatedSpan key="test-success" delay={24000}>
-            ✓ Connection test passed
-          </AnimatedSpan>,
-          <AnimatedSpan key="complete" delay={25000}>
-            🚀 Connect setup completed successfully!
+          <AnimatedSpan key="sse-error" delay={0}>
+            ❌ Connection lost. Please refresh to retry.
           </AnimatedSpan>,
         ])
-      }, 21000)
+        eventSource.close()
+        eventSourceRef.current = null
+      }
     } catch (error) {
-      console.error("Failed to enable connect:", error)
-      setTerminalContent((prev) => [
-        ...prev,
+      console.error("Error enabling connect:", error)
+      setTerminalContent([
         <AnimatedSpan key="error" delay={0}>
-          ✗ Error: {error instanceof Error ? error.message : "Unknown error"}
+          $ hubble connect enable
+        </AnimatedSpan>,
+        <AnimatedSpan key="error-message" delay={1000}>
+          ❌ Error: {error instanceof Error ? error.message : "Unknown error"}
         </AnimatedSpan>,
       ])
     } finally {
@@ -136,25 +183,31 @@ export default function Page() {
   }
 
   return (
-    <div className="max-w-4xl space-y-6">
-      <div>
-        <h1 className="mb-2 text-2xl font-semibold">Connect</h1>
-        <p className="text-muted-foreground">
-          Set up your data connections with MotherDuck and Fivetran.
-        </p>
-      </div>
+    <div className="container mx-auto py-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-4">Connect</h1>
+          <p className="text-muted-foreground mb-6">
+            Set up your data pipeline with MotherDuck and Fivetran integration.
+          </p>
+        </div>
 
-      <div className="space-y-4">
-        <Button onClick={handleEnable} disabled={isLoading} className="w-fit">
-          {isLoading ? "Enabling..." : "Enable Connect"}
-        </Button>
-
-        {terminalContent.length > 0 && (
-          <div className="mt-6">
-            <h3 className="mb-3 text-lg font-medium">Provisioning Log</h3>
-            <Terminal className="max-h-[500px]">{terminalContent}</Terminal>
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <Button onClick={handleEnable} disabled={isLoading} className="min-w-[120px]">
+              {isLoading ? "Enabling..." : "Enable"}
+            </Button>
+            {correlationId && (
+              <span className="text-sm text-muted-foreground">Run ID: {correlationId}</span>
+            )}
           </div>
-        )}
+
+          {terminalContent.length > 0 && (
+            <div className="mt-8">
+              <Terminal>{terminalContent}</Terminal>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
