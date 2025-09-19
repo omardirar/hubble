@@ -35,7 +35,8 @@
     "@hubble/auth": "workspace:*",
     "@hubble/queue": "workspace:*",
     "@hubble/redis": "workspace:*",
-    "@clerk/nextjs": "^6.31.10"
+    "@clerk/nextjs": "^6.31.10",
+    "zod": "^3.23.8"
   },
   "peerDependencies": {
     "next": ">=15.0.0",
