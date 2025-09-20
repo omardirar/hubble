@@ -5,3 +5,6 @@ packages:
 
 ignoredBuiltDependencies:
   - "@vercel/speed-insights"
+
+onlyBuiltDependencies:
+  - duckdb
