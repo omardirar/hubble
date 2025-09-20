@@ -532,7 +532,7 @@ export async function fivetranTestDestination(destinationId: string): Promise<bo
           trust_certificates: true,
           trust_fingerprints: true,
         }),
-        timeoutMs: 60000, // 60 seconds for destination testing
+        timeoutMs: 300000, // 300 seconds for destination testing (setup tests can take time)
       },
     )
 
