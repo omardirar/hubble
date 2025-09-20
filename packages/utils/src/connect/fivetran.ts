@@ -14,6 +14,7 @@ import {
   validateFivetranApiKey,
   validateFivetranApiSecret,
   validateMotherDuckDatabaseName,
+  validateMotherDuckToken,
   validateFivetranGroupName,
 } from "@hubble/api-contracts/connect"
 
@@ -121,28 +122,28 @@ export async function fivetranCreateGroup(
  *
  * @param externalId - External ID for the destination (used for idempotency)
  * @param mdDbName - MotherDuck database name
- * @param mdTokenRef - Reference to the MotherDuck token stored in Supabase Vault
+ * @param mdToken - The actual MotherDuck token value
  * @returns Promise with the destination ID
  * @throws Error if creation fails
  */
 export async function fivetranUpsertMotherDuckDestination(
   externalId: string,
   mdDbName: string,
-  mdTokenRef: string,
+  mdToken: string,
 ): Promise<{ destination_id: string }> {
   const { FIVETRAN_API_KEY, FIVETRAN_API_SECRET } = getConnectEnv()
 
   // Validate inputs using centralized validation
   const validatedExternalId = validateExternalId(externalId)
   const validatedDbName = validateMotherDuckDatabaseName(mdDbName)
-  const validatedTokenRef = validateExternalId(mdTokenRef) // Token ref is also an external ID
+  const validatedToken = validateMotherDuckToken(mdToken) // Validate as actual token
   const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
   const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
 
   logger.info("connect.fivetran.upsert_destination.started", {
     externalId: validatedExternalId,
     mdDbName: validatedDbName,
-    mdTokenRef: validatedTokenRef,
+    tokenLength: validatedToken.length,
   })
 
   try {
@@ -153,8 +154,7 @@ export async function fivetranUpsertMotherDuckDestination(
       run_setup_tests: false, // Disable automatic setup tests as requested
       config: {
         database: validatedDbName,
-        authentication_type: "TOKEN",
-        token_ref: validatedTokenRef, // Reference to token stored in Supabase Vault
+        motherduck_token: validatedToken, // Actual token value for MotherDuck
       },
     })
 

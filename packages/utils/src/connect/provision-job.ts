@@ -331,10 +331,35 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     })
 
     await logStep("CREATE_FIVETRAN_DESTINATION", "started")
+
+    // Retrieve the actual token from vault for Fivetran
+    let actualToken: string
+    try {
+      const { data: vaultToken } = await db.rpc("vault_get", { p_name: `md_sa_token:${orgId}` })
+      if (!vaultToken || typeof vaultToken !== "string") {
+        throw new ProvisionJobFailedError("Token not found in vault")
+      }
+      actualToken = vaultToken
+      logger.info("connect.provision.token_retrieved_for_fivetran", {
+        correlation_id: correlationId,
+        org_id: orgId,
+        token_length: actualToken.length,
+      })
+    } catch (vaultError) {
+      logger.error("connect.provision.token_retrieval_failed", {
+        correlation_id: correlationId,
+        org_id: orgId,
+        error: vaultError instanceof Error ? vaultError.message : String(vaultError),
+      })
+      throw new ProvisionJobFailedError(
+        `Failed to retrieve token from vault: ${vaultError instanceof Error ? vaultError.message : String(vaultError)}`,
+      )
+    }
+
     const { destination_id } = await fivetranUpsertMotherDuckDestination(
       group_id,
       mdDbName,
-      `md_sa_token:${orgId}`,
+      actualToken, // Pass the actual token, not the reference
     )
     await logStep("CREATE_FIVETRAN_DESTINATION", "succeeded", undefined, {
       fivetran_destination_id: destination_id,
