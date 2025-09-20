@@ -146,6 +146,41 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     const mdDbName = `md_${orgId}`
     const mdSaUsername = `sa_${orgId}`
 
+    // Check if provisioning is already complete (idempotency)
+    try {
+      const { data: existingDestination } = await db
+        .from("tenant_destinations")
+        .select("fivetran_destination_id, status")
+        .eq("org_id", orgId)
+        .single()
+
+      if (existingDestination && existingDestination.status === "healthy") {
+        logger.info("connect.provision.already_complete", {
+          correlation_id: correlationId,
+          org_id: orgId,
+          fivetran_destination_id: existingDestination.fivetran_destination_id,
+        })
+
+        await updateProvisionRun(correlationId, {
+          status: "ready",
+          md_db_name: mdDbName,
+          md_sa_username: mdSaUsername,
+          fivetran_destination_id: existingDestination.fivetran_destination_id,
+          finished_at: new Date().toISOString(),
+        })
+
+        await logStep("READY", "succeeded", "Provisioning already complete")
+        return
+      }
+    } catch (checkError) {
+      // Destination doesn't exist or error checking - continue with provisioning
+      logger.debug("connect.provision.check_existing_destination", {
+        correlation_id: correlationId,
+        org_id: orgId,
+        error: checkError instanceof Error ? checkError.message : String(checkError),
+      })
+    }
+
     await logStep("CREATE_SERVICE_ACCOUNT", "started")
     try {
       await mdCreateServiceAccount(mdSaUsername)
@@ -188,36 +223,69 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     }
 
     await logStep("ISSUE_SA_TOKEN", "started")
-    const { token } = await mdIssueToken(mdSaUsername)
 
-    // Try primary vault method first
+    // Check if token already exists in vault (idempotency)
+    let token: string
+    let tokenFromVault = false
+
     try {
-      await db.rpc("vault_set", { p_name: `md_sa_token:${orgId}`, p_secret: token })
-    } catch (primaryError) {
-      logger.warn("connect.provision.vault_primary_failed", {
-        correlation_id: correlationId,
-        org_id: orgId,
-        error: primaryError instanceof Error ? primaryError.message : String(primaryError),
-      })
-
-      // Fallback to direct table insert
-      try {
-        await db
-          .from("vault.secrets" as never)
-          .upsert({ name: `md_sa_token:${orgId}`, secret: token } as never)
-      } catch (fallbackError) {
-        logger.error("connect.provision.vault_fallback_failed", {
+      const { data: existingToken } = await db.rpc("vault_get", { p_name: `md_sa_token:${orgId}` })
+      if (existingToken && typeof existingToken === "string" && existingToken.length > 0) {
+        logger.info("connect.provision.token_already_exists", {
           correlation_id: correlationId,
           org_id: orgId,
-          primaryError: primaryError instanceof Error ? primaryError.message : String(primaryError),
-          fallbackError:
-            fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
         })
-        throw new ProvisionJobFailedError(
-          `Failed to store service account token: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
-        )
+        token = existingToken
+        tokenFromVault = true
+      } else {
+        // Token doesn't exist, create a new one
+        const { token: newToken } = await mdIssueToken(mdSaUsername)
+        token = newToken
+      }
+    } catch (vaultError) {
+      logger.warn("connect.provision.vault_check_failed", {
+        correlation_id: correlationId,
+        org_id: orgId,
+        error: vaultError instanceof Error ? vaultError.message : String(vaultError),
+      })
+
+      // If vault check fails, try to create a new token
+      const { token: newToken } = await mdIssueToken(mdSaUsername)
+      token = newToken
+    }
+
+    // Store the token in vault (idempotent operation)
+    if (!tokenFromVault) {
+      try {
+        await db.rpc("vault_set", { p_name: `md_sa_token:${orgId}`, p_secret: token })
+      } catch (primaryError) {
+        logger.warn("connect.provision.vault_primary_failed", {
+          correlation_id: correlationId,
+          org_id: orgId,
+          error: primaryError instanceof Error ? primaryError.message : String(primaryError),
+        })
+
+        // Fallback to direct table insert
+        try {
+          await db
+            .from("vault.secrets" as never)
+            .upsert({ name: `md_sa_token:${orgId}`, secret: token } as never)
+        } catch (fallbackError) {
+          logger.error("connect.provision.vault_fallback_failed", {
+            correlation_id: correlationId,
+            org_id: orgId,
+            primaryError:
+              primaryError instanceof Error ? primaryError.message : String(primaryError),
+            fallbackError:
+              fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+          })
+          throw new ProvisionJobFailedError(
+            `Failed to store service account token: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
+          )
+        }
       }
     }
+
     await logStep("ISSUE_SA_TOKEN", "succeeded")
 
     await logStep("CREATE_TENANT_DATABASE", "started")
