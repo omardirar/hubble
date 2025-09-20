@@ -31,6 +31,7 @@ const isPublicRoute = createRouteMatcher([
   "/healthz", // Health check endpoint
   "/version", // Version information endpoint
   "/api/queues(.*)", // Queue endpoints for QStash
+  "/api/motherduck(.*)", // MotherDuck API endpoints (internal use)
 ])
 
 /**

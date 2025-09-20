@@ -5,7 +5,7 @@ import { logger } from "@hubble/logger"
 // It runs in a separate serverless function with native dependencies
 // This is an internal API route, so we use a simple API key for security
 
-export const runtime = "nodejs" // Ensure NOT edge runtime
+// export const runtime = "nodejs" // Ensure NOT edge runtime
 
 export async function POST(request: NextRequest) {
   logger.info("motherduck.create_database.api.request_received", {
