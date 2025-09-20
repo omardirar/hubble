@@ -40,6 +40,7 @@ export async function fivetranListGroups(): Promise<{ id: string; name: string }
         Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
         "Content-Type": "application/json",
       },
+      timeoutMs: 30000, // 30 seconds for listing groups
     })
 
     if (!res.ok) {
@@ -114,6 +115,7 @@ export async function fivetranGetGroup(
           Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
           "Content-Type": "application/json",
         },
+        timeoutMs: 30000, // 30 seconds for getting group details
       },
     )
 
@@ -230,6 +232,7 @@ export async function fivetranCreateGroup(
         "Content-Type": "application/json",
       },
       body: requestBody,
+      timeoutMs: 30000, // 30 seconds for group creation
     })
 
     // Handle group already exists (idempotency)
@@ -430,6 +433,7 @@ export async function fivetranUpsertMotherDuckDestination(
         "Content-Type": "application/json",
       },
       body: requestBody,
+      timeoutMs: 60000, // 60 seconds for destination creation
     })
 
     // Handle destination already exists (idempotency)
@@ -521,11 +525,14 @@ export async function fivetranTestDestination(destinationId: string): Promise<bo
         method: "POST",
         headers: {
           Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
+          Accept: "application/json;version=2",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          tests: ["CONNECT", "SCHEMA"], // Test connection and schema access
+          trust_certificates: true,
+          trust_fingerprints: true,
         }),
+        timeoutMs: 60000, // 60 seconds for destination testing
       },
     )
 
@@ -556,14 +563,42 @@ export async function fivetranTestDestination(destinationId: string): Promise<bo
       )
     }
 
-    const data = (await res.json().catch(() => ({}))) as { data?: { status?: string } }
-    const testStatus = data?.data?.status
-    const success = testStatus === "SUCCESS"
+    const data = (await res.json().catch(() => ({}))) as {
+      data?: {
+        setup_status?: string
+        setup_tests?: Array<{
+          title: string
+          status: "PASSED" | "SKIPPED" | "WARNING" | "FAILED" | "JOB_FAILED"
+          message?: string
+        }>
+      }
+    }
+
+    const setupStatus = data?.data?.setup_status
+    const setupTests = data?.data?.setup_tests || []
+
+    // Check if all tests passed
+    const allTestsPassed =
+      setupTests.length > 0 && setupTests.every((test) => test.status === "PASSED")
+    const hasFailedTests = setupTests.some(
+      (test) => test.status === "FAILED" || test.status === "JOB_FAILED",
+    )
+
+    // Success if setup status is CONNECTED and all tests passed
+    const success = setupStatus === "CONNECTED" && allTestsPassed && !hasFailedTests
 
     logger.info("connect.fivetran.test_destination.completed", {
       destinationId: validatedDestinationId,
-      testStatus,
+      setupStatus,
+      testCount: setupTests.length,
+      allTestsPassed,
+      hasFailedTests,
       success,
+      testResults: setupTests.map((test) => ({
+        title: test.title,
+        status: test.status,
+        message: test.message,
+      })),
     })
 
     return success
