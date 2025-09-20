@@ -50,6 +50,16 @@ export async function POST(request: NextRequest) {
       dbName,
     })
 
+    // Set home directory environment variable for DuckDB in serverless
+    process.env.HOME = "/tmp"
+    process.env.USER = "vercel"
+
+    logger.info("motherduck.create_database.api.env_set", {
+      dbName,
+      home: process.env.HOME,
+      user: process.env.USER,
+    })
+
     // Import DuckDB Node.js client (not bundled)
     const { DuckDBInstance } = await import("@duckdb/node-api")
 
@@ -81,20 +91,7 @@ export async function POST(request: NextRequest) {
         dbName,
       })
 
-      // Set home directory for serverless environment
-      try {
-        await connection.run("SET home_directory='/tmp'")
-        logger.info("motherduck.create_database.api.home_directory_set", {
-          dbName,
-          homeDirectory: "/tmp",
-        })
-      } catch (homeDirError) {
-        logger.warn("motherduck.create_database.api.home_directory_set_failed", {
-          dbName,
-          error: homeDirError instanceof Error ? homeDirError.message : String(homeDirError),
-        })
-        // Continue anyway - this might not be critical
-      }
+      // Home directory is already set via environment variables
 
       try {
         // Create the database
