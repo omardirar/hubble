@@ -75,12 +75,26 @@ export async function fivetranCreateGroup(
       }
 
       // Handle duplicate group error (idempotency)
-      if (res.status === 400 && errorBody.includes("already exists")) {
-        logger.info("connect.fivetran.group_already_exists_constraint", {
-          groupId: validatedGroupId,
-          errorBody,
-        })
-        return { group_id: validatedGroupId }
+      if (res.status === 400) {
+        try {
+          const errorData = JSON.parse(errorBody)
+          if (errorData.code === "InvalidInput" && errorData.message?.includes("already in use")) {
+            logger.info("connect.fivetran.group_already_exists_invalid_input", {
+              groupId: validatedGroupId,
+              errorBody,
+            })
+            return { group_id: validatedGroupId }
+          }
+        } catch {
+          // Fallback to string matching if JSON parsing fails
+          if (errorBody.includes("already exists") || errorBody.includes("already in use")) {
+            logger.info("connect.fivetran.group_already_exists_constraint", {
+              groupId: validatedGroupId,
+              errorBody,
+            })
+            return { group_id: validatedGroupId }
+          }
+        }
       }
 
       logger.error("connect.fivetran.create_group.api_error", {
