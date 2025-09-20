@@ -50,6 +50,8 @@ export const StepIcon = ({ step, status, className }: StepIconProps) => {
         return <Database className="h-4 w-4" />
       case "CONFIGURE_COMPUTE":
         return <Server className="h-4 w-4" />
+      case "CREATE_FIVETRAN_GROUP":
+        return <Zap className="h-4 w-4" />
       case "CREATE_FIVETRAN_DESTINATION":
         return <Zap className="h-4 w-4" />
       case "TEST_DESTINATION":
@@ -187,6 +189,7 @@ export const StepItem = ({
       ISSUE_SA_TOKEN: "Issuing authentication token",
       CREATE_TENANT_DATABASE: "Creating tenant database",
       CONFIGURE_COMPUTE: "Configuring compute resources",
+      CREATE_FIVETRAN_GROUP: "Creating Fivetran group",
       CREATE_FIVETRAN_DESTINATION: "Setting up Fivetran destination",
       TEST_DESTINATION: "Testing data connection",
       ERROR: "Error occurred",

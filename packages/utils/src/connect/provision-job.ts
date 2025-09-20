@@ -10,7 +10,11 @@ import {
 import { logger } from "@hubble/logger"
 import { appendEvent, updateProvisionRun, upsertTenantDestination } from "./db"
 import { mdCreateServiceAccount, mdIssueToken, mdCreateDatabase } from "./motherduck"
-import { fivetranUpsertMotherDuckDestination, fivetranTestDestination } from "./fivetran"
+import {
+  fivetranCreateGroup,
+  fivetranUpsertMotherDuckDestination,
+  fivetranTestDestination,
+} from "./fivetran"
 
 const LOCK_TTL_MS = 5 * 60_000
 
@@ -251,6 +255,7 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
         // Token doesn't exist, create a new one
         const { token: newToken } = await mdIssueToken(mdSaUsername)
         token = newToken
+        tokenFromVault = false // Ensure we store the new token
       }
     } catch (vaultError) {
       logger.warn("connect.provision.vault_check_failed", {
@@ -262,12 +267,23 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
       // If vault check fails, try to create a new token
       const { token: newToken } = await mdIssueToken(mdSaUsername)
       token = newToken
+      tokenFromVault = false // Ensure we store the new token
     }
 
     // Store the token in vault (idempotent operation)
     if (!tokenFromVault) {
+      logger.info("connect.provision.storing_token", {
+        correlation_id: correlationId,
+        org_id: orgId,
+        token_length: token?.length || 0,
+      })
+
       try {
         await db.rpc("vault_set", { p_name: `md_sa_token:${orgId}`, p_secret: token })
+        logger.info("connect.provision.token_stored", {
+          correlation_id: correlationId,
+          org_id: orgId,
+        })
       } catch (primaryError) {
         logger.warn("connect.provision.vault_primary_failed", {
           correlation_id: correlationId,
@@ -280,6 +296,10 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
           await db
             .from("vault.secrets" as never)
             .upsert({ name: `md_sa_token:${orgId}`, secret: token } as never)
+          logger.info("connect.provision.token_stored_fallback", {
+            correlation_id: correlationId,
+            org_id: orgId,
+          })
         } catch (fallbackError) {
           logger.error("connect.provision.vault_fallback_failed", {
             correlation_id: correlationId,
@@ -304,9 +324,15 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
 
     await logStep("CONFIGURE_COMPUTE", "succeeded", "skipped/not-required")
 
+    await logStep("CREATE_FIVETRAN_GROUP", "started")
+    const { group_id } = await fivetranCreateGroup(`org:${orgId}`, `Organization ${orgId}`)
+    await logStep("CREATE_FIVETRAN_GROUP", "succeeded", undefined, {
+      fivetran_group_id: group_id,
+    })
+
     await logStep("CREATE_FIVETRAN_DESTINATION", "started")
     const { destination_id } = await fivetranUpsertMotherDuckDestination(
-      `org:${orgId}`,
+      group_id,
       mdDbName,
       `md_sa_token:${orgId}`,
     )

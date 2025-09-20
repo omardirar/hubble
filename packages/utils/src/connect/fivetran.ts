@@ -17,6 +17,105 @@ import {
 } from "@hubble/api-contracts/connect"
 
 /**
+ * Creates a Fivetran group
+ *
+ * @param groupId - The group ID to create
+ * @param groupName - The name for the group
+ * @returns Promise with the group ID
+ * @throws Error if creation fails
+ */
+export async function fivetranCreateGroup(
+  groupId: string,
+  groupName: string,
+): Promise<{ group_id: string }> {
+  const { FIVETRAN_API_KEY, FIVETRAN_API_SECRET } = getConnectEnv()
+
+  // Validate inputs using centralized validation
+  const validatedGroupId = validateExternalId(groupId)
+  const validatedGroupName = validateExternalId(groupName) // Group name is also an external ID
+  const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
+  const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
+
+  logger.info("connect.fivetran.create_group.started", {
+    groupId: validatedGroupId,
+    groupName: validatedGroupName,
+  })
+
+  try {
+    const requestBody = JSON.stringify({
+      id: validatedGroupId,
+      name: validatedGroupName,
+    })
+
+    const res = await httpFetch("https://api.fivetran.com/v1/groups", {
+      method: "POST",
+      headers: {
+        Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
+        "Content-Type": "application/json",
+      },
+      body: requestBody,
+    })
+
+    // Handle group already exists (idempotency)
+    if (res.status === 409) {
+      logger.info("connect.fivetran.group_already_exists", {
+        groupId: validatedGroupId,
+      })
+      return { group_id: validatedGroupId }
+    }
+
+    if (!res.ok) {
+      let errorBody = ""
+      try {
+        errorBody = await res.text()
+      } catch {
+        errorBody = "Unable to read error response"
+      }
+
+      // Handle duplicate group error (idempotency)
+      if (res.status === 400 && errorBody.includes("already exists")) {
+        logger.info("connect.fivetran.group_already_exists_constraint", {
+          groupId: validatedGroupId,
+          errorBody,
+        })
+        return { group_id: validatedGroupId }
+      }
+
+      logger.error("connect.fivetran.create_group.api_error", {
+        status: res.status,
+        statusText: res.statusText,
+        errorBody,
+        groupId: validatedGroupId,
+      })
+
+      throw new Error(
+        `Fivetran create group failed: ${res.status} ${res.statusText} - ${errorBody}`,
+      )
+    }
+
+    const data = (await res.json().catch(() => ({}))) as { data?: { id?: string } }
+    const group_id = data?.data?.id ?? validatedGroupId
+
+    logger.info("connect.fivetran.create_group.success", {
+      groupId: validatedGroupId,
+      group_id,
+    })
+
+    return { group_id }
+  } catch (error) {
+    logger.error("connect.fivetran.create_group.failed", {
+      groupId: validatedGroupId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+
+    if (error instanceof Error) {
+      throw new Error(`Failed to create Fivetran group '${validatedGroupId}': ${error.message}`)
+    }
+    throw new Error(`Failed to create Fivetran group '${validatedGroupId}': ${String(error)}`)
+  }
+}
+
+/**
  * Creates or updates a Fivetran destination for MotherDuck
  *
  * @param externalId - External ID for the destination (used for idempotency)
@@ -47,17 +146,16 @@ export async function fivetranUpsertMotherDuckDestination(
 
   try {
     const requestBody = JSON.stringify({
-      service: "motherduck",
       group_id: validatedExternalId,
+      service: "motherduck",
+      region: "AWS_US_EAST_1", // Default to US East 1
+      time_zone_offset: "0", // UTC
+      run_setup_tests: false, // Disable automatic setup tests as requested
       config: {
-        host: "motherduck.com",
-        port: 443,
         database: validatedDbName,
-        user: "service_account",
-        password: validatedTokenRef, // Reference to token stored in Supabase Vault
-        ssl: true,
+        authentication_type: "TOKEN",
+        token_ref: validatedTokenRef, // Reference to token stored in Supabase Vault
       },
-      external_id: validatedExternalId, // Use external_id for idempotency
     })
 
     const res = await httpFetch("https://api.fivetran.com/v1/destinations", {
