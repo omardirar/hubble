@@ -31,7 +31,7 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
   const { MD_ADMIN_TOKEN } = getConnectEnv()
 
   // Enhanced debug logging to verify all inputs
-  logger.debug("connect.motherduck.create_service_account.debug", {
+  logger.info("connect.motherduck.create_service_account.debug", {
     hasToken: !!MD_ADMIN_TOKEN,
     tokenLength: MD_ADMIN_TOKEN?.length || 0,
     username,
@@ -50,7 +50,7 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
     username: username.trim(),
   }
 
-  logger.debug("connect.motherduck.create_service_account.request_payload", {
+  logger.info("connect.motherduck.create_service_account.request_payload", {
     username,
     payload: requestPayload,
     payloadString: JSON.stringify(requestPayload),
@@ -61,7 +61,7 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
     // Based on: https://motherduck.com/docs/sql-reference/rest-api/motherduck-rest-api/
     const requestBody = JSON.stringify(requestPayload)
 
-    logger.debug("connect.motherduck.create_service_account.http_request", {
+    logger.info("connect.motherduck.create_service_account.http_request", {
       url: "https://api.motherduck.com/v1/users",
       method: "POST",
       headers: {
