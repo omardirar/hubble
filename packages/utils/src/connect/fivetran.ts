@@ -421,7 +421,7 @@ export async function fivetranUpsertMotherDuckDestination(
       time_zone_offset: "0", // UTC
       run_setup_tests: false, // Disable automatic setup tests as requested
       config: {
-        database: validatedDbName,
+        motherduck_database: validatedDbName, // Correct field name for Fivetran API
         motherduck_token: validatedToken, // Actual token value for MotherDuck
       },
     })
