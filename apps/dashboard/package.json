@@ -15,7 +15,7 @@
     "@clerk/elements": "^0.23.57",
     "@clerk/nextjs": "^6.31.10",
     "@clerk/themes": "^2.4.18",
-    "@duckdb/node-api": "1.4.0-r.1",
+    "@duckdb/node-api": "1.3.2-alpha.26",
     "@hubble/api-contracts": "workspace:*",
     "@hubble/auth": "workspace:*",
     "@hubble/db": "workspace:*",
