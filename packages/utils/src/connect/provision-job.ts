@@ -307,6 +307,17 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     await logStep("ISSUE_SA_TOKEN", "succeeded")
 
     await logStep("CREATE_TENANT_DATABASE", "started")
+
+    // Debug the token being passed to database creation
+    logger.info("connect.provision.create_database.token_debug", {
+      correlation_id: correlationId,
+      org_id: orgId,
+      token_length: token?.length || 0,
+      token_type: typeof token,
+      token_from_secrets: tokenFromSecrets,
+      token_prefix: token?.substring(0, 10) + "...",
+    })
+
     await mdCreateDatabase(mdDbName, token)
     await logStep("CREATE_TENANT_DATABASE", "succeeded")
 

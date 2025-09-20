@@ -8,6 +8,12 @@ import { logger } from "@hubble/logger"
 export const runtime = "nodejs" // Ensure NOT edge runtime
 
 export async function POST(request: NextRequest) {
+  logger.info("motherduck.create_database.api.request_received", {
+    method: request.method,
+    url: request.url,
+    headers: Object.fromEntries(request.headers.entries()),
+  })
+
   // Simple API key authentication for internal use
   const apiKey = request.headers.get("x-api-key")
   const expectedApiKey = process.env.INTERNAL_API_KEY || "internal-db-creation-key"
@@ -17,6 +23,7 @@ export async function POST(request: NextRequest) {
     expectedKey: expectedApiKey ? "***" : "none",
     hasApiKey: !!apiKey,
     hasExpectedKey: !!expectedApiKey,
+    keysMatch: apiKey === expectedApiKey,
   })
 
   if (apiKey !== expectedApiKey) {
