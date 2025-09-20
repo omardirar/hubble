@@ -2,29 +2,29 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Button, ErrorBoundary } from "@hubble/ui"
-import { Terminal, AnimatedSpan, TypingAnimation } from "@hubble/ui"
+import { Terminal, AnimatedSpan, TypingAnimation, StepItem } from "@hubble/ui"
 import { logger } from "@hubble/logger"
 
-// Map real provisioning steps to terminal commands
-function getStepCommand(step: string): string {
-  const stepMap: Record<string, string> = {
-    CREATE_SERVICE_ACCOUNT: "motherduck create-service-account",
-    ISSUE_SA_TOKEN: "motherduck issue-token",
-    CREATE_TENANT_DATABASE: "motherduck create-database",
-    CONFIGURE_COMPUTE: "motherduck configure-compute",
-    CREATE_FIVETRAN_DESTINATION: "fivetran create-destination",
-    TEST_DESTINATION: "fivetran test-destination",
-  }
-
-  return stepMap[step] || step.toLowerCase().replace(/_/g, "-")
-}
+// Removed unused getStepCommand function
 
 const MAX_TERMINAL_CONTENT = 1000 // Limit terminal content to prevent memory leaks
+
+// Define all possible provisioning steps for progress tracking
+const ALL_PROVISIONING_STEPS = [
+  "CREATE_SERVICE_ACCOUNT",
+  "ISSUE_SA_TOKEN",
+  "CREATE_TENANT_DATABASE",
+  "CONFIGURE_COMPUTE",
+  "CREATE_FIVETRAN_DESTINATION",
+  "TEST_DESTINATION",
+  "READY",
+]
 
 export default function Page() {
   const [isLoading, setIsLoading] = useState(false)
   const [correlationId, setCorrelationId] = useState<string | null>(null)
   const [terminalContent, setTerminalContent] = useState<React.ReactNode[]>([])
+  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set())
   const eventSourceRef = useRef<EventSource | null>(null)
 
   // Clean up EventSource on unmount
@@ -40,6 +40,7 @@ export default function Page() {
     setIsLoading(true)
     setTerminalContent([])
     setCorrelationId(null)
+    setCompletedSteps(new Set())
 
     // Close any existing EventSource
     if (eventSourceRef.current) {
@@ -62,20 +63,28 @@ export default function Page() {
       const data = await response.json()
       setCorrelationId(data.correlation_id)
 
-      // Add initial terminal content
+      // Add initial terminal content with enhanced visuals
       setTerminalContent([
-        <AnimatedSpan key="start" delay={0}>
+        <div
+          key="header"
+          className="flex items-center gap-2 p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4"
+        >
+          <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+          <span className="font-medium text-blue-900">Hubble Connect - Provisioning Pipeline</span>
+        </div>,
+        <AnimatedSpan key="start" delay={0} className="text-green-600 font-mono">
           $ hubble connect enable
         </AnimatedSpan>,
-        <TypingAnimation key="starting" delay={1000} duration={80}>
-          Starting provisioning process...
+        <TypingAnimation key="starting" delay={1000} duration={80} className="text-gray-600">
+          Initializing provisioning process...
         </TypingAnimation>,
-        <AnimatedSpan key="correlation" delay={3000}>
+        <AnimatedSpan key="correlation" delay={3000} className="text-green-600">
           ✓ Provisioning run created: {data.correlation_id}
         </AnimatedSpan>,
-        <AnimatedSpan key="status" delay={4000}>
+        <AnimatedSpan key="status" delay={4000} className="text-blue-600">
           Status: {data.status}
         </AnimatedSpan>,
+        <div key="divider" className="border-t border-gray-200 my-4"></div>,
       ])
 
       // Connect to real-time SSE stream
@@ -88,23 +97,24 @@ export default function Page() {
         try {
           const data = JSON.parse(event.data)
 
-          // Map real provisioning steps to terminal commands
-          const stepCommand = getStepCommand(data.step)
+          // Update completed steps
+          if (data.status === "succeeded" || data.status === "failed") {
+            setCompletedSteps((prev) => new Set([...prev, data.step]))
+          }
 
-          // Add real provisioning step to terminal with memory cleanup
+          // Add step item to terminal with enhanced visual representation
           setTerminalContent((prev) => {
             const newContent = [
               ...prev,
-              <AnimatedSpan key={`step-${data.event_seq}`} delay={0}>
-                $ hubble {stepCommand}
-              </AnimatedSpan>,
-              <TypingAnimation key={`progress-${data.event_seq}`} delay={500} duration={60}>
-                {data.message}
-              </TypingAnimation>,
-              <AnimatedSpan key={`result-${data.event_seq}`} delay={1000}>
-                {data.status === "succeeded" ? "✓" : data.status === "failed" ? "❌" : "⏳"}{" "}
-                {data.message}
-              </AnimatedSpan>,
+              <StepItem
+                key={`step-${data.event_seq}`}
+                step={data.step}
+                status={data.status}
+                message={data.message}
+                timestamp={data.ts}
+                eventSeq={data.event_seq}
+                delay={0}
+              />,
             ]
 
             // Keep only the last MAX_TERMINAL_CONTENT items to prevent memory leaks
@@ -212,7 +222,14 @@ export default function Page() {
 
             {terminalContent.length > 0 && (
               <div className="mt-8">
-                <Terminal>{terminalContent}</Terminal>
+                <Terminal
+                  progress={{
+                    completed: completedSteps.size,
+                    total: ALL_PROVISIONING_STEPS.length,
+                  }}
+                >
+                  {terminalContent}
+                </Terminal>
               </div>
             )}
           </div>
