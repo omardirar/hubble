@@ -14,7 +14,7 @@ async function httpFetch(url: string, opts: HttpOptions = {}): Promise<Response>
   try {
     return await fetch(url, {
       method: opts.method ?? "GET",
-      headers: { "content-type": "application/json", ...(opts.headers ?? {}) },
+      headers: opts.headers ?? {},
       body: opts.body,
       signal: controller.signal,
     })
@@ -74,6 +74,25 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
 
     // Create a new user (service account) using MotherDuck REST API
     // Based on: https://motherduck.com/docs/sql-reference/rest-api/users-create-service-account
+    const apiRequestBody = JSON.stringify({
+      username: username.trim(),
+    })
+
+    logger.info("connect.motherduck.create_service_account.detailed_request", {
+      url: "https://api.motherduck.com/v1/users",
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${MD_ADMIN_TOKEN?.substring(0, 20)}...`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: apiRequestBody,
+      bodyLength: apiRequestBody.length,
+      bodyType: typeof apiRequestBody,
+      usernameValue: username.trim(),
+      usernameType: typeof username.trim(),
+    })
+
     const res = await httpFetch("https://api.motherduck.com/v1/users", {
       method: "POST",
       headers: {
@@ -81,9 +100,7 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify({
-        username: username.trim(),
-      }),
+      body: apiRequestBody,
     })
 
     if (res.status === 409) {
