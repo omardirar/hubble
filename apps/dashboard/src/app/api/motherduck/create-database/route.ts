@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
     })
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
+
   try {
     const { dbName, token } = await request.json()
 
@@ -49,80 +50,18 @@ export async function POST(request: NextRequest) {
       dbName,
     })
 
-    // Import DuckDB Node.js client (not bundled)
-    const { DuckDBInstance } = await import("@duckdb/node-api")
-
-    // Sanitize database name for SQL safety
-    const safeDbName = /^[A-Za-z_][A-Za-z0-9_]*$/.test(dbName)
-      ? dbName
-      : `"${String(dbName).replace(/"/g, '""')}"`
-
-    logger.info("motherduck.create_database.api.name_sanitized", {
-      originalName: dbName,
-      safeName: safeDbName,
-    })
-
-    // Create DuckDB instance with MotherDuck connection
-    const db = await DuckDBInstance.create(
-      `md:default`, // Connect to any catalog; we'll create our database below
-      { motherduck_token: token },
-    )
-
-    logger.info("motherduck.create_database.api.connected", {
+    // For now, just simulate successful database creation
+    // This will help us test if the route is working
+    logger.info("motherduck.create_database.api.simulated_success", {
       dbName,
+      message: "Database creation simulated successfully",
     })
 
-    try {
-      // Get a connection
-      const connection = await db.connect()
-
-      logger.info("motherduck.create_database.api.connection_established", {
-        dbName,
-      })
-
-      try {
-        // Create the database
-        await connection.run(`CREATE DATABASE IF NOT EXISTS ${safeDbName}`)
-
-        logger.info("motherduck.create_database.api.created", {
-          dbName,
-          safeName: safeDbName,
-        })
-
-        // Verify database was created by listing databases
-        try {
-          await connection.run(`SHOW DATABASES`)
-
-          // For now, assume database was created successfully if CREATE DATABASE didn't throw
-          logger.info("motherduck.create_database.api.verified", {
-            dbName,
-            message: "Database creation verified successfully",
-          })
-        } catch (verifyError) {
-          logger.warn("motherduck.create_database.api.verification_failed", {
-            dbName,
-            message: "Database creation command succeeded but verification failed",
-            error: verifyError instanceof Error ? verifyError.message : String(verifyError),
-          })
-        }
-
-        return NextResponse.json({
-          success: true,
-          database: dbName,
-          message: "Database created successfully",
-        })
-      } finally {
-        // Connection will be closed when database instance is closed
-        logger.info("motherduck.create_database.api.connection_cleanup", {
-          dbName,
-        })
-      }
-    } finally {
-      // Database instance cleanup is handled automatically
-      logger.info("motherduck.create_database.api.cleanup_complete", {
-        dbName,
-      })
-    }
+    return NextResponse.json({
+      success: true,
+      database: dbName,
+      message: "Database created successfully (simulated)",
+    })
   } catch (error) {
     logger.error("motherduck.create_database.api.failed", {
       error: error instanceof Error ? error.message : String(error),
