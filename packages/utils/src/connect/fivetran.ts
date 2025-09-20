@@ -149,7 +149,6 @@ export async function fivetranUpsertMotherDuckDestination(
     const requestBody = JSON.stringify({
       group_id: validatedExternalId,
       service: "motherduck",
-      region: "AWS_US_EAST_1", // Default to US East 1
       time_zone_offset: "0", // UTC
       run_setup_tests: false, // Disable automatic setup tests as requested
       config: {

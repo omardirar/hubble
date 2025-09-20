@@ -325,7 +325,7 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     await logStep("CONFIGURE_COMPUTE", "succeeded", "skipped/not-required")
 
     await logStep("CREATE_FIVETRAN_GROUP", "started")
-    const { group_id } = await fivetranCreateGroup(`org_${orgId}`, `org_${orgId}`)
+    const { group_id } = await fivetranCreateGroup(orgId, orgId)
     await logStep("CREATE_FIVETRAN_GROUP", "succeeded", undefined, {
       fivetran_group_id: group_id,
     })
