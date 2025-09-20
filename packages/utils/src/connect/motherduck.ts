@@ -72,7 +72,8 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
       bodyLength: requestBody.length,
     })
 
-    // Try using a different approach - maybe the API expects a different field name
+    // Create a new user (service account) using MotherDuck REST API
+    // Based on: https://motherduck.com/docs/sql-reference/rest-api/users-create-service-account
     const res = await httpFetch("https://api.motherduck.com/v1/users", {
       method: "POST",
       headers: {
@@ -82,9 +83,6 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
       },
       body: JSON.stringify({
         username: username.trim(),
-        // Try adding additional fields that might be expected
-        name: username.trim(),
-        email: `${username.trim()}@hubble.local`,
       }),
     })
 
