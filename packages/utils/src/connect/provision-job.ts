@@ -243,7 +243,9 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     let tokenFromVault = false
 
     try {
-      const { data: existingToken } = await db.rpc("vault_get", { p_name: `md_sa_token:${orgId}` })
+      const { data: existingToken } = await db.rpc("vault_get_secret", {
+        p_name: `md_sa_token:${orgId}`,
+      })
       if (existingToken && typeof existingToken === "string" && existingToken.length > 0) {
         logger.info("connect.provision.token_already_exists", {
           correlation_id: correlationId,
@@ -279,20 +281,34 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
       })
 
       try {
+        // Test vault availability first
+        const { data: vaultTest } = await db.rpc("_vault_available")
+        logger.info("connect.provision.vault_availability_check", {
+          correlation_id: correlationId,
+          org_id: orgId,
+          vault_available: vaultTest,
+        })
+
         await db.rpc("vault_set", { p_name: `md_sa_token:${orgId}`, p_secret: token })
         logger.info("connect.provision.token_stored", {
           correlation_id: correlationId,
           org_id: orgId,
         })
       } catch (primaryError) {
-        logger.warn("connect.provision.vault_primary_failed", {
+        logger.error("connect.provision.vault_primary_failed", {
           correlation_id: correlationId,
           org_id: orgId,
           error: primaryError instanceof Error ? primaryError.message : String(primaryError),
+          errorStack: primaryError instanceof Error ? primaryError.stack : undefined,
         })
 
         // Fallback to direct table insert
         try {
+          logger.info("connect.provision.attempting_fallback_storage", {
+            correlation_id: correlationId,
+            org_id: orgId,
+          })
+
           await db
             .from("vault.secrets" as never)
             .upsert({ name: `md_sa_token:${orgId}`, secret: token } as never)
@@ -308,6 +324,7 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
               primaryError instanceof Error ? primaryError.message : String(primaryError),
             fallbackError:
               fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+            fallbackErrorStack: fallbackError instanceof Error ? fallbackError.stack : undefined,
           })
           throw new ProvisionJobFailedError(
             `Failed to store service account token: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
@@ -335,7 +352,9 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     // Retrieve the actual token from vault for Fivetran
     let actualToken: string
     try {
-      const { data: vaultToken } = await db.rpc("vault_get", { p_name: `md_sa_token:${orgId}` })
+      const { data: vaultToken } = await db.rpc("vault_get_secret", {
+        p_name: `md_sa_token:${orgId}`,
+      })
       if (!vaultToken || typeof vaultToken !== "string") {
         throw new ProvisionJobFailedError("Token not found in vault")
       }
@@ -346,14 +365,52 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
         token_length: actualToken.length,
       })
     } catch (vaultError) {
-      logger.error("connect.provision.token_retrieval_failed", {
+      logger.warn("connect.provision.token_retrieval_failed", {
         correlation_id: correlationId,
         org_id: orgId,
         error: vaultError instanceof Error ? vaultError.message : String(vaultError),
       })
-      throw new ProvisionJobFailedError(
-        `Failed to retrieve token from vault: ${vaultError instanceof Error ? vaultError.message : String(vaultError)}`,
-      )
+
+      // Fallback to direct table query
+      try {
+        logger.info("connect.provision.attempting_fallback_retrieval", {
+          correlation_id: correlationId,
+          org_id: orgId,
+        })
+
+        const { data: fallbackToken, error: fallbackError } = await db
+          .from("vault.secrets" as never)
+          .select("secret")
+          .eq("name", `md_sa_token:${orgId}`)
+          .single()
+
+        if (
+          fallbackError ||
+          !fallbackToken ||
+          typeof fallbackToken !== "object" ||
+          !("secret" in fallbackToken)
+        ) {
+          throw new ProvisionJobFailedError("Token not found in vault or fallback table")
+        }
+
+        actualToken = (fallbackToken as { secret: string }).secret
+        logger.info("connect.provision.token_retrieved_fallback", {
+          correlation_id: correlationId,
+          org_id: orgId,
+          token_length: actualToken.length,
+        })
+      } catch (fallbackError) {
+        logger.error("connect.provision.token_retrieval_fallback_failed", {
+          correlation_id: correlationId,
+          org_id: orgId,
+          vaultError: vaultError instanceof Error ? vaultError.message : String(vaultError),
+          fallbackError:
+            fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+        })
+        throw new ProvisionJobFailedError(
+          `Failed to retrieve token from vault: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
+        )
+      }
     }
 
     const { destination_id } = await fivetranUpsertMotherDuckDestination(
