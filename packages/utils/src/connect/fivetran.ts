@@ -19,6 +19,72 @@ import {
 } from "@hubble/api-contracts/connect"
 
 /**
+ * Lists all Fivetran groups
+ *
+ * @returns Promise with array of groups
+ * @throws Error if listing fails
+ */
+export async function fivetranListGroups(): Promise<{ id: string; name: string }[]> {
+  const { FIVETRAN_API_KEY, FIVETRAN_API_SECRET } = getConnectEnv()
+
+  // Validate inputs using centralized validation
+  const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
+  const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
+
+  logger.info("connect.fivetran.list_groups.started")
+
+  try {
+    const res = await httpFetch("https://api.fivetran.com/v1/groups", {
+      method: "GET",
+      headers: {
+        Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
+        "Content-Type": "application/json",
+      },
+    })
+
+    if (!res.ok) {
+      let errorBody = ""
+      try {
+        errorBody = await res.text()
+      } catch {
+        errorBody = "Unable to read error response"
+      }
+
+      logger.error("connect.fivetran.list_groups.api_error", {
+        status: res.status,
+        statusText: res.statusText,
+        errorBody,
+      })
+
+      throw new Error(`Fivetran list groups failed: ${res.status} ${res.statusText} - ${errorBody}`)
+    }
+
+    const data = (await res.json().catch(() => ({}))) as {
+      data?: { items?: { id?: string; name?: string }[] }
+    }
+    const groups = data?.data?.items ?? []
+
+    logger.info("connect.fivetran.list_groups.success", {
+      groupCount: groups.length,
+    })
+
+    return groups.map((group) => ({
+      id: group.id ?? "",
+      name: group.name ?? "",
+    }))
+  } catch (error) {
+    logger.error("connect.fivetran.list_groups.failed", {
+      error: error instanceof Error ? error.message : String(error),
+    })
+
+    if (error instanceof Error) {
+      throw new Error(`Failed to list Fivetran groups: ${error.message}`)
+    }
+    throw new Error(`Failed to list Fivetran groups: ${String(error)}`)
+  }
+}
+
+/**
  * Retrieves a Fivetran group by ID
  *
  * @param groupId - The group ID to retrieve
@@ -192,19 +258,83 @@ export async function fivetranCreateGroup(
           const errorData = JSON.parse(errorBody)
           if (errorData.code === "InvalidInput" && errorData.message?.includes("already in use")) {
             logger.info("connect.fivetran.group_already_exists_invalid_input", {
-              groupId: validatedGroupId,
+              groupName: validatedGroupName,
               errorBody,
             })
-            return { group_id: validatedGroupId }
+            // Find the existing group by name
+            logger.info("connect.fivetran.group_name_already_in_use", {
+              groupName: validatedGroupName,
+            })
+            try {
+              const existingGroups = await fivetranListGroups()
+              const existingGroup = existingGroups.find(
+                (group) => group.name === validatedGroupName,
+              )
+              if (existingGroup) {
+                logger.info("connect.fivetran.group_found_by_name", {
+                  groupName: validatedGroupName,
+                  groupId: existingGroup.id,
+                })
+                return { group_id: existingGroup.id }
+              } else {
+                logger.error("connect.fivetran.group_not_found_by_name", {
+                  groupName: validatedGroupName,
+                  availableGroups: existingGroups.map((g) => g.name),
+                })
+                throw new Error(
+                  `Group with name '${validatedGroupName}' not found in existing groups`,
+                )
+              }
+            } catch (listError) {
+              logger.error("connect.fivetran.group_lookup_by_name_failed", {
+                groupName: validatedGroupName,
+                error: listError instanceof Error ? listError.message : String(listError),
+              })
+              throw new Error(
+                `Failed to find existing group by name: ${listError instanceof Error ? listError.message : String(listError)}`,
+              )
+            }
           }
         } catch {
           // Fallback to string matching if JSON parsing fails
           if (errorBody.includes("already exists") || errorBody.includes("already in use")) {
             logger.info("connect.fivetran.group_already_exists_constraint", {
-              groupId: validatedGroupId,
+              groupName: validatedGroupName,
               errorBody,
             })
-            return { group_id: validatedGroupId }
+            // Find the existing group by name (fallback)
+            logger.info("connect.fivetran.group_name_already_in_use_fallback", {
+              groupName: validatedGroupName,
+            })
+            try {
+              const existingGroups = await fivetranListGroups()
+              const existingGroup = existingGroups.find(
+                (group) => group.name === validatedGroupName,
+              )
+              if (existingGroup) {
+                logger.info("connect.fivetran.group_found_by_name_fallback", {
+                  groupName: validatedGroupName,
+                  groupId: existingGroup.id,
+                })
+                return { group_id: existingGroup.id }
+              } else {
+                logger.error("connect.fivetran.group_not_found_by_name_fallback", {
+                  groupName: validatedGroupName,
+                  availableGroups: existingGroups.map((g) => g.name),
+                })
+                throw new Error(
+                  `Group with name '${validatedGroupName}' not found in existing groups`,
+                )
+              }
+            } catch (listError) {
+              logger.error("connect.fivetran.group_lookup_by_name_failed_fallback", {
+                groupName: validatedGroupName,
+                error: listError instanceof Error ? listError.message : String(listError),
+              })
+              throw new Error(
+                `Failed to find existing group by name: ${listError instanceof Error ? listError.message : String(listError)}`,
+              )
+            }
           }
         }
       }
