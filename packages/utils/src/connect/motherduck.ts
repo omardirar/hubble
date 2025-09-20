@@ -369,6 +369,8 @@ export async function mdCreateDatabase(dbName: string, saToken: string): Promise
       dbName: validatedDbName,
       apiKey: apiKey ? "***" : "none",
       hasApiKey: !!apiKey,
+      hasBypassSecret: !!process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+      bypassSecretLength: process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.length || 0,
     })
 
     const response = await fetch(apiUrl, {
@@ -376,6 +378,10 @@ export async function mdCreateDatabase(dbName: string, saToken: string): Promise
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
+        // Add Vercel deployment protection bypass header
+        ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET && {
+          "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+        }),
       },
       body: JSON.stringify({
         dbName: validatedDbName,
