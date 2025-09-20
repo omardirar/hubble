@@ -33,17 +33,16 @@ AS $$
 $$;
 ALTER FUNCTION public.current_org_id() SET search_path = pg_catalog, public;
 
+-- Legacy vault functions - now redirect to secure secrets table
+-- These functions maintain backward compatibility while using the new secure approach
+
 CREATE OR REPLACE FUNCTION public._vault_available()
 RETURNS boolean
 LANGUAGE sql
 STABLE
 AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM pg_available_extensions
-    WHERE name = 'vault'
-      AND installed_version IS NOT NULL
-  );
+  -- Always return true since we now use the secure secrets table
+  SELECT true;
 $$;
 
 ALTER FUNCTION public._vault_available()
@@ -55,17 +54,58 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
+DECLARE
+  org_id TEXT;
+  secret_name TEXT;
 BEGIN
-  IF NOT public._vault_available() THEN
-    RAISE EXCEPTION 'Supabase Vault is not enabled in this environment.' USING errcode = 'P0001';
+  -- Extract org_id from the name (format: "md_sa_token:org_id")
+  IF p_name LIKE 'md_sa_token:%' THEN
+    org_id := split_part(p_name, ':', 2);
+    secret_name := 'md_sa_token';
+  ELSE
+    -- For other secret types, use a default org or extract from context
+    -- This maintains backward compatibility
+    org_id := 'default';
+    secret_name := p_name;
   END IF;
 
-  INSERT INTO vault.secrets(name, secret)
-  VALUES (p_name, p_secret)
-  ON CONFLICT (name) DO UPDATE SET secret = EXCLUDED.secret;
+  -- Use the secure secrets table
+  PERFORM public.set_service_secret(org_id, secret_name, p_secret);
 END;
 $$;
 
 ALTER FUNCTION public.vault_set(text, text) OWNER TO postgres;
 REVOKE ALL ON FUNCTION public.vault_set(text, text) FROM public, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.vault_set(text, text) TO service_role;
+
+-- Legacy vault_get_secret function for backward compatibility
+CREATE OR REPLACE FUNCTION public.vault_get_secret(p_name text)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  org_id TEXT;
+  secret_name TEXT;
+  secret_value TEXT;
+BEGIN
+  -- Extract org_id from the name (format: "md_sa_token:org_id")
+  IF p_name LIKE 'md_sa_token:%' THEN
+    org_id := split_part(p_name, ':', 2);
+    secret_name := 'md_sa_token';
+  ELSE
+    -- For other secret types, use a default org
+    org_id := 'default';
+    secret_name := p_name;
+  END IF;
+
+  -- Use the secure secrets table
+  SELECT public.get_service_secret(org_id, secret_name) INTO secret_value;
+  RETURN secret_value;
+END;
+$$;
+
+ALTER FUNCTION public.vault_get_secret(text) OWNER TO postgres;
+REVOKE ALL ON FUNCTION public.vault_get_secret(text) FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.vault_get_secret(text) TO service_role;

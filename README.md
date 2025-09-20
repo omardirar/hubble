@@ -6,7 +6,7 @@ An AI‑powered Marketing Assistant with a full‑stack Next.js 15 app, Clerk au
 
 - **Frontend**: Next.js 15 App Router, React 19, Tailwind (via `@hubble/ui`)
 - **Auth**: Clerk (`@clerk/nextjs`)
-- **Database**: Supabase (Postgres, RLS, Vault)
+- **Database**: Supabase (Postgres, RLS, Secure Secrets Table)
 - **Background orchestration**: Upstash QStash (HTTP queue), Upstash Redis (lock + pub/sub)
 - **Data platform**: MotherDuck (DB), Fivetran (destination)
 - **CI/CD**: GitHub Actions, Vercel (Node runtime for API routes)
@@ -21,14 +21,14 @@ An AI‑powered Marketing Assistant with a full‑stack Next.js 15 app, Clerk au
 - `packages/env` — validated environment accessors (`getServerEnv`, `getConnectEnv`)
 - `packages/api-contracts` — Zod schemas and validation for API contracts
 - `packages/auth` — auth/org utilities bridging Clerk/Supabase
-- `infra/supabase` — reference SQL schema (connect + clerk + chat, functions, RLS, Vault helpers)
+- `infra/supabase` — reference SQL schema (connect + clerk + chat, functions, RLS, secure secrets helpers)
 - `docs` — ancillary docs
 - `.github/workflows` — CI pipelines
 
 ### Requirements
 
 - Node 20.x, PNPM 9.x (enforced via `package.json` engines)
-- Supabase project (Vault enabled for production)
+- Supabase project (with secure secrets table)
 - Clerk application (publishable/secret keys)
 - Upstash QStash + Upstash Redis accounts
 - MotherDuck + Fivetran credentials (for Connect)
@@ -117,7 +117,7 @@ An AI‑powered Marketing Assistant with a full‑stack Next.js 15 app, Clerk au
 3. MotherDuck:
 
 - Create service account (`mdCreateServiceAccount`), tolerating HTTP 409 conflicts.
-- Issue service-account token and persist in Supabase Vault via `vault_set('md_sa_token:<org_id>', token)`.
+- Issue service-account token and persist in secure secrets table via `set_service_secret(org_id, 'md_sa_token', token)`.
 - Create per-tenant database (`md_<org_id>`), tolerating 409 conflicts.
 
 4. Fivetran:
@@ -202,8 +202,8 @@ An AI‑powered Marketing Assistant with a full‑stack Next.js 15 app, Clerk au
 - **Views**: `v_tenants`, `v_tenant_destinations`, `v_connections`, `conversation_summaries`.
 - **Helpers**:
   - `public.current_org_id()`; `public.jwt_claim(text)`
-  - `public.vault_get_secret(name)` and `public.vault_md_sa_token(org_id)` (read)
-  - `public.vault_set(name, secret)` (write) — SECURITY DEFINER; EXECUTE granted to service_role
+  - `public.get_service_secret(org_id, secret_name)` and `public.get_md_sa_token(org_id)` (read)
+  - `public.set_service_secret(org_id, secret_name, secret_value)` (write) — SECURITY DEFINER; EXECUTE granted to service_role
 - These migrations are reference‑only; production runs on Supabase Cloud managed outside this repo.
 
 ### Auth & security
