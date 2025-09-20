@@ -72,13 +72,20 @@ export async function mdCreateServiceAccount(username: string): Promise<{ userna
       bodyLength: requestBody.length,
     })
 
+    // Try using a different approach - maybe the API expects a different field name
     const res = await httpFetch("https://api.motherduck.com/v1/users", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${MD_ADMIN_TOKEN}`,
         "Content-Type": "application/json",
+        Accept: "application/json",
       },
-      body: requestBody,
+      body: JSON.stringify({
+        username: username.trim(),
+        // Try adding additional fields that might be expected
+        name: username.trim(),
+        email: `${username.trim()}@hubble.local`,
+      }),
     })
 
     if (res.status === 409) {
