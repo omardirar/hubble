@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
     // Create DuckDB instance with MotherDuck connection
     const db = await DuckDBInstance.create(
-      `md:default`, // Connect to any catalog; we'll create our database below
+      `md:`, // Connect to MotherDuck without specifying a database
       { motherduck_token: token },
     )
 
