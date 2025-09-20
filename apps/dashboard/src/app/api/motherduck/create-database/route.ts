@@ -12,9 +12,17 @@ export async function POST(request: NextRequest) {
   const apiKey = request.headers.get("x-api-key")
   const expectedApiKey = process.env.INTERNAL_API_KEY || "internal-db-creation-key"
 
+  logger.info("motherduck.create_database.api.auth_check", {
+    providedKey: apiKey ? "***" : "none",
+    expectedKey: expectedApiKey ? "***" : "none",
+    hasApiKey: !!apiKey,
+    hasExpectedKey: !!expectedApiKey,
+  })
+
   if (apiKey !== expectedApiKey) {
     logger.warn("motherduck.create_database.api.unauthorized", {
       providedKey: apiKey ? "***" : "none",
+      expectedKey: expectedApiKey ? "***" : "none",
     })
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
@@ -112,6 +120,8 @@ export async function POST(request: NextRequest) {
     logger.error("motherduck.create_database.api.failed", {
       error: error instanceof Error ? error.message : String(error),
       errorStack: error instanceof Error ? error.stack : undefined,
+      errorType: typeof error,
+      errorConstructor: error?.constructor?.name,
     })
 
     return NextResponse.json(

@@ -344,8 +344,11 @@ export async function mdCreateDatabase(dbName: string, saToken: string): Promise
 
   try {
     // Get the base URL for the API
+    // VERCEL_URL already includes the protocol in production
     const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
+      ? process.env.VERCEL_URL.startsWith("http")
+        ? process.env.VERCEL_URL
+        : `https://${process.env.VERCEL_URL}`
       : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
 
     const apiUrl = `${baseUrl}/api/motherduck/create-database`
@@ -353,15 +356,26 @@ export async function mdCreateDatabase(dbName: string, saToken: string): Promise
     logger.info("connect.motherduck.create_database.api_call", {
       dbName: validatedDbName,
       apiUrl,
+      vercelUrl: process.env.VERCEL_URL,
+      nextPublicAppUrl: process.env.NEXT_PUBLIC_APP_URL,
+      baseUrl,
     })
 
     // Call the external API that handles DuckDB Node.js client
     // This is an internal API call, so we use a simple API key
+    const apiKey = process.env.INTERNAL_API_KEY || "internal-db-creation-key"
+
+    logger.info("connect.motherduck.create_database.api_key_debug", {
+      dbName: validatedDbName,
+      apiKey: apiKey ? "***" : "none",
+      hasApiKey: !!apiKey,
+    })
+
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": process.env.INTERNAL_API_KEY || "internal-db-creation-key",
+        "x-api-key": apiKey,
       },
       body: JSON.stringify({
         dbName: validatedDbName,
