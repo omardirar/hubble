@@ -35,7 +35,7 @@
     "pnpm": ">=9"
   },
   "dependencies": {
-    "duckdb": "^1.4.0",
+    "@motherduck/wasm-client": "^0.6.6",
     "motion": "^11.18.2"
   }
 }

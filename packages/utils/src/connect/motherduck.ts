@@ -322,11 +322,11 @@ export async function mdIssueToken(username: string): Promise<{ token: string }>
 }
 
 /**
- * Creates a MotherDuck database using DuckDB
+ * Creates a MotherDuck database using server-side WASM
  *
- * Uses the DuckDB Node.js package to connect to MotherDuck and execute
- * the CREATE DATABASE SQL command. This is necessary because MotherDuck
- * databases are not automatically created on first access.
+ * This function uses the MotherDuck WASM client to programmatically create
+ * databases server-side, avoiding the need for native binary dependencies
+ * while maintaining security by keeping tokens server-side only.
  *
  * @param dbName - The name of the database to create
  * @param saToken - The service account token for authentication
@@ -343,80 +343,82 @@ export async function mdCreateDatabase(dbName: string, saToken: string): Promise
   })
 
   try {
-    // Import DuckDB dynamically to avoid issues with serverless environments
-    let Database: any
-    try {
-      const duckdb = await import("duckdb")
-      Database = duckdb.Database
-    } catch (importError) {
-      logger.warn("connect.motherduck.create_database.duckdb_import_failed", {
-        dbName: validatedDbName,
-        error: importError instanceof Error ? importError.message : String(importError),
-        message: "DuckDB not available, database will be created on first access",
-      })
+    // Import WASM client server-side only (never expose to client)
+    const { getAsyncDuckDb } = await import("@motherduck/wasm-client")
 
-      // Fallback: log that database will be created on first access
-      logger.info("connect.motherduck.create_database.skipped", {
-        dbName: validatedDbName,
-        reason:
-          "DuckDB not available in serverless environment. Database will be created on first access.",
-      })
-
-      logger.info("connect.motherduck.create_database.success", {
-        dbName: validatedDbName,
-        message: "Database will be created automatically on first access",
-      })
-      return
-    }
-
-    // Create connection string for MotherDuck
-    const connectionString = `md:${validatedDbName}?token=${validatedToken}`
-
-    logger.info("connect.motherduck.create_database.connecting", {
+    logger.info("connect.motherduck.create_database.wasm_loaded", {
       dbName: validatedDbName,
-      connectionString: connectionString.replace(validatedToken, "***"),
     })
 
-    // Create a new DuckDB instance and connect to MotherDuck
-    const db = new Database(":memory:")
-
-    // Connect to MotherDuck
-    await new Promise<void>((resolve, reject) => {
-      db.exec(`ATTACH '${connectionString}' AS motherduck`, (err: any) => {
-        if (err) {
-          reject(new Error(`Failed to connect to MotherDuck: ${err.message}`))
-        } else {
-          resolve()
-        }
-      })
+    // Create DuckDB instance with MotherDuck connection
+    const db = await getAsyncDuckDb({
+      mdToken: validatedToken,
     })
 
     logger.info("connect.motherduck.create_database.connected", {
       dbName: validatedDbName,
     })
 
-    // Create the database
-    await new Promise<void>((resolve, reject) => {
-      db.exec(`CREATE DATABASE IF NOT EXISTS ${validatedDbName}`, (err: any) => {
-        if (err) {
-          reject(new Error(`Failed to create database: ${err.message}`))
-        } else {
-          resolve()
-        }
+    try {
+      // Get a connection
+      const connection = await db.connect()
+
+      logger.info("connect.motherduck.create_database.connection_established", {
+        dbName: validatedDbName,
       })
-    })
+
+      try {
+        // Create the database
+        await connection.query(`CREATE DATABASE IF NOT EXISTS ${validatedDbName}`)
+
+        logger.info("connect.motherduck.create_database.created", {
+          dbName: validatedDbName,
+        })
+
+        // Verify database was created by listing databases
+        const result = await connection.query(`SHOW DATABASES`)
+
+        // Check if our database exists in the result
+        const databases = result.toArray()
+        const dbExists = databases.some((row: any) => row.database_name === validatedDbName)
+
+        if (dbExists) {
+          logger.info("connect.motherduck.create_database.verified", {
+            dbName: validatedDbName,
+            message: "Database creation verified successfully",
+          })
+        } else {
+          logger.warn("connect.motherduck.create_database.verification_failed", {
+            dbName: validatedDbName,
+            message: "Database creation command succeeded but database not found in list",
+          })
+        }
+      } finally {
+        // Always close the connection
+        await connection.close()
+
+        logger.info("connect.motherduck.create_database.connection_closed", {
+          dbName: validatedDbName,
+        })
+      }
+    } finally {
+      // Always close the database instance
+      await db.terminate()
+
+      logger.info("connect.motherduck.create_database.database_closed", {
+        dbName: validatedDbName,
+      })
+    }
 
     logger.info("connect.motherduck.create_database.success", {
       dbName: validatedDbName,
-      message: "Database created successfully",
+      message: "Database created successfully using WASM",
     })
-
-    // Close the connection
-    db.close()
   } catch (error) {
     logger.error("connect.motherduck.create_database.failed", {
       dbName: validatedDbName,
       error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
     })
 
     if (error instanceof Error) {
