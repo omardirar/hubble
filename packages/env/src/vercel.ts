@@ -29,6 +29,8 @@ const serverEnvSchema = z.object({
   // Optional: websocket pub/sub for SSE
   UPSTASH_REDIS_WS_URL: z.string().optional(),
   UPSTASH_REDIS_WS_TOKEN: z.string().optional(),
+  // Internal API key for service-to-service communication
+  INTERNAL_API_KEY: z.string().optional().default("internal-db-creation-key"),
 })
 
 // Public environment variables schema

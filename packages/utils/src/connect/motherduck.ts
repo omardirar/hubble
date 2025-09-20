@@ -356,10 +356,12 @@ export async function mdCreateDatabase(dbName: string, saToken: string): Promise
     })
 
     // Call the external API that handles DuckDB Node.js client
+    // This is an internal API call, so we use a simple API key
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-api-key": process.env.INTERNAL_API_KEY || "internal-db-creation-key",
       },
       body: JSON.stringify({
         dbName: validatedDbName,

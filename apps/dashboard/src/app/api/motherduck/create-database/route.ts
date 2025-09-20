@@ -3,10 +3,21 @@ import { logger } from "@hubble/logger"
 
 // This route uses DuckDB Node.js client and should not be bundled
 // It runs in a separate serverless function with native dependencies
+// This is an internal API route, so we use a simple API key for security
 
 export const runtime = "nodejs" // Ensure NOT edge runtime
 
 export async function POST(request: NextRequest) {
+  // Simple API key authentication for internal use
+  const apiKey = request.headers.get("x-api-key")
+  const expectedApiKey = process.env.INTERNAL_API_KEY || "internal-db-creation-key"
+
+  if (apiKey !== expectedApiKey) {
+    logger.warn("motherduck.create_database.api.unauthorized", {
+      providedKey: apiKey ? "***" : "none",
+    })
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
   try {
     const { dbName, token } = await request.json()
 
