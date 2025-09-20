@@ -24,18 +24,46 @@ import {
  * @throws Error if creation fails or user already exists
  */
 export async function mdCreateServiceAccount(username: string): Promise<{ username: string }> {
+  // Debug environment loading
+  logger.info("connect.motherduck.create_service_account.env_debug", {
+    process_env_md_admin_token: !!process.env.MD_ADMIN_TOKEN,
+    process_env_md_admin_token_length: process.env.MD_ADMIN_TOKEN?.length || 0,
+    process_env_md_admin_token_prefix: process.env.MD_ADMIN_TOKEN?.substring(0, 10) + "...",
+  })
+
   const { MD_ADMIN_TOKEN } = getConnectEnv()
 
   // Validate inputs using centralized validation
+  logger.info("connect.motherduck.create_service_account.validation_debug", {
+    original_username: username,
+    username_type: typeof username,
+    username_length: username?.length || 0,
+    has_admin_token: !!MD_ADMIN_TOKEN,
+    admin_token_length: MD_ADMIN_TOKEN?.length || 0,
+  })
+
   const validatedUsername = validateMotherDuckUsername(username)
   const validatedToken = validateMDAdminToken(MD_ADMIN_TOKEN)
 
   logger.info("connect.motherduck.create_service_account.started", {
     username: validatedUsername,
+    validated_username_type: typeof validatedUsername,
+    validated_username_length: validatedUsername?.length || 0,
   })
 
   try {
-    const requestBody = JSON.stringify({ username: validatedUsername })
+    const requestPayload = { username: validatedUsername }
+    const requestBody = JSON.stringify(requestPayload)
+
+    // Debug logging to verify request body
+    logger.info("connect.motherduck.create_service_account.request_debug", {
+      username: validatedUsername,
+      request_payload: requestPayload,
+      request_body: requestBody,
+      request_body_parsed: JSON.parse(requestBody),
+      username_in_body: JSON.parse(requestBody).username,
+      stringify_success: requestBody.includes(validatedUsername),
+    })
 
     const res = await httpFetch("https://api.motherduck.com/v1/users", {
       method: "POST",

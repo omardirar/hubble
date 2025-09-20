@@ -182,6 +182,16 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     }
 
     await logStep("CREATE_SERVICE_ACCOUNT", "started")
+
+    // Debug logging to verify username
+    logger.info("connect.provision.create_service_account.debug", {
+      correlation_id: correlationId,
+      org_id: orgId,
+      md_sa_username: mdSaUsername,
+      username_type: typeof mdSaUsername,
+      username_length: mdSaUsername?.length || 0,
+    })
+
     try {
       await mdCreateServiceAccount(mdSaUsername)
       await logStep("CREATE_SERVICE_ACCOUNT", "succeeded")

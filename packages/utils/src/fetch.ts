@@ -30,14 +30,30 @@ export async function httpFetch(url: string, options: HttpOptions = {}): Promise
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 15000)
 
   try {
+    // Debug logging for HTTP requests
+    logger.debug("http.fetch.request", {
+      url,
+      method: options.method ?? "GET",
+      headers: options.headers ?? {},
+      body: options.body,
+      body_type: typeof options.body,
+      body_length: options.body?.length || 0,
+    })
+
     const response = await fetch(url, {
       method: options.method ?? "GET",
       headers: {
-        "content-type": "application/json",
         ...(options.headers ?? {}),
       },
       body: options.body,
       signal: controller.signal,
+    })
+
+    logger.debug("http.fetch.response", {
+      url,
+      status: response.status,
+      status_text: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
     })
 
     return response
