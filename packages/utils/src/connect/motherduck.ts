@@ -322,11 +322,11 @@ export async function mdIssueToken(username: string): Promise<{ token: string }>
 }
 
 /**
- * Creates a MotherDuck database using server-side WASM
+ * Creates a MotherDuck database using external API
  *
- * This function uses the MotherDuck WASM client to programmatically create
- * databases server-side, avoiding the need for native binary dependencies
- * while maintaining security by keeping tokens server-side only.
+ * This function calls an external API route that uses the DuckDB Node.js client
+ * to programmatically create databases. The external API handles native dependencies
+ * while keeping the main provisioning flow lightweight.
  *
  * @param dbName - The name of the database to create
  * @param saToken - The service account token for authentication
@@ -343,82 +343,61 @@ export async function mdCreateDatabase(dbName: string, saToken: string): Promise
   })
 
   try {
-    // Import WASM client server-side only (never expose to client)
-    const { getAsyncDuckDb } = await import("@motherduck/wasm-client")
+    // Get the base URL for the API
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
 
-    logger.info("connect.motherduck.create_database.wasm_loaded", {
+    const apiUrl = `${baseUrl}/api/motherduck/create-database`
+
+    logger.info("connect.motherduck.create_database.api_call", {
       dbName: validatedDbName,
+      apiUrl,
     })
 
-    // Create DuckDB instance with MotherDuck connection
-    const db = await getAsyncDuckDb({
-      mdToken: validatedToken,
-    })
-
-    logger.info("connect.motherduck.create_database.connected", {
-      dbName: validatedDbName,
-    })
-
-    try {
-      // Get a connection
-      const connection = await db.connect()
-
-      logger.info("connect.motherduck.create_database.connection_established", {
+    // Call the external API that handles DuckDB Node.js client
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
         dbName: validatedDbName,
-      })
+        token: validatedToken,
+      }),
+    })
 
-      try {
-        // Create the database
-        await connection.query(`CREATE DATABASE IF NOT EXISTS ${validatedDbName}`)
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(
+        `API call failed: ${response.status} ${response.statusText} - ${errorData.error || "Unknown error"}`,
+      )
+    }
 
-        logger.info("connect.motherduck.create_database.created", {
-          dbName: validatedDbName,
-        })
+    const result = await response.json()
 
-        // Verify database was created by listing databases
-        const result = await connection.query(`SHOW DATABASES`)
-
-        // Check if our database exists in the result
-        const databases = result.toArray()
-        const dbExists = databases.some((row: any) => row.database_name === validatedDbName)
-
-        if (dbExists) {
-          logger.info("connect.motherduck.create_database.verified", {
-            dbName: validatedDbName,
-            message: "Database creation verified successfully",
-          })
-        } else {
-          logger.warn("connect.motherduck.create_database.verification_failed", {
-            dbName: validatedDbName,
-            message: "Database creation command succeeded but database not found in list",
-          })
-        }
-      } finally {
-        // Always close the connection
-        await connection.close()
-
-        logger.info("connect.motherduck.create_database.connection_closed", {
-          dbName: validatedDbName,
-        })
-      }
-    } finally {
-      // Always close the database instance
-      await db.terminate()
-
-      logger.info("connect.motherduck.create_database.database_closed", {
-        dbName: validatedDbName,
-      })
+    if (!result.success) {
+      throw new Error(`Database creation failed: ${result.error}`)
     }
 
     logger.info("connect.motherduck.create_database.success", {
       dbName: validatedDbName,
-      message: "Database created successfully using WASM",
+      message: "Database created successfully using external API",
+      result,
     })
   } catch (error) {
     logger.error("connect.motherduck.create_database.failed", {
       dbName: validatedDbName,
       error: error instanceof Error ? error.message : String(error),
       errorStack: error instanceof Error ? error.stack : undefined,
+    })
+
+    // Fallback: Log instructions for manual creation
+    logger.warn("connect.motherduck.create_database.fallback_instructions", {
+      dbName: validatedDbName,
+      message: "API call failed - database may need to be created manually or by Fivetran",
+      motherduck_ui: "https://app.motherduck.com",
+      duckdb_cli_command: `duckdb 'md:${validatedDbName}?token=***' -c "CREATE DATABASE IF NOT EXISTS ${validatedDbName};"`,
     })
 
     if (error instanceof Error) {

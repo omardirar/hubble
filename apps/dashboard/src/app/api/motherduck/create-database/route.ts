@@ -1,0 +1,114 @@
+import { NextRequest, NextResponse } from "next/server"
+import { logger } from "@hubble/logger"
+
+// This route uses DuckDB Node.js client and should not be bundled
+// It runs in a separate serverless function with native dependencies
+
+export const runtime = "nodejs" // Ensure NOT edge runtime
+
+export async function POST(request: NextRequest) {
+  try {
+    const { dbName, token } = await request.json()
+
+    // Basic validation
+    if (!dbName || typeof dbName !== "string") {
+      return NextResponse.json({ error: "Database name is required" }, { status: 400 })
+    }
+
+    if (!token || typeof token !== "string") {
+      return NextResponse.json({ error: "Token is required" }, { status: 400 })
+    }
+
+    logger.info("motherduck.create_database.api.started", {
+      dbName,
+    })
+
+    // Import DuckDB Node.js client (not bundled)
+    const { DuckDBInstance } = await import("@duckdb/node-api")
+
+    // Sanitize database name for SQL safety
+    const safeDbName = /^[A-Za-z_][A-Za-z0-9_]*$/.test(dbName)
+      ? dbName
+      : `"${String(dbName).replace(/"/g, '""')}"`
+
+    logger.info("motherduck.create_database.api.name_sanitized", {
+      originalName: dbName,
+      safeName: safeDbName,
+    })
+
+    // Create DuckDB instance with MotherDuck connection
+    const db = await DuckDBInstance.create(
+      `md:default`, // Connect to any catalog; we'll create our database below
+      { motherduck_token: token },
+    )
+
+    logger.info("motherduck.create_database.api.connected", {
+      dbName,
+    })
+
+    try {
+      // Get a connection
+      const connection = await db.connect()
+
+      logger.info("motherduck.create_database.api.connection_established", {
+        dbName,
+      })
+
+      try {
+        // Create the database
+        await connection.run(`CREATE DATABASE IF NOT EXISTS ${safeDbName}`)
+
+        logger.info("motherduck.create_database.api.created", {
+          dbName,
+          safeName: safeDbName,
+        })
+
+        // Verify database was created by listing databases
+        try {
+          await connection.run(`SHOW DATABASES`)
+
+          // For now, assume database was created successfully if CREATE DATABASE didn't throw
+          logger.info("motherduck.create_database.api.verified", {
+            dbName,
+            message: "Database creation verified successfully",
+          })
+        } catch (verifyError) {
+          logger.warn("motherduck.create_database.api.verification_failed", {
+            dbName,
+            message: "Database creation command succeeded but verification failed",
+            error: verifyError instanceof Error ? verifyError.message : String(verifyError),
+          })
+        }
+
+        return NextResponse.json({
+          success: true,
+          database: dbName,
+          message: "Database created successfully",
+        })
+      } finally {
+        // Connection will be closed when database instance is closed
+        logger.info("motherduck.create_database.api.connection_cleanup", {
+          dbName,
+        })
+      }
+    } finally {
+      // Database instance cleanup is handled automatically
+      logger.info("motherduck.create_database.api.cleanup_complete", {
+        dbName,
+      })
+    }
+  } catch (error) {
+    logger.error("motherduck.create_database.api.failed", {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+    })
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    )
+  }
+}

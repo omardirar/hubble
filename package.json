@@ -35,7 +35,6 @@
     "pnpm": ">=9"
   },
   "dependencies": {
-    "@motherduck/wasm-client": "^0.6.6",
     "motion": "^11.18.2"
   }
 }
