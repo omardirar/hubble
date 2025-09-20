@@ -123,6 +123,16 @@ export const DestinationIdSchema = z
   .max(100, "Destination ID too long")
 export type DestinationId = z.infer<typeof DestinationIdSchema>
 
+export const FivetranGroupNameSchema = z
+  .string()
+  .min(1, "Group name is required")
+  .max(100, "Group name too long")
+  .regex(
+    /^[a-zA-Z_][a-zA-Z0-9_]*$/,
+    "Group name must start with a letter or underscore, and only contain letters, numbers or underscores",
+  )
+export type FivetranGroupName = z.infer<typeof FivetranGroupNameSchema>
+
 // ----------------------------------------------------------------------------
 // Validation helpers
 // ----------------------------------------------------------------------------
@@ -178,4 +188,8 @@ export function validateExternalId(externalId: unknown): ExternalId {
 
 export function validateDestinationId(destinationId: unknown): DestinationId {
   return DestinationIdSchema.parse(destinationId)
+}
+
+export function validateFivetranGroupName(groupName: unknown): FivetranGroupName {
+  return FivetranGroupNameSchema.parse(groupName)
 }

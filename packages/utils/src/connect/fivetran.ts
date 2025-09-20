@@ -14,6 +14,7 @@ import {
   validateFivetranApiKey,
   validateFivetranApiSecret,
   validateMotherDuckDatabaseName,
+  validateFivetranGroupName,
 } from "@hubble/api-contracts/connect"
 
 /**
@@ -32,7 +33,7 @@ export async function fivetranCreateGroup(
 
   // Validate inputs using centralized validation
   const validatedGroupId = validateExternalId(groupId)
-  const validatedGroupName = validateExternalId(groupName) // Group name is also an external ID
+  const validatedGroupName = validateFivetranGroupName(groupName)
   const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
   const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
 
