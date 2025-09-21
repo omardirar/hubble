@@ -29,6 +29,8 @@ const serverEnvSchema = z.object({
   // Optional: websocket pub/sub for SSE
   UPSTASH_REDIS_WS_URL: z.string().optional(),
   UPSTASH_REDIS_WS_TOKEN: z.string().optional(),
+  // Internal API key for service-to-service communication
+  INTERNAL_API_KEY: z.string().optional().default("internal-db-creation-key"),
 })
 
 // Public environment variables schema
@@ -43,9 +45,37 @@ const publicEnvSchema = z.object({
 export type ServerEnv = z.infer<typeof serverEnvSchema>
 export type PublicEnv = z.infer<typeof publicEnvSchema>
 
+const connectEnvSchema = z.object({
+  MD_ADMIN_TOKEN: z.string().min(1, "MD_ADMIN_TOKEN required"),
+  FIVETRAN_API_KEY: z.string().min(1, "FIVETRAN_API_KEY required"),
+  FIVETRAN_API_SECRET: z.string().min(1, "FIVETRAN_API_SECRET required"),
+  QSTASH_TOKEN: z.string().min(1, "QSTASH_TOKEN required"),
+  QSTASH_CURRENT_SIGNING_KEY: z.string().min(1, "QSTASH_CURRENT_SIGNING_KEY required"),
+  QSTASH_NEXT_SIGNING_KEY: z.string().min(1, "QSTASH_NEXT_SIGNING_KEY required"),
+  UPSTASH_REDIS_REST_URL: z.string().url("UPSTASH_REDIS_REST_URL must be URL"),
+  UPSTASH_REDIS_REST_TOKEN: z.string().min(1, "UPSTASH_REDIS_REST_TOKEN required"),
+  UPSTASH_REDIS_WS_URL: z.string().url("UPSTASH_REDIS_WS_URL must be URL").optional(),
+  UPSTASH_REDIS_WS_TOKEN: z.string().min(1, "UPSTASH_REDIS_WS_TOKEN required").optional(),
+})
+
+export type ConnectEnv = z.infer<typeof connectEnvSchema>
+export interface RedisConfig {
+  restUrl: string
+  restToken: string
+  wsUrl?: string
+  wsToken?: string
+}
+
+export interface QStashConfig {
+  token: string
+  currentSigningKey: string
+  nextSigningKey?: string
+}
+
 // Cache for parsed environment variables
 let serverEnvCache: ServerEnv | null = null
 let publicEnvCache: PublicEnv | null = null
+let connectEnvCache: ConnectEnv | null = null
 
 /**
  * Get server environment variables with validation and caching
@@ -134,22 +164,31 @@ export function getClerkConfig() {
  * Strictly validate and return Connect-related environment variables.
  * Use this at runtime for Connect routes/consumers to ensure secrets are present.
  */
-export function getConnectEnv() {
-  const schema = z.object({
-    MD_ADMIN_TOKEN: z.string().min(1, "MD_ADMIN_TOKEN required"),
-    FIVETRAN_API_KEY: z.string().min(1, "FIVETRAN_API_KEY required"),
-    FIVETRAN_API_SECRET: z.string().min(1, "FIVETRAN_API_SECRET required"),
-    QSTASH_TOKEN: z.string().min(1, "QSTASH_TOKEN required"),
-    QSTASH_CURRENT_SIGNING_KEY: z.string().min(1, "QSTASH_CURRENT_SIGNING_KEY required"),
-    QSTASH_NEXT_SIGNING_KEY: z.string().min(1, "QSTASH_NEXT_SIGNING_KEY required"),
-    UPSTASH_REDIS_REST_URL: z.string().url("UPSTASH_REDIS_REST_URL must be URL"),
-    UPSTASH_REDIS_REST_TOKEN: z.string().min(1, "UPSTASH_REDIS_REST_TOKEN required"),
-    // If SSE is enabled via pub/sub over websockets, validate these as well
-    UPSTASH_REDIS_WS_URL: z.string().url("UPSTASH_REDIS_WS_URL must be URL").optional(),
-    UPSTASH_REDIS_WS_TOKEN: z.string().min(1, "UPSTASH_REDIS_WS_TOKEN required").optional(),
-  })
+export function getConnectEnv(): ConnectEnv {
+  if (connectEnvCache) {
+    return connectEnvCache
+  }
+  connectEnvCache = connectEnvSchema.parse(process.env)
+  return connectEnvCache
+}
 
-  return schema.parse(process.env)
+export function getRedisConfig(): RedisConfig {
+  const env = getConnectEnv()
+  return {
+    restUrl: env.UPSTASH_REDIS_REST_URL,
+    restToken: env.UPSTASH_REDIS_REST_TOKEN,
+    wsUrl: env.UPSTASH_REDIS_WS_URL,
+    wsToken: env.UPSTASH_REDIS_WS_TOKEN,
+  }
+}
+
+export function getQStashConfig(): QStashConfig {
+  const env = getConnectEnv()
+  return {
+    token: env.QSTASH_TOKEN,
+    currentSigningKey: env.QSTASH_CURRENT_SIGNING_KEY,
+    nextSigningKey: env.QSTASH_NEXT_SIGNING_KEY,
+  }
 }
 
 /**
@@ -161,4 +200,5 @@ export function clearEnvCache() {
   }
   serverEnvCache = null
   publicEnvCache = null
+  connectEnvCache = null
 }

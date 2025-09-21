@@ -8,9 +8,18 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { createBrowserClient } from "@hubble/db"
-import { logger } from "./logger"
+import { logger } from "@hubble/logger"
 import { extractJWTClaims } from "@hubble/auth"
-import { ApiErrorCodes } from "./errors"
+import { getClerkRpcName } from "./clerk-schema"
+import {
+  ApiErrorCodes,
+  AppError,
+  OrgRequiredError,
+  UnauthorizedError,
+  ValidationError,
+  toErrorResponseShape,
+} from "./errors"
+import { ZodError } from "zod"
 
 type Logger = ReturnType<typeof logger.child>
 
@@ -50,25 +59,75 @@ export async function getAuthContext(options: ApiHandlerOptions = {}): Promise<A
   const token = await getToken()
 
   if (!token || !userId) {
-    return null
-  }
-
-  if (requireOrg) {
-    const { orgId } = extractJWTClaims(token)
-    if (!orgId) {
-      return null
-    }
-    const supabase = createBrowserClient({ authToken: token })
-    return { userId, orgId, token, supabase }
+    throw new UnauthorizedError()
   }
 
   const supabase = createBrowserClient({ authToken: token })
-  return { userId, orgId: userId, token, supabase } // Use userId as orgId fallback
+
+  let orgId: string | undefined
+  try {
+    const claims = extractJWTClaims(token)
+    orgId = claims.orgId
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Organization ID")) {
+      orgId = undefined
+    } else {
+      throw new UnauthorizedError("Invalid auth token", { cause: error })
+    }
+  }
+
+  if (requireOrg && !orgId) {
+    throw new OrgRequiredError()
+  }
+
+  return {
+    userId,
+    orgId: orgId ?? userId,
+    token,
+    supabase,
+  }
+}
+
+/**
+ * Simple in-memory rate limiter
+ * @param key - Unique identifier for the rate limit
+ * @param limit - Maximum number of requests
+ * @param windowMs - Time window in milliseconds
+ * @returns true if request is allowed, false if rate limited
+ */
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
+
+export function checkRateLimit(
+  key: string,
+  limit: number = 100,
+  windowMs: number = 60000, // 1 minute
+): boolean {
+  const now = Date.now()
+  const record = rateLimitMap.get(key)
+
+  if (!record || now > record.resetTime) {
+    // First request or window expired
+    rateLimitMap.set(key, { count: 1, resetTime: now + windowMs })
+    return true
+  }
+
+  if (record.count >= limit) {
+    return false // Rate limited
+  }
+
+  record.count++
+  return true
 }
 
 /**
  * Create a standardized API handler with common patterns
  */
+// TODO: Add generic type parameters for better type safety
+//   Context: Replace 'any' types with proper generic constraints for request/response types.
+//   labels: area/utils, feature/types, type/quality
+//   assignees: omzification
+//   milestone: 0.0.1
+
 export function createApiHandler(
   handler: (request: any, auth: AuthContext | null, logger: Logger) => Promise<any>,
   options: ApiHandlerOptions = {},
@@ -84,53 +143,60 @@ export function createApiHandler(
       // Get authentication context
       const authContext = await getAuthContext(options)
 
-      if (options.requireAuth && !authContext) {
-        requestLogger.warn("Unauthorized request")
-        return NextResponse.json(
-          { error: "Unauthorized", code: ApiErrorCodes.UNAUTHORIZED },
-          { status: 401 },
-        ) as any
-      }
-
       // Call the handler
       return await handler(request, authContext, requestLogger)
     } catch (error) {
-      requestLogger.error("API handler failed", {
-        error: error instanceof Error ? error.message : String(error),
-      })
-
-      // Handle specific error types
-      if (error instanceof Error) {
-        if (error.message.includes("validation")) {
-          return NextResponse.json(
-            { error: "Invalid request data", code: ApiErrorCodes.VALIDATION_ERROR },
-            { status: 400 },
-          ) as any
+      if (error instanceof AppError) {
+        const logPayload = {
+          code: error.code,
+          status: error.status,
+          message: error.message,
         }
+        if (error.status >= 500) {
+          requestLogger.error("api.handler.error", logPayload)
+        } else {
+          requestLogger.warn("api.handler.error", logPayload)
+        }
+      } else {
+        requestLogger.error("api.handler.unexpected_error", {
+          error: error instanceof Error ? error.message : String(error),
+        })
       }
 
-      return NextResponse.json(
-        { error: "Internal server error", code: ApiErrorCodes.INTERNAL_ERROR },
-        { status: 500 },
-      ) as NextResponse<any>
+      const { status, payload } = toErrorResponseShape(error)
+      return NextResponse.json(payload, { status }) as NextResponse<any>
     }
   }
 }
 
 /**
- * Verify organization exists in Clerk mirror
+ * Verify organization exists in Clerk mirror and ensure tenant exists
  */
 export async function verifyOrganization(
   supabase: ReturnType<typeof createBrowserClient>,
   orgId: string,
   logger: Logger,
 ): Promise<boolean> {
-  const { data: orgData, error: orgError } = await supabase.rpc("get_org_from_clerk_mirror", {
-    p_org_id: orgId,
-  })
+  // First check if org exists in Clerk
+  const { data: orgData, error: orgError } = await supabase.rpc(
+    getClerkRpcName("get_org_from_clerk_mirror"),
+    {
+      p_org_id: orgId,
+    },
+  )
 
   if (orgError || !orgData) {
     logger.error("Organization not found in Clerk mirror", { error: orgError?.message })
+    return false
+  }
+
+  // Ensure tenant exists in tenants table
+  const { error: tenantError } = await supabase.rpc("ensure_tenant_exists", {
+    p_org_id: orgId,
+  })
+
+  if (tenantError) {
+    logger.error("Failed to ensure tenant exists", { error: tenantError.message })
     return false
   }
 
@@ -144,7 +210,12 @@ export function handleDatabaseError(error: any, operation: string, logger: Logge
   logger.error(`Database error during ${operation}`, { error: error.message })
 
   return NextResponse.json(
-    { error: `Failed to ${operation}`, code: ApiErrorCodes.DATABASE_ERROR },
+    {
+      error: {
+        code: ApiErrorCodes.DATABASE_ERROR,
+        message: `Failed to ${operation}`,
+      },
+    },
     { status: 500 },
   )
 }
@@ -164,22 +235,27 @@ export function handleUpstreamError(
 
   if (status === 401) {
     return NextResponse.json(
-      { error: "Invalid API key", code: ApiErrorCodes.UPSTREAM_AUTH_ERROR },
+      { error: { code: ApiErrorCodes.UPSTREAM_AUTH_ERROR, message: "Invalid API key" } },
       { status: 502 },
     )
   } else if (status === 429) {
     return NextResponse.json(
-      { error: "Rate limit exceeded", code: ApiErrorCodes.RATE_LIMITED },
+      { error: { code: ApiErrorCodes.RATE_LIMITED, message: "Rate limit exceeded" } },
       { status: 429 },
     )
   } else if (status >= 500) {
     return NextResponse.json(
-      { error: `${service} service unavailable`, code: ApiErrorCodes.UPSTREAM_ERROR },
+      {
+        error: {
+          code: ApiErrorCodes.UPSTREAM_ERROR,
+          message: `${service} service unavailable`,
+        },
+      },
       { status: 502 },
     )
   } else {
     return NextResponse.json(
-      { error: "Upstream error", code: ApiErrorCodes.UPSTREAM_ERROR },
+      { error: { code: ApiErrorCodes.UPSTREAM_ERROR, message: "Upstream error" } },
       { status: 502 },
     )
   }
@@ -192,17 +268,27 @@ export async function parseRequestBody<T>(
   request: NextRequest,
   validator: (data: unknown) => T,
   logger: Logger,
-): Promise<T | NextResponse> {
+): Promise<T> {
   try {
     const body = await request.json()
-    return validator(body)
+    try {
+      return validator(body)
+    } catch (error) {
+      if (error instanceof ZodError) {
+        logger.warn("api.request.validation_failed", {
+          issues: error.issues,
+        })
+        throw new ValidationError("Request validation failed", {
+          details: { issues: error.issues },
+          cause: error,
+        })
+      }
+      throw error
+    }
   } catch (error) {
     logger.warn("Failed to parse request body", {
       error: error instanceof Error ? error.message : String(error),
     })
-    return NextResponse.json(
-      { error: "Invalid request body", code: ApiErrorCodes.VALIDATION_ERROR },
-      { status: 400 },
-    )
+    throw new ValidationError("Invalid JSON body", { cause: error })
   }
 }

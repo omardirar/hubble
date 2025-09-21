@@ -20,8 +20,7 @@ import {
 
 export async function GET(request: NextRequest) {
   return createApiHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async (_req: any, auth, logger) => {
+    async (_req: NextRequest, auth, logger) => {
       logger.info("Fetching conversations", {
         userId: auth!.userId,
         orgId: auth!.orgId,
@@ -47,19 +46,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   return createApiHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async (req: any, auth, logger) => {
+    async (req: NextRequest, auth, logger) => {
       // Parse and validate request body
-      const validatedRequest = await parseRequestBody(
+      const { title = "New Chat" } = await parseRequestBody(
         req,
         validateCreateConversationRequest,
         logger,
       )
-      if (validatedRequest instanceof Response) {
-        return validatedRequest
-      }
-
-      const { title = "New Chat" } = validatedRequest
 
       logger.info("Creating conversation", {
         userId: auth!.userId,

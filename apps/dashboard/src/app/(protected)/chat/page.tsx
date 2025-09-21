@@ -13,6 +13,7 @@ import { ChatSidebar } from "@hubble/ui/blocks"
 import { Separator } from "@hubble/ui"
 import { toast } from "sonner"
 import { apiFetch, generateId, loadMessages } from "@hubble/utils"
+import { logger } from "@hubble/logger"
 import { useChatList } from "@hubble/ui"
 async function sendChat(text: string): Promise<string> {
   try {
@@ -21,15 +22,31 @@ async function sendChat(text: string): Promise<string> {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ text }),
     })
+
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "Unknown error")
+      throw new Error(`Chat API error: ${res.status} - ${errorText}`)
+    }
+
     const data = (await res.json().catch(() => ({}))) as { reply?: string }
     return data.reply ?? ""
-  } catch {
-    return ""
+  } catch (error) {
+    logger.error("chat.send_failed", {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    // Return a user-friendly error message instead of empty string
+    return "Sorry, I couldn't process your message. Please try again."
   }
 }
 // TODO: Expand test coverage for useChatState and related components
 //   Context: Add unit tests for optimistic updates, sidebar refresh logic, and error paths.
 //   labels: area/web, feature/chat, type/tests
+//   assignees: omzification
+//   milestone: 0.0.1
+
+// TODO: Refactor to use useReducer for better state management
+//   Context: Consolidate multiple useState calls into a single reducer for better performance and maintainability.
+//   labels: area/web, feature/chat, type/refactor
 //   assignees: omzification
 //   milestone: 0.0.1
 
@@ -60,7 +77,13 @@ export default function Page() {
       setMessages(filtered)
     } catch (e: unknown) {
       if (e instanceof DOMException && e.name === "AbortError") return
-      console.error(e)
+      logger.error(
+        "chat.load_messages_failed",
+        {
+          error: e instanceof Error ? e.message : String(e),
+        },
+        e instanceof Error ? e : undefined,
+      )
       const status =
         typeof e === "object" && e !== null && "status" in e
           ? (e as { status?: number }).status
@@ -84,7 +107,13 @@ export default function Page() {
         })
         .catch((e) => {
           toast.error("Failed to load conversations")
-          console.error(e)
+          logger.error(
+            "chat.load_conversations_failed",
+            {
+              error: e instanceof Error ? e.message : String(e),
+            },
+            e instanceof Error ? e : undefined,
+          )
         })
         .finally(() => setIsSidebarLoading(false))
     }, 120)
@@ -134,7 +163,7 @@ export default function Page() {
         targetConversationId = c.id
         setConversationId(c.id)
         setDraftStatus("ready")
-        console.log("conversation_created", { id: c.id })
+        logger.info("chat.conversation_created", { id: c.id })
       } catch (e) {
         toast.error((e as Error).message || "Failed to start a new conversation")
         setDraftStatus("empty")
@@ -156,13 +185,20 @@ export default function Page() {
         body: JSON.stringify({ role: "user", text: trimmed, idempotencyKey: idem }),
       })
       setInput("")
-      console.log("message_sent", { conversationId: targetConversationId })
+      logger.info("chat.message_sent", { conversationId: targetConversationId })
       await loadMessagesCallback(targetConversationId)
       // Refresh sidebar so active conversation jumps to the top
       setSidebarRefreshKey((k) => k + 1)
-      console.log("sidebar_refreshed")
+      logger.info("chat.sidebar_refreshed")
     } catch (e) {
-      console.error(e)
+      logger.error(
+        "chat.message_send_failed",
+        {
+          error: e instanceof Error ? e.message : String(e),
+          conversationId: targetConversationId,
+        },
+        e instanceof Error ? e : undefined,
+      )
       toast.error(e instanceof Error ? e.message : "Failed to send message")
     }
     const reply = await sendChat(trimmed)
@@ -185,7 +221,14 @@ export default function Page() {
           body: JSON.stringify({ role: "assistant", text: reply, idempotencyKey: idem2 }),
         })
       } catch (e) {
-        console.error(e)
+        logger.error(
+          "chat.assistant_message_save_failed",
+          {
+            error: e instanceof Error ? e.message : String(e),
+            conversationId: targetConversationId,
+          },
+          e instanceof Error ? e : undefined,
+        )
       }
     }
     setStatus("idle")
@@ -216,7 +259,14 @@ export default function Page() {
             )
           } catch (e) {
             toast.error("Failed to rename")
-            console.error(e)
+            logger.error(
+              "chat.rename_failed",
+              {
+                error: e instanceof Error ? e.message : String(e),
+                conversationId: id,
+              },
+              e instanceof Error ? e : undefined,
+            )
           }
         }}
         onArchive={async (id: string) => {
@@ -229,7 +279,14 @@ export default function Page() {
             setServerConversations((prev) => prev.filter((c) => c.id !== id))
           } catch (e) {
             toast.error("Failed to archive")
-            console.error(e)
+            logger.error(
+              "chat.archive_failed",
+              {
+                error: e instanceof Error ? e.message : String(e),
+                conversationId: id,
+              },
+              e instanceof Error ? e : undefined,
+            )
           }
         }}
       />

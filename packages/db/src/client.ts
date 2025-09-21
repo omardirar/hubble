@@ -62,6 +62,18 @@ export function createBrowserClient(options?: { authToken?: string }): SupabaseC
     }
   }
 
-  // Create and return the Supabase client with anon key authentication
-  return createSupabaseClient(url, anonKey, clientOptions)
+  // Create the Supabase client with anon key authentication
+  const client = createSupabaseClient(url, anonKey, clientOptions)
+
+  // Note: Environment variable for schema selection defaults to 'development'
+  // which uses clerk_dev schema. For production, the environment variable
+  // should be set to 'production' to use the clerk schema.
+
+  return client
 }
+
+// TODO: Add connection pooling and retry logic
+//   Context: Implement connection pooling and automatic retry for failed database operations.
+//   labels: area/db, feature/performance, type/enhancement
+//   assignees: omzification
+//   milestone: 0.0.1

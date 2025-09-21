@@ -30,6 +30,8 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)", // Sign-up page and sub-routes
   "/healthz", // Health check endpoint
   "/version", // Version information endpoint
+  "/api/queues(.*)", // Queue endpoints for QStash
+  "/api/motherduck(.*)", // MotherDuck API endpoints (internal use)
 ])
 
 /**

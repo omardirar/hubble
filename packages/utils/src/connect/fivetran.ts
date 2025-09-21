@@ -1,76 +1,615 @@
+/**
+ * Fivetran API Integration
+ *
+ * Provides functions for creating and testing Fivetran destinations for MotherDuck.
+ * All functions include proper validation, error handling, and structured logging.
+ */
+
 import { getConnectEnv } from "@hubble/env"
+import { logger } from "@hubble/logger"
+import { httpFetch, createBasicAuthHeader } from "../fetch"
+import {
+  validateExternalId,
+  validateDestinationId,
+  validateFivetranApiKey,
+  validateFivetranApiSecret,
+  validateMotherDuckDatabaseName,
+  validateMotherDuckToken,
+  validateFivetranGroupName,
+} from "@hubble/api-contracts/connect"
 
-function basicAuthHeader(user: string, pass: string) {
-  return "Basic " + Buffer.from(`${user}:${pass}`).toString("base64")
-}
+/**
+ * Lists all Fivetran groups
+ *
+ * @returns Promise with array of groups
+ * @throws Error if listing fails
+ */
+export async function fivetranListGroups(): Promise<{ id: string; name: string }[]> {
+  const { FIVETRAN_API_KEY, FIVETRAN_API_SECRET } = getConnectEnv()
 
-type HttpOptions = {
-  method?: string
-  headers?: Record<string, string>
-  body?: string
-  timeoutMs?: number
-}
+  // Validate inputs using centralized validation
+  const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
+  const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
 
-async function httpFetch(url: string, opts: HttpOptions = {}): Promise<Response> {
-  const controller = new AbortController()
-  const t = setTimeout(() => controller.abort(), opts.timeoutMs ?? 15000)
+  logger.info("connect.fivetran.list_groups.started")
+
   try {
-    return await fetch(url, {
-      method: opts.method ?? "GET",
-      headers: { "content-type": "application/json", ...(opts.headers ?? {}) },
-      body: opts.body,
-      signal: controller.signal,
+    const res = await httpFetch("https://api.fivetran.com/v1/groups", {
+      method: "GET",
+      headers: {
+        Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
+        "Content-Type": "application/json",
+      },
+      timeoutMs: 30000, // 30 seconds for listing groups
     })
-  } finally {
-    clearTimeout(t)
+
+    if (!res.ok) {
+      let errorBody = ""
+      try {
+        errorBody = await res.text()
+      } catch {
+        errorBody = "Unable to read error response"
+      }
+
+      logger.error("connect.fivetran.list_groups.api_error", {
+        status: res.status,
+        statusText: res.statusText,
+        errorBody,
+      })
+
+      throw new Error(`Fivetran list groups failed: ${res.status} ${res.statusText} - ${errorBody}`)
+    }
+
+    const data = (await res.json().catch(() => ({}))) as {
+      data?: { items?: { id?: string; name?: string }[] }
+    }
+    const groups = data?.data?.items ?? []
+
+    logger.info("connect.fivetran.list_groups.success", {
+      groupCount: groups.length,
+    })
+
+    return groups.map((group) => ({
+      id: group.id ?? "",
+      name: group.name ?? "",
+    }))
+  } catch (error) {
+    logger.error("connect.fivetran.list_groups.failed", {
+      error: error instanceof Error ? error.message : String(error),
+    })
+
+    if (error instanceof Error) {
+      throw new Error(`Failed to list Fivetran groups: ${error.message}`)
+    }
+    throw new Error(`Failed to list Fivetran groups: ${String(error)}`)
   }
 }
 
+/**
+ * Retrieves a Fivetran group by ID
+ *
+ * @param groupId - The group ID to retrieve
+ * @returns Promise with the group details or null if not found
+ * @throws Error if retrieval fails (other than 404)
+ */
+export async function fivetranGetGroup(
+  groupId: string,
+): Promise<{ id: string; name: string } | null> {
+  const { FIVETRAN_API_KEY, FIVETRAN_API_SECRET } = getConnectEnv()
+
+  // Validate inputs using centralized validation
+  const validatedGroupId = validateExternalId(groupId)
+  const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
+  const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
+
+  try {
+    const res = await httpFetch(
+      `https://api.fivetran.com/v1/groups/${encodeURIComponent(validatedGroupId)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
+          "Content-Type": "application/json",
+        },
+        timeoutMs: 30000, // 30 seconds for getting group details
+      },
+    )
+
+    if (res.status === 404) {
+      return null
+    }
+
+    if (!res.ok) {
+      let errorBody = ""
+      try {
+        errorBody = await res.text()
+      } catch {
+        errorBody = "Unable to read error response"
+      }
+
+      logger.error("connect.fivetran.get_group.api_error", {
+        status: res.status,
+        statusText: res.statusText,
+        errorBody,
+        groupId: validatedGroupId,
+      })
+
+      throw new Error(`Fivetran get group failed: ${res.status} ${res.statusText} - ${errorBody}`)
+    }
+
+    const data = (await res.json().catch(() => ({}))) as { data?: { id?: string; name?: string } }
+    const group = data?.data
+
+    if (!group?.id) {
+      logger.warn("connect.fivetran.get_group.invalid_response", {
+        groupId: validatedGroupId,
+        response: data,
+      })
+      return null
+    }
+
+    logger.info("connect.fivetran.get_group.success", {
+      groupId: validatedGroupId,
+      groupName: group.name,
+    })
+
+    return {
+      id: group.id,
+      name: group.name ?? "",
+    }
+  } catch (error) {
+    logger.error("connect.fivetran.get_group.failed", {
+      groupId: validatedGroupId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+
+    if (error instanceof Error) {
+      throw new Error(`Failed to get Fivetran group '${validatedGroupId}': ${error.message}`)
+    }
+    throw new Error(`Failed to get Fivetran group '${validatedGroupId}': ${String(error)}`)
+  }
+}
+
+/**
+ * Creates a Fivetran group
+ *
+ * @param groupId - The group ID to create
+ * @param groupName - The name for the group
+ * @returns Promise with the group ID
+ * @throws Error if creation fails
+ */
+// TODO: Add retry logic with exponential backoff
+//   Context: Implement retry logic for Fivetran API calls to handle transient failures.
+//   labels: area/utils, feature/connect, type/enhancement
+//   assignees: omzification
+//   milestone: 0.0.1
+
+export async function fivetranCreateGroup(
+  groupId: string,
+  groupName: string,
+): Promise<{ group_id: string }> {
+  const { FIVETRAN_API_KEY, FIVETRAN_API_SECRET } = getConnectEnv()
+
+  // Validate inputs using centralized validation
+  const validatedGroupId = validateExternalId(groupId)
+  const validatedGroupName = validateFivetranGroupName(groupName)
+  const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
+  const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
+
+  logger.info("connect.fivetran.create_group.started", {
+    groupId: validatedGroupId,
+    groupName: validatedGroupName,
+  })
+
+  // Check if group already exists (idempotency)
+  try {
+    const existingGroup = await fivetranGetGroup(validatedGroupId)
+    if (existingGroup) {
+      logger.info("connect.fivetran.group_already_exists", {
+        groupId: validatedGroupId,
+        groupName: existingGroup.name,
+      })
+      return { group_id: existingGroup.id }
+    }
+  } catch (getError) {
+    logger.warn("connect.fivetran.group_lookup_failed", {
+      groupId: validatedGroupId,
+      error: getError instanceof Error ? getError.message : String(getError),
+    })
+    // Continue with creation if lookup fails
+  }
+
+  try {
+    const requestBody = JSON.stringify({
+      name: validatedGroupName,
+    })
+
+    const res = await httpFetch("https://api.fivetran.com/v1/groups", {
+      method: "POST",
+      headers: {
+        Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
+        "Content-Type": "application/json",
+      },
+      body: requestBody,
+      timeoutMs: 30000, // 30 seconds for group creation
+    })
+
+    // Handle group already exists (idempotency)
+    if (res.status === 409) {
+      logger.info("connect.fivetran.group_already_exists_409", {
+        groupName: validatedGroupName,
+      })
+      // If we get a 409, the group might exist but with a different ID
+      // Try to get the group by name (we'd need to implement this)
+      throw new Error(
+        "Group already exists with different ID - need to implement name-based lookup",
+      )
+    }
+
+    if (!res.ok) {
+      let errorBody = ""
+      try {
+        errorBody = await res.text()
+      } catch {
+        errorBody = "Unable to read error response"
+      }
+
+      // Handle duplicate group error (idempotency)
+      if (res.status === 400) {
+        try {
+          const errorData = JSON.parse(errorBody)
+          if (errorData.code === "InvalidInput" && errorData.message?.includes("already in use")) {
+            logger.info("connect.fivetran.group_already_exists_invalid_input", {
+              groupName: validatedGroupName,
+              errorBody,
+            })
+            // Find the existing group by name
+            logger.info("connect.fivetran.group_name_already_in_use", {
+              groupName: validatedGroupName,
+            })
+            try {
+              const existingGroups = await fivetranListGroups()
+              const existingGroup = existingGroups.find(
+                (group) => group.name === validatedGroupName,
+              )
+              if (existingGroup) {
+                logger.info("connect.fivetran.group_found_by_name", {
+                  groupName: validatedGroupName,
+                  groupId: existingGroup.id,
+                })
+                return { group_id: existingGroup.id }
+              } else {
+                logger.error("connect.fivetran.group_not_found_by_name", {
+                  groupName: validatedGroupName,
+                  availableGroups: existingGroups.map((g) => g.name),
+                })
+                throw new Error(
+                  `Group with name '${validatedGroupName}' not found in existing groups`,
+                )
+              }
+            } catch (listError) {
+              logger.error("connect.fivetran.group_lookup_by_name_failed", {
+                groupName: validatedGroupName,
+                error: listError instanceof Error ? listError.message : String(listError),
+              })
+              throw new Error(
+                `Failed to find existing group by name: ${listError instanceof Error ? listError.message : String(listError)}`,
+              )
+            }
+          }
+        } catch {
+          // Fallback to string matching if JSON parsing fails
+          if (errorBody.includes("already exists") || errorBody.includes("already in use")) {
+            logger.info("connect.fivetran.group_already_exists_constraint", {
+              groupName: validatedGroupName,
+              errorBody,
+            })
+            // Find the existing group by name (fallback)
+            logger.info("connect.fivetran.group_name_already_in_use_fallback", {
+              groupName: validatedGroupName,
+            })
+            try {
+              const existingGroups = await fivetranListGroups()
+              const existingGroup = existingGroups.find(
+                (group) => group.name === validatedGroupName,
+              )
+              if (existingGroup) {
+                logger.info("connect.fivetran.group_found_by_name_fallback", {
+                  groupName: validatedGroupName,
+                  groupId: existingGroup.id,
+                })
+                return { group_id: existingGroup.id }
+              } else {
+                logger.error("connect.fivetran.group_not_found_by_name_fallback", {
+                  groupName: validatedGroupName,
+                  availableGroups: existingGroups.map((g) => g.name),
+                })
+                throw new Error(
+                  `Group with name '${validatedGroupName}' not found in existing groups`,
+                )
+              }
+            } catch (listError) {
+              logger.error("connect.fivetran.group_lookup_by_name_failed_fallback", {
+                groupName: validatedGroupName,
+                error: listError instanceof Error ? listError.message : String(listError),
+              })
+              throw new Error(
+                `Failed to find existing group by name: ${listError instanceof Error ? listError.message : String(listError)}`,
+              )
+            }
+          }
+        }
+      }
+
+      logger.error("connect.fivetran.create_group.api_error", {
+        status: res.status,
+        statusText: res.statusText,
+        errorBody,
+        groupId: validatedGroupId,
+      })
+
+      throw new Error(
+        `Fivetran create group failed: ${res.status} ${res.statusText} - ${errorBody}`,
+      )
+    }
+
+    const data = (await res.json().catch(() => ({}))) as { data?: { id?: string } }
+    const group_id = data?.data?.id
+
+    if (!group_id) {
+      logger.error("connect.fivetran.create_group.no_id_returned", {
+        groupName: validatedGroupName,
+        api_response: data,
+      })
+      throw new Error("Fivetran did not return a group ID in the response")
+    }
+
+    logger.info("connect.fivetran.create_group.success", {
+      groupName: validatedGroupName,
+      group_id,
+      api_response: data,
+    })
+
+    return { group_id }
+  } catch (error) {
+    logger.error("connect.fivetran.create_group.failed", {
+      groupName: validatedGroupName,
+      error: error instanceof Error ? error.message : String(error),
+    })
+
+    if (error instanceof Error) {
+      throw new Error(`Failed to create Fivetran group '${validatedGroupName}': ${error.message}`)
+    }
+    throw new Error(`Failed to create Fivetran group '${validatedGroupName}': ${String(error)}`)
+  }
+}
+
+/**
+ * Creates or updates a Fivetran destination for MotherDuck
+ *
+ * @param externalId - External ID for the destination (used for idempotency)
+ * @param mdDbName - MotherDuck database name
+ * @param mdToken - The actual MotherDuck token value
+ * @returns Promise with the destination ID
+ * @throws Error if creation fails
+ */
 export async function fivetranUpsertMotherDuckDestination(
   externalId: string,
   mdDbName: string,
-  mdTokenRef: string, // reference only; do not send token here
+  mdToken: string,
 ): Promise<{ destination_id: string }> {
-  // NOTE: This function assumes separate secure exchange of token when configuring destination.
-  // In real integration, you'd securely pull sa token just-in-time server-side and send to Fivetran.
   const { FIVETRAN_API_KEY, FIVETRAN_API_SECRET } = getConnectEnv()
-  const base = "https://api.fivetran.com/v1"
-  const auth = basicAuthHeader(FIVETRAN_API_KEY, FIVETRAN_API_SECRET)
 
-  // Try to find existing destination by externalId (using a tag/name convention)
-  // Placeholder implementation: create unconditionally; idempotency achieved by name conflict handling
-  const res = await httpFetch(`${base}/destinations`, {
-    method: "POST",
-    headers: { Authorization: auth },
-    body: JSON.stringify({
-      group_id: externalId, // using externalId as group for determinism (adjust per real API)
-      service: "motherduck",
-      config: {
-        database: mdDbName,
-        // The actual token should be provided securely at creation time; here we expect a separate
-        // secure path to fetch it when calling this function in the server-only consumer.
-      },
-    }),
+  // Validate inputs using centralized validation
+  const validatedExternalId = validateExternalId(externalId)
+  const validatedDbName = validateMotherDuckDatabaseName(mdDbName)
+  const validatedToken = validateMotherDuckToken(mdToken) // Validate as actual token
+  const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
+  const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
+
+  logger.info("connect.fivetran.upsert_destination.started", {
+    externalId: validatedExternalId,
+    mdDbName: validatedDbName,
+    tokenLength: validatedToken.length,
   })
-  if (res.status === 409) {
-    // Destination exists; fetch and return id (simplified)
-    return { destination_id: externalId }
+
+  try {
+    const requestBody = JSON.stringify({
+      group_id: validatedExternalId,
+      service: "motherduck",
+      time_zone_offset: "0", // UTC
+      run_setup_tests: false, // Disable automatic setup tests as requested
+      config: {
+        motherduck_database: validatedDbName, // Correct field name for Fivetran API
+        motherduck_token: validatedToken, // Actual token value for MotherDuck
+      },
+    })
+
+    const res = await httpFetch("https://api.fivetran.com/v1/destinations", {
+      method: "POST",
+      headers: {
+        Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
+        "Content-Type": "application/json",
+      },
+      body: requestBody,
+      timeoutMs: 60000, // 60 seconds for destination creation
+    })
+
+    // Handle destination already exists (idempotency)
+    if (res.status === 409) {
+      logger.info("connect.fivetran.destination_already_exists", {
+        externalId: validatedExternalId,
+      })
+      return { destination_id: validatedExternalId }
+    }
+
+    if (!res.ok) {
+      let errorBody = ""
+      try {
+        errorBody = await res.text()
+      } catch {
+        errorBody = "Unable to read error response"
+      }
+
+      // Handle duplicate destination error (idempotency)
+      if (res.status === 400 && errorBody.includes("already exists")) {
+        logger.info("connect.fivetran.destination_already_exists_constraint", {
+          externalId: validatedExternalId,
+          errorBody,
+        })
+        return { destination_id: validatedExternalId }
+      }
+
+      logger.error("connect.fivetran.create_destination.api_error", {
+        status: res.status,
+        statusText: res.statusText,
+        errorBody,
+        externalId: validatedExternalId,
+      })
+
+      throw new Error(
+        `Fivetran create destination failed: ${res.status} ${res.statusText} - ${errorBody}`,
+      )
+    }
+
+    const data = (await res.json().catch(() => ({}))) as { data?: { id?: string } }
+    const destination_id = data?.data?.id ?? validatedExternalId
+
+    logger.info("connect.fivetran.upsert_destination.success", {
+      externalId: validatedExternalId,
+      destination_id,
+    })
+
+    return { destination_id }
+  } catch (error) {
+    logger.error("connect.fivetran.upsert_destination.failed", {
+      externalId: validatedExternalId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+
+    if (error instanceof Error) {
+      throw new Error(
+        `Failed to create Fivetran destination for '${validatedExternalId}': ${error.message}`,
+      )
+    }
+    throw new Error(
+      `Failed to create Fivetran destination for '${validatedExternalId}': ${String(error)}`,
+    )
   }
-  if (!res.ok) throw new Error(`Fivetran create destination failed: ${res.status}`)
-  const data = (await res.json().catch(() => ({}))) as { data?: { id?: string } }
-  const destination_id = data?.data?.id ?? externalId
-  return { destination_id }
 }
 
+/**
+ * Tests a Fivetran destination connection
+ *
+ * @param destinationId - The destination ID to test
+ * @returns Promise with boolean indicating if test passed
+ * @throws Error if test fails
+ */
 export async function fivetranTestDestination(destinationId: string): Promise<boolean> {
   const { FIVETRAN_API_KEY, FIVETRAN_API_SECRET } = getConnectEnv()
-  const base = "https://api.fivetran.com/v1"
-  const auth = basicAuthHeader(FIVETRAN_API_KEY, FIVETRAN_API_SECRET)
-  const res = await httpFetch(`${base}/destinations/${encodeURIComponent(destinationId)}/test`, {
-    method: "POST",
-    headers: { Authorization: auth },
-  })
-  if (res.status === 404) return false
-  if (!res.ok) throw new Error(`Fivetran test destination failed: ${res.status}`)
-  return true
+
+  // Validate inputs using centralized validation
+  const validatedDestinationId = validateDestinationId(destinationId)
+  const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
+  const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
+
+  try {
+    const res = await httpFetch(
+      `https://api.fivetran.com/v1/destinations/${encodeURIComponent(validatedDestinationId)}/test`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
+          Accept: "application/json;version=2",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          trust_certificates: true,
+          trust_fingerprints: true,
+        }),
+        timeoutMs: 300000, // 300 seconds for destination testing (setup tests can take time)
+      },
+    )
+
+    if (res.status === 404) {
+      logger.warn("connect.fivetran.test_destination.not_found", {
+        destinationId: validatedDestinationId,
+      })
+      return false
+    }
+
+    if (!res.ok) {
+      let errorBody = ""
+      try {
+        errorBody = await res.text()
+      } catch {
+        errorBody = "Unable to read error response"
+      }
+
+      logger.error("connect.fivetran.test_destination.api_error", {
+        destinationId: validatedDestinationId,
+        status: res.status,
+        statusText: res.statusText,
+        errorBody,
+      })
+
+      throw new Error(
+        `Fivetran test destination failed: ${res.status} ${res.statusText} - ${errorBody}`,
+      )
+    }
+
+    const data = (await res.json().catch(() => ({}))) as {
+      data?: {
+        setup_status?: string
+        setup_tests?: Array<{
+          title: string
+          status: "PASSED" | "SKIPPED" | "WARNING" | "FAILED" | "JOB_FAILED"
+          message?: string
+        }>
+      }
+    }
+
+    const setupStatus = data?.data?.setup_status
+    const setupTests = data?.data?.setup_tests || []
+
+    // Check if all tests passed
+    const allTestsPassed =
+      setupTests.length > 0 && setupTests.every((test) => test.status === "PASSED")
+    const hasFailedTests = setupTests.some(
+      (test) => test.status === "FAILED" || test.status === "JOB_FAILED",
+    )
+
+    // Success if setup status is CONNECTED and all tests passed
+    const success = setupStatus?.toUpperCase() === "CONNECTED" && allTestsPassed && !hasFailedTests
+
+    logger.info("connect.fivetran.test_destination.completed", {
+      destinationId: validatedDestinationId,
+      setupStatus,
+      testCount: setupTests.length,
+      allTestsPassed,
+      hasFailedTests,
+      success,
+      testResults: setupTests.map((test) => ({
+        title: test.title,
+        status: test.status,
+        message: test.message,
+      })),
+    })
+
+    return success
+  } catch (error) {
+    logger.error("connect.fivetran.test_destination.failed", {
+      destinationId: validatedDestinationId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+
+    if (error instanceof Error) {
+      throw new Error(
+        `Failed to test Fivetran destination '${validatedDestinationId}': ${error.message}`,
+      )
+    }
+    throw new Error(
+      `Failed to test Fivetran destination '${validatedDestinationId}': ${String(error)}`,
+    )
+  }
 }

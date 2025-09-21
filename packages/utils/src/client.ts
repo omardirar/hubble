@@ -8,6 +8,6 @@
 export * from "./cn" // Class name utilities
 export * from "./id" // ID generation utilities
 export * from "./chat" // Chat utilities
-export * from "./logger" // Logging utilities
+export * from "@hubble/logger" // Logging utilities
 export * from "./errors" // Error handling utilities
 export * from "./fetch" // HTTP request utilities

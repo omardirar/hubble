@@ -22,23 +22,50 @@ export async function GET(request: Request) {
       }
 
       try {
-        const response = await createConnectStatusStream(auth!.orgId, correlationId, reqLogger)
+        const response = await createConnectStatusStream(
+          auth!.orgId,
+          correlationId,
+          reqLogger,
+          auth!.token,
+        )
         return response
       } catch (error) {
         if (error instanceof RunNotFoundError) {
           return NextResponse.json(
-            { error: { code: "NOT_FOUND", message: "Run not found" }, request_id: reqId },
+            {
+              error: {
+                code: "RUN_NOT_FOUND",
+                message: "Provisioning run not found",
+              },
+              request_id: reqId,
+            },
             { status: 404 },
           )
         }
 
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        const errorDetails =
+          error instanceof Error
+            ? {
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+              }
+            : error
+
         reqLogger.error("connect.stream.bootstrap_failed", {
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage,
+          errorDetails,
           correlation_id: correlationId,
         })
+
         return NextResponse.json(
           {
-            error: { code: "INTERNAL_ERROR", message: "Failed to open stream" },
+            error: {
+              code: "STREAM_BOOTSTRAP_FAILED",
+              message: "Failed to open stream",
+              details: errorDetails,
+            },
             request_id: reqId,
           },
           { status: 500 },
@@ -46,5 +73,5 @@ export async function GET(request: Request) {
       }
     },
     { requireAuth: true, requireOrg: true, loggerContext: { endpoint: "/api/connect/stream" } },
-  )(request as unknown as Request)
+  )(request)
 }

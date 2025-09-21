@@ -6,7 +6,7 @@
  */
 
 import { createBrowserClient } from "@hubble/db"
-import { logger } from "./logger"
+import { logger } from "@hubble/logger"
 import { ApiErrorCodes } from "./errors"
 import { NextResponse } from "next/server"
 
@@ -220,3 +220,9 @@ export async function verifyConversationAccess(
 
   return true
 }
+
+// TODO: Add caching for conversation access verification
+//   Context: Implement Redis-based caching for conversation access checks to reduce database load.
+//   labels: area/utils, feature/performance, type/enhancement
+//   assignees: omzification
+//   milestone: 0.0.1

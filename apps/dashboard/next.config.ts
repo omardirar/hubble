@@ -35,6 +35,24 @@ const nextConfig: NextConfig = {
     "@hubble/api-contracts", // API contract definitions
     "@hubble/auth", // Authentication utilities
   ],
+
+  // Webpack configuration to externalize native dependencies
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Externalize DuckDB Node.js dependencies for server-side only
+      config.externals = config.externals || []
+      config.externals.push({
+        "@duckdb/node-api": "commonjs @duckdb/node-api",
+        "@duckdb/node-bindings": "commonjs @duckdb/node-bindings",
+        "@duckdb/node-bindings-darwin-arm64": "commonjs @duckdb/node-bindings-darwin-arm64",
+        "@duckdb/node-bindings-darwin-x64": "commonjs @duckdb/node-bindings-darwin-x64",
+        "@duckdb/node-bindings-linux-x64": "commonjs @duckdb/node-bindings-linux-x64",
+        "@duckdb/node-bindings-linux-arm64": "commonjs @duckdb/node-bindings-linux-arm64",
+        "@duckdb/node-bindings-win32-x64": "commonjs @duckdb/node-bindings-win32-x64",
+      })
+    }
+    return config
+  },
   /**
    * Security headers configuration
    *
