@@ -102,10 +102,6 @@ export async function fivetranGetGroup(
   const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
   const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
 
-  logger.info("connect.fivetran.get_group.started", {
-    groupId: validatedGroupId,
-  })
-
   try {
     const res = await httpFetch(
       `https://api.fivetran.com/v1/groups/${encodeURIComponent(validatedGroupId)}`,
@@ -120,9 +116,6 @@ export async function fivetranGetGroup(
     )
 
     if (res.status === 404) {
-      logger.info("connect.fivetran.get_group.not_found", {
-        groupId: validatedGroupId,
-      })
       return null
     }
 
@@ -513,10 +506,6 @@ export async function fivetranTestDestination(destinationId: string): Promise<bo
   const validatedDestinationId = validateDestinationId(destinationId)
   const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
   const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
-
-  logger.info("connect.fivetran.test_destination.started", {
-    destinationId: validatedDestinationId,
-  })
 
   try {
     const res = await httpFetch(

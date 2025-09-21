@@ -8,7 +8,12 @@ import {
   RedisUnavailableError,
 } from "@hubble/redis"
 import { logger } from "@hubble/logger"
-import { appendEvent, updateProvisionRun, upsertTenantDestination } from "./db"
+import {
+  appendEvent,
+  updateProvisionRun,
+  upsertTenantDestination,
+  updateTenantProvisioningStatus,
+} from "./db"
 import { mdCreateServiceAccount, mdIssueToken, mdCreateDatabase } from "./motherduck"
 import {
   fivetranCreateGroup,
@@ -145,7 +150,11 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
   const logStep = logStepFactory(orgId, correlationId, channel)
 
   try {
-    await updateProvisionRun(correlationId, { status: "running" })
+    // Update both provisioning run and tenant status to running
+    await Promise.all([
+      updateProvisionRun(correlationId, { status: "running" }),
+      updateTenantProvisioningStatus(orgId, "running"),
+    ])
 
     const mdDbName = `md_${orgId}`
     const mdSaUsername = `sa_${orgId}`
@@ -165,13 +174,16 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
           fivetran_destination_id: existingDestination.fivetran_destination_id,
         })
 
-        await updateProvisionRun(correlationId, {
-          status: "ready",
-          md_db_name: mdDbName,
-          md_sa_username: mdSaUsername,
-          fivetran_destination_id: existingDestination.fivetran_destination_id,
-          finished_at: new Date().toISOString(),
-        })
+        await Promise.all([
+          updateProvisionRun(correlationId, {
+            status: "ready",
+            md_db_name: mdDbName,
+            md_sa_username: mdSaUsername,
+            fivetran_destination_id: existingDestination.fivetran_destination_id,
+            finished_at: new Date().toISOString(),
+          }),
+          updateTenantProvisioningStatus(orgId, "ready"),
+        ])
 
         await logStep("READY", "succeeded", "Provisioning already complete")
         return
@@ -186,15 +198,6 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     }
 
     await logStep("CREATE_SERVICE_ACCOUNT", "started")
-
-    // Debug logging to verify username
-    logger.info("connect.provision.create_service_account.debug", {
-      correlation_id: correlationId,
-      org_id: orgId,
-      md_sa_username: mdSaUsername,
-      username_type: typeof mdSaUsername,
-      username_length: mdSaUsername?.length || 0,
-    })
 
     try {
       await mdCreateServiceAccount(mdSaUsername)
@@ -287,10 +290,6 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
           p_secret_name: "md_sa_token",
           p_secret_value: token,
         })
-        logger.info("connect.provision.token_stored", {
-          correlation_id: correlationId,
-          org_id: orgId,
-        })
       } catch (storageError) {
         logger.error("connect.provision.secrets_storage_failed", {
           correlation_id: correlationId,
@@ -307,16 +306,6 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     await logStep("ISSUE_SA_TOKEN", "succeeded")
 
     await logStep("CREATE_TENANT_DATABASE", "started")
-
-    // Debug the token being passed to database creation
-    logger.info("connect.provision.create_database.token_debug", {
-      correlation_id: correlationId,
-      org_id: orgId,
-      token_length: token?.length || 0,
-      token_type: typeof token,
-      token_from_secrets: tokenFromSecrets,
-      token_prefix: token?.substring(0, 10) + "...",
-    })
 
     await mdCreateDatabase(mdDbName, token)
     await logStep("CREATE_TENANT_DATABASE", "succeeded")
@@ -368,26 +357,26 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     })
 
     await logStep("TEST_DESTINATION", "started")
-    let ok = false
-    for (let i = 0; i < 6; i++) {
-      ok = await fivetranTestDestination(destination_id)
-      if (ok) break
-      await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** i))
-    }
-    if (!ok) {
-      throw new ProvisionJobFailedError("Destination test timeout")
+
+    // Test destination once - Fivetran tests can take time but we don't need to retry
+    const testResult = await fivetranTestDestination(destination_id)
+    if (!testResult) {
+      throw new ProvisionJobFailedError("Destination test failed")
     }
     await logStep("TEST_DESTINATION", "succeeded")
 
-    // Update tenant destination and provisioning run
-    await upsertTenantDestination(orgId, mdDbName, mdSaUsername, destination_id)
-    await updateProvisionRun(correlationId, {
-      status: "ready",
-      md_db_name: mdDbName,
-      md_sa_username: mdSaUsername,
-      fivetran_destination_id: destination_id,
-      finished_at: new Date().toISOString(),
-    })
+    // Update tenant destination, provisioning run, and tenant status
+    await Promise.all([
+      upsertTenantDestination(orgId, mdDbName, mdSaUsername, destination_id),
+      updateProvisionRun(correlationId, {
+        status: "ready",
+        md_db_name: mdDbName,
+        md_sa_username: mdSaUsername,
+        fivetran_destination_id: destination_id,
+        finished_at: new Date().toISOString(),
+      }),
+      updateTenantProvisioningStatus(orgId, "ready"),
+    ])
 
     logger.info("connect.provision.job.completed", {
       correlation_id: correlationId,
@@ -436,13 +425,16 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
       error_details: serializedErrorDetails,
     })
 
-    // Update provisioning run to failed state first
+    // Update both provisioning run and tenant status to failed
     try {
-      await updateProvisionRun(correlationId, {
-        status: "failed",
-        finished_at: new Date().toISOString(),
-        error_message: message,
-      })
+      await Promise.all([
+        updateProvisionRun(correlationId, {
+          status: "failed",
+          finished_at: new Date().toISOString(),
+          error_message: message,
+        }),
+        updateTenantProvisioningStatus(orgId, "failed", message),
+      ])
     } catch (updateError) {
       logger.error("connect.provision.update_failed", {
         correlation_id: correlationId,

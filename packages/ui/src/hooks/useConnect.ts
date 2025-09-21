@@ -28,8 +28,14 @@ export function useConnect(): UseConnectReturn {
 
         const data = await response.json()
 
-        if (data.isProvisioned) {
+        // Handle the new status-based response
+        if (data.status === "ready") {
           setState("ready")
+        } else if (data.status === "running") {
+          setState("loading")
+        } else if (data.status === "failed") {
+          setState("error")
+          setError(data.errorMessage || "Provisioning failed")
         } else {
           setState("idle")
         }

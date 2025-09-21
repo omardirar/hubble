@@ -44,42 +44,56 @@ export async function GET(request: Request) {
 
         const supabase = createBrowserClient({ authToken: auth.token })
 
-        // Check if there's a tenant destination (indicator of completed provisioning)
-        const { data: destinations, error: destError } = await supabase
-          .from("tenant_destinations")
-          .select("status, created_at")
+        // Check tenant provisioning status
+        const { data: tenant, error: tenantError } = await supabase
+          .from("tenant_provisioning")
+          .select("status, updated_at, metadata")
           .eq("org_id", orgId)
-          .eq("status", "healthy")
-          .order("created_at", { ascending: false })
-          .limit(1)
+          .single()
 
-        if (destError) {
-          reqLogger.error("connect.status-check.destinations_query_failed", {
-            error: destError.message,
+        if (tenantError) {
+          reqLogger.error("connect.status-check.tenant_query_failed", {
+            error: tenantError.message,
             orgId,
           })
           return NextResponse.json(
             {
-              error: { code: "QUERY_FAILED", message: "Failed to check destination status" },
+              error: { code: "QUERY_FAILED", message: "Failed to check tenant status" },
               request_id: reqId,
             },
             { status: 500 },
           )
         }
 
-        const isProvisioned = destinations && destinations.length > 0
-        const lastProvisionedAt = destinations?.[0]?.created_at
+        if (!tenant) {
+          reqLogger.error("connect.status-check.tenant_not_found", { orgId })
+          return NextResponse.json(
+            {
+              error: { code: "TENANT_NOT_FOUND", message: "Tenant not found" },
+              request_id: reqId,
+            },
+            { status: 404 },
+          )
+        }
+
+        const status = tenant.status as "running" | "ready" | "failed"
+        const isProvisioned = status === "ready"
+        const lastProvisionedAt = tenant.updated_at
+        const errorMessage = tenant.metadata?.error_message
 
         reqLogger.info("connect.status-check.success", {
           orgId,
+          status,
           isProvisioned,
-          hasDestination: destinations && destinations.length > 0,
           lastProvisionedAt,
+          hasError: !!errorMessage,
         })
 
         return NextResponse.json({
+          status,
           isProvisioned,
           lastProvisionedAt,
+          errorMessage,
           request_id: reqId,
         })
       } catch (error) {
