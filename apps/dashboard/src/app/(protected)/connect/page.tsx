@@ -1,32 +1,44 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Button, ErrorBoundary } from "@hubble/ui"
-import { Terminal, AnimatedSpan, TypingAnimation, StepItem } from "@hubble/ui"
+import { Button, ErrorBoundary, Spinner } from "@hubble/ui"
 import { logger } from "@hubble/logger"
 
-// Removed unused getStepCommand function
-
-const MAX_TERMINAL_CONTENT = 1000 // Limit terminal content to prevent memory leaks
-
-// Define all possible provisioning steps for progress tracking
-const ALL_PROVISIONING_STEPS = [
-  "CREATE_SERVICE_ACCOUNT",
-  "ISSUE_SA_TOKEN",
-  "CREATE_TENANT_DATABASE",
-  "CONFIGURE_COMPUTE",
-  "CREATE_FIVETRAN_GROUP",
-  "CREATE_FIVETRAN_DESTINATION",
-  "TEST_DESTINATION",
-  "READY",
-]
+type ConnectState = "idle" | "loading" | "ready" | "error" | "checking"
 
 export default function Page() {
-  const [isLoading, setIsLoading] = useState(false)
-  const [correlationId, setCorrelationId] = useState<string | null>(null)
-  const [terminalContent, setTerminalContent] = useState<React.ReactNode[]>([])
-  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set())
+  const [state, setState] = useState<ConnectState>("checking")
+  const [error, setError] = useState<string | null>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
+
+  // Check provisioning status on component mount
+  useEffect(() => {
+    const checkProvisioningStatus = async () => {
+      try {
+        const response = await fetch("/api/connect/status-check")
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const data = await response.json()
+
+        if (data.isProvisioned) {
+          setState("ready")
+        } else {
+          setState("idle")
+        }
+      } catch (error) {
+        logger.error("connect.status-check.failed", {
+          error: error instanceof Error ? error.message : String(error),
+        })
+        // If status check fails, default to idle state
+        setState("idle")
+      }
+    }
+
+    checkProvisioningStatus()
+  }, [])
 
   // Clean up EventSource on unmount
   useEffect(() => {
@@ -38,10 +50,8 @@ export default function Page() {
   }, [])
 
   const handleEnable = async () => {
-    setIsLoading(true)
-    setTerminalContent([])
-    setCorrelationId(null)
-    setCompletedSteps(new Set())
+    setState("loading")
+    setError(null)
 
     // Close any existing EventSource
     if (eventSourceRef.current) {
@@ -62,31 +72,6 @@ export default function Page() {
       }
 
       const data = await response.json()
-      setCorrelationId(data.correlation_id)
-
-      // Add initial terminal content with enhanced visuals
-      setTerminalContent([
-        <div
-          key="header"
-          className="flex items-center gap-2 p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4"
-        >
-          <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-          <span className="font-medium text-blue-900">Hubble Connect - Provisioning Pipeline</span>
-        </div>,
-        <AnimatedSpan key="start" delay={0} className="text-green-600 font-mono">
-          $ hubble connect enable
-        </AnimatedSpan>,
-        <TypingAnimation key="starting" delay={1000} duration={80} className="text-gray-600">
-          Initializing provisioning process...
-        </TypingAnimation>,
-        <AnimatedSpan key="correlation" delay={3000} className="text-green-600">
-          ✓ Provisioning run created: {data.correlation_id}
-        </AnimatedSpan>,
-        <AnimatedSpan key="status" delay={4000} className="text-blue-600">
-          Status: {data.status}
-        </AnimatedSpan>,
-        <div key="divider" className="border-t border-gray-200 my-4"></div>,
-      ])
 
       // Connect to real-time SSE stream
       const eventSource = new EventSource(
@@ -94,109 +79,39 @@ export default function Page() {
       )
       eventSourceRef.current = eventSource
 
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-
-          // Update completed steps
-          if (data.status === "succeeded" || data.status === "failed") {
-            setCompletedSteps((prev) => new Set([...prev, data.step]))
-          }
-
-          // Add step item to terminal with enhanced visual representation
-          setTerminalContent((prev) => {
-            const newContent = [
-              ...prev,
-              <StepItem
-                key={`step-${data.event_seq}`}
-                step={data.step}
-                status={data.status}
-                message={data.message}
-                timestamp={data.ts}
-                eventSeq={data.event_seq}
-                delay={0}
-              />,
-            ]
-
-            // Keep only the last MAX_TERMINAL_CONTENT items to prevent memory leaks
-            return newContent.length > MAX_TERMINAL_CONTENT
-              ? newContent.slice(-MAX_TERMINAL_CONTENT)
-              : newContent
-          })
-        } catch (error) {
-          logger.error("connect.sse.parse_error", {
-            error: error instanceof Error ? error.message : String(error),
-            correlationId: data.correlation_id,
-          })
-        }
-      }
-
-      // Note: onmessage already handles update events, so we don't need addEventListener("update")
-
       eventSource.addEventListener("end", (event) => {
         try {
           const data = JSON.parse(event.data)
 
-          setTerminalContent((prev) => [
-            ...prev,
-            <AnimatedSpan key="final-status" delay={0}>
-              $ hubble connect status
-            </AnimatedSpan>,
-            <AnimatedSpan key="final-result" delay={500}>
-              {data.status === "ready" ? "✓ Connect setup complete!" : "❌ Setup failed"}
-            </AnimatedSpan>,
-            ...(data.status === "failed" && correlationId
-              ? [
-                  <AnimatedSpan key="final-correlation" delay={1000}>
-                    Run ID: {correlationId}
-                  </AnimatedSpan>,
-                  <AnimatedSpan key="final-help" delay={1500}>
-                    Check logs for detailed error information.
-                  </AnimatedSpan>,
-                ]
-              : []),
-          ])
+          if (data.status === "ready") {
+            setState("ready")
+          } else {
+            setState("error")
+            setError("Setup failed. Please check the logs for more details.")
+          }
 
           eventSource.close()
           eventSourceRef.current = null
         } catch (error) {
           logger.error("connect.sse.end_parse_error", {
             error: error instanceof Error ? error.message : String(error),
-            correlationId,
+            correlationId: data.correlation_id,
           })
+          setState("error")
+          setError("Failed to parse response. Please try again.")
         }
       })
 
       eventSource.onerror = (_error) => {
-        setTerminalContent((prev) => [
-          ...prev,
-          <AnimatedSpan key="sse-error" delay={0}>
-            ❌ Connection lost. Please refresh to retry.
-          </AnimatedSpan>,
-        ])
+        setState("error")
+        setError("Connection lost. Please refresh to retry.")
         eventSource.close()
         eventSourceRef.current = null
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error"
-      const correlationInfo = correlationId ? ` (Run ID: ${correlationId})` : ""
-
-      setTerminalContent([
-        <AnimatedSpan key="error" delay={0}>
-          $ hubble connect enable
-        </AnimatedSpan>,
-        <AnimatedSpan key="error-message" delay={1000}>
-          ❌ Error: {errorMessage}
-        </AnimatedSpan>,
-        <AnimatedSpan key="error-correlation" delay={2000}>
-          {correlationInfo}
-        </AnimatedSpan>,
-        <AnimatedSpan key="error-help" delay={3000}>
-          Please check the logs for more details or try again.
-        </AnimatedSpan>,
-      ])
-    } finally {
-      setIsLoading(false)
+      setState("error")
+      setError(errorMessage)
     }
   }
 
@@ -204,33 +119,84 @@ export default function Page() {
     <ErrorBoundary>
       <div className="container mx-auto py-8">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
+          <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold mb-4">Connect</h1>
             <p className="text-muted-foreground mb-6">
               Set up your data pipeline with MotherDuck and Fivetran integration.
             </p>
           </div>
 
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <Button onClick={handleEnable} disabled={isLoading} className="min-w-[120px]">
-                {isLoading ? "Enabling..." : "Enable"}
-              </Button>
-              {correlationId && (
-                <span className="text-sm text-muted-foreground">Run ID: {correlationId}</span>
-              )}
-            </div>
+          <div className="flex flex-col items-center justify-center min-h-[400px] space-y-6">
+            {state === "checking" && (
+              <div className="flex flex-col items-center space-y-4">
+                <Spinner size={32} className="text-primary" />
+                <p className="text-muted-foreground">Checking provisioning status...</p>
+              </div>
+            )}
 
-            {terminalContent.length > 0 && (
-              <div className="mt-8">
-                <Terminal
-                  progress={{
-                    completed: completedSteps.size,
-                    total: ALL_PROVISIONING_STEPS.length,
-                  }}
-                >
-                  {terminalContent}
-                </Terminal>
+            {state === "idle" && (
+              <Button onClick={handleEnable} size="lg" className="px-8 py-3">
+                Enable Connect
+              </Button>
+            )}
+
+            {state === "loading" && (
+              <div className="flex flex-col items-center space-y-4">
+                <Spinner size={32} className="text-primary" />
+                <p className="text-muted-foreground">Setting up your data pipeline...</p>
+              </div>
+            )}
+
+            {state === "ready" && (
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                  <svg
+                    className="w-8 h-8 text-green-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-semibold">Connect Setup Complete!</h2>
+                <p className="text-muted-foreground">Your data pipeline is ready to use.</p>
+                <div className="mt-8 p-6 bg-muted rounded-lg">
+                  <h3 className="text-lg font-medium mb-2">Connect Cards (WIP)</h3>
+                  <p className="text-sm text-muted-foreground">
+                    This section will contain your data source connections and pipeline status.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {state === "error" && (
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+                  <svg
+                    className="w-8 h-8 text-red-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-semibold">Setup Failed</h2>
+                <p className="text-muted-foreground">{error}</p>
+                <Button onClick={handleEnable} variant="outline">
+                  Try Again
+                </Button>
               </div>
             )}
           </div>
