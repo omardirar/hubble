@@ -574,7 +574,7 @@ export async function fivetranTestDestination(destinationId: string): Promise<bo
     )
 
     // Success if setup status is CONNECTED and all tests passed
-    const success = setupStatus === "CONNECTED" && allTestsPassed && !hasFailedTests
+    const success = setupStatus?.toUpperCase() === "CONNECTED" && allTestsPassed && !hasFailedTests
 
     logger.info("connect.fivetran.test_destination.completed", {
       destinationId: validatedDestinationId,
