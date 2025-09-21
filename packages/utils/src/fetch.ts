@@ -102,6 +102,53 @@ export async function safeFetch(input: RequestInfo | URL, init?: RequestInit) {
 //   milestone: 0.0.1
 
 /**
+ * Fetch with retry logic for transient failures
+ * @param input - The URL or Request object
+ * @param init - Optional request configuration
+ * @param maxRetries - Maximum number of retries (default: 3)
+ * @returns Promise resolving to Response object
+ * @throws Error for non-2xx responses after all retries
+ */
+export async function fetchWithRetry(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  maxRetries: number = 3,
+): Promise<Response> {
+  let lastError: Error | null = null
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(input, init)
+
+      // Retry on 5xx errors (server errors) but not on 4xx errors (client errors)
+      if (response.ok || response.status < 500) {
+        return response
+      }
+
+      if (attempt === maxRetries) {
+        return response // Return the last response if we've exhausted retries
+      }
+
+      // Wait before retrying (exponential backoff)
+      const delay = Math.min(1000 * Math.pow(2, attempt), 10000) // Max 10 seconds
+      await new Promise((resolve) => setTimeout(resolve, delay))
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+
+      if (attempt === maxRetries) {
+        throw lastError
+      }
+
+      // Wait before retrying
+      const delay = Math.min(1000 * Math.pow(2, attempt), 10000)
+      await new Promise((resolve) => setTimeout(resolve, delay))
+    }
+  }
+
+  throw lastError || new Error("Max retries exceeded")
+}
+
+/**
  * Alias for safeFetch commonly used in applications for clarity
  *
  * This alias makes it clear that the function is intended for API calls

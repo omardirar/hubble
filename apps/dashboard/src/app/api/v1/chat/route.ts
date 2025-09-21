@@ -6,7 +6,12 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { createApiHandler, parseRequestBody, chatWithAnthropic } from "@hubble/utils/server"
+import {
+  createApiHandler,
+  parseRequestBody,
+  chatWithAnthropic,
+  checkRateLimit,
+} from "@hubble/utils/server"
 import { validateChatRequest, validateChatResponse } from "@hubble/api-contracts/chat"
 
 export async function POST(request: NextRequest) {
@@ -15,6 +20,28 @@ export async function POST(request: NextRequest) {
       // Parse and validate request body
       const { text } = await parseRequestBody(req, validateChatRequest, logger)
       const prompt = text.trim()
+
+      // Rate limiting check
+      const rateLimitKey = `chat:${auth!.userId}`
+      if (!checkRateLimit(rateLimitKey, 20, 60000)) {
+        // 20 requests per minute
+        return NextResponse.json(
+          { error: "Rate limit exceeded. Please try again later." },
+          { status: 429 },
+        )
+      }
+
+      // Additional input validation
+      if (prompt.length === 0) {
+        return NextResponse.json({ error: "Message cannot be empty" }, { status: 400 })
+      }
+
+      if (prompt.length > 10000) {
+        return NextResponse.json(
+          { error: "Message too long (max 10,000 characters)" },
+          { status: 400 },
+        )
+      }
 
       logger.info("Processing chat request", {
         userId: auth!.userId,

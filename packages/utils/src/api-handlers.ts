@@ -88,11 +88,36 @@ export async function getAuthContext(options: ApiHandlerOptions = {}): Promise<A
   }
 }
 
-// TODO: Add rate limiting middleware
-//   Context: Implement rate limiting for API endpoints to prevent abuse and ensure fair usage.
-//   labels: area/utils, feature/security, type/enhancement
-//   assignees: omzification
-//   milestone: 0.0.1
+/**
+ * Simple in-memory rate limiter
+ * @param key - Unique identifier for the rate limit
+ * @param limit - Maximum number of requests
+ * @param windowMs - Time window in milliseconds
+ * @returns true if request is allowed, false if rate limited
+ */
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
+
+export function checkRateLimit(
+  key: string,
+  limit: number = 100,
+  windowMs: number = 60000, // 1 minute
+): boolean {
+  const now = Date.now()
+  const record = rateLimitMap.get(key)
+
+  if (!record || now > record.resetTime) {
+    // First request or window expired
+    rateLimitMap.set(key, { count: 1, resetTime: now + windowMs })
+    return true
+  }
+
+  if (record.count >= limit) {
+    return false // Rate limited
+  }
+
+  record.count++
+  return true
+}
 
 /**
  * Create a standardized API handler with common patterns

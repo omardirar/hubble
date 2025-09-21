@@ -22,18 +22,20 @@ async function sendChat(text: string): Promise<string> {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ text }),
     })
+
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "Unknown error")
+      throw new Error(`Chat API error: ${res.status} - ${errorText}`)
+    }
+
     const data = (await res.json().catch(() => ({}))) as { reply?: string }
     return data.reply ?? ""
   } catch (error) {
-    // TODO: Add proper error handling and user feedback
-    //   Context: Improve error handling to show specific error messages to users instead of silent failures.
-    //   labels: area/web, feature/chat, type/quality
-    //   assignees: omzification
-    //   milestone: 0.0.1
     logger.error("chat.send_failed", {
       error: error instanceof Error ? error.message : String(error),
     })
-    return ""
+    // Return a user-friendly error message instead of empty string
+    return "Sorry, I couldn't process your message. Please try again."
   }
 }
 // TODO: Expand test coverage for useChatState and related components
