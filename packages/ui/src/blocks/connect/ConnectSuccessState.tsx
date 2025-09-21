@@ -1,33 +1,36 @@
+import { ConnectCardItem } from "./ConnectCards"
+
 interface ConnectSuccessStateProps {
-  title?: string
-  description?: string
   cardsTitle?: string
-  cardsDescription?: string
+  onConnectFacebook?: () => void
+  onConnectGoogle?: () => void
+  isFacebookConnected?: boolean
+  isGoogleConnected?: boolean
 }
 
 export function ConnectSuccessState({
-  title = "Connect Setup Complete!",
-  description = "Your data pipeline is ready to use.",
-  cardsTitle = "Connect Cards (WIP)",
-  cardsDescription = "This section will contain your data source connections and pipeline status.",
+  cardsTitle = "Connect Your Data Sources",
+  onConnectFacebook,
+  onConnectGoogle,
+  isFacebookConnected = false,
+  isGoogleConnected = false,
 }: ConnectSuccessStateProps) {
   return (
-    <div className="text-center space-y-4">
-      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-        <svg
-          className="w-8 h-8 text-green-600"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
-      </div>
-      <h2 className="text-2xl font-semibold">{title}</h2>
-      <p className="text-muted-foreground">{description}</p>
-      <div className="mt-8 p-6 bg-muted rounded-lg">
-        <h3 className="text-lg font-medium mb-2">{cardsTitle}</h3>
-        <p className="text-sm text-muted-foreground">{cardsDescription}</p>
+    <div className="space-y-4">
+      <h3 className="text-lg font-medium text-center">{cardsTitle}</h3>
+      <div className="grid gap-4 md:grid-cols-2">
+        <ConnectCardItem
+          icon="facebookAds"
+          name="Facebook Ads"
+          onConnect={onConnectFacebook}
+          isConnected={isFacebookConnected}
+        />
+        <ConnectCardItem
+          icon="googleAds"
+          name="Google Ads"
+          onConnect={onConnectGoogle}
+          isConnected={isGoogleConnected}
+        />
       </div>
     </div>
   )
