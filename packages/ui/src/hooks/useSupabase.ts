@@ -21,3 +21,9 @@ export function useSupabase(options?: { authToken?: string }): SupabaseClient {
 export function useSupabaseWithAuth(token?: string): SupabaseClient {
   return useSupabase({ authToken: token })
 }
+
+// TODO: Add connection status monitoring
+//   Context: Implement real-time connection status monitoring for Supabase client.
+//   labels: area/ui, feature/database, type/enhancement
+//   assignees: omzification
+//   milestone: 0.0.1

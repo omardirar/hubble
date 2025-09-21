@@ -66,5 +66,5 @@ export async function GET(request: Request) {
       }
     },
     { requireAuth: true, requireOrg: true, loggerContext: { endpoint: "/api/connect/status" } },
-  )(request as unknown as Request)
+  )(request)
 }

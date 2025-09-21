@@ -178,6 +178,12 @@ export async function fivetranGetGroup(
  * @returns Promise with the group ID
  * @throws Error if creation fails
  */
+// TODO: Add retry logic with exponential backoff
+//   Context: Implement retry logic for Fivetran API calls to handle transient failures.
+//   labels: area/utils, feature/connect, type/enhancement
+//   assignees: omzification
+//   milestone: 0.0.1
+
 export async function fivetranCreateGroup(
   groupId: string,
   groupName: string,

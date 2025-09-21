@@ -88,9 +88,21 @@ export async function getAuthContext(options: ApiHandlerOptions = {}): Promise<A
   }
 }
 
+// TODO: Add rate limiting middleware
+//   Context: Implement rate limiting for API endpoints to prevent abuse and ensure fair usage.
+//   labels: area/utils, feature/security, type/enhancement
+//   assignees: omzification
+//   milestone: 0.0.1
+
 /**
  * Create a standardized API handler with common patterns
  */
+// TODO: Add generic type parameters for better type safety
+//   Context: Replace 'any' types with proper generic constraints for request/response types.
+//   labels: area/utils, feature/types, type/quality
+//   assignees: omzification
+//   milestone: 0.0.1
+
 export function createApiHandler(
   handler: (request: any, auth: AuthContext | null, logger: Logger) => Promise<any>,
   options: ApiHandlerOptions = {},

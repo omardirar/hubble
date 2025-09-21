@@ -24,13 +24,27 @@ async function sendChat(text: string): Promise<string> {
     })
     const data = (await res.json().catch(() => ({}))) as { reply?: string }
     return data.reply ?? ""
-  } catch {
+  } catch (error) {
+    // TODO: Add proper error handling and user feedback
+    //   Context: Improve error handling to show specific error messages to users instead of silent failures.
+    //   labels: area/web, feature/chat, type/quality
+    //   assignees: omzification
+    //   milestone: 0.0.1
+    logger.error("chat.send_failed", {
+      error: error instanceof Error ? error.message : String(error),
+    })
     return ""
   }
 }
 // TODO: Expand test coverage for useChatState and related components
 //   Context: Add unit tests for optimistic updates, sidebar refresh logic, and error paths.
 //   labels: area/web, feature/chat, type/tests
+//   assignees: omzification
+//   milestone: 0.0.1
+
+// TODO: Refactor to use useReducer for better state management
+//   Context: Consolidate multiple useState calls into a single reducer for better performance and maintainability.
+//   labels: area/web, feature/chat, type/refactor
 //   assignees: omzification
 //   milestone: 0.0.1
 

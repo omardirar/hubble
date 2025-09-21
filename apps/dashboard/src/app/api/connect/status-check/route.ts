@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { createApiHandler } from "@hubble/utils/server"
 import { createBrowserClient } from "@hubble/db"
-import { getCurrentOrgId } from "@hubble/auth"
 
 export const runtime = "nodejs"
 
@@ -30,18 +29,7 @@ export async function GET(request: Request) {
       }
 
       try {
-        const orgId = await getCurrentOrgId()
-        if (!orgId) {
-          reqLogger.error("connect.status-check.no_org_id", { userId: auth.userId })
-          return NextResponse.json(
-            {
-              error: { code: "NO_ORGANIZATION", message: "No organization found" },
-              request_id: reqId,
-            },
-            { status: 400 },
-          )
-        }
-
+        const orgId = auth.orgId
         const supabase = createBrowserClient({ authToken: auth.token })
 
         // Check tenant provisioning status

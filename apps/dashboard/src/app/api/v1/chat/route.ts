@@ -11,8 +11,7 @@ import { validateChatRequest, validateChatResponse } from "@hubble/api-contracts
 
 export async function POST(request: NextRequest) {
   return createApiHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async (req: any, auth, logger) => {
+    async (req: NextRequest, auth, logger) => {
       // Parse and validate request body
       const { text } = await parseRequestBody(req, validateChatRequest, logger)
       const prompt = text.trim()

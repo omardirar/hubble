@@ -71,3 +71,9 @@ export function createBrowserClient(options?: { authToken?: string }): SupabaseC
 
   return client
 }
+
+// TODO: Add connection pooling and retry logic
+//   Context: Implement connection pooling and automatic retry for failed database operations.
+//   labels: area/db, feature/performance, type/enhancement
+//   assignees: omzification
+//   milestone: 0.0.1

@@ -96,6 +96,12 @@ const logStepFactory =
  * Execute the provisioning workflow for a tenant. Throws LockNotAcquiredError if a
  * concurrent job is already running, and ProvisionJobFailedError when the workflow fails.
  */
+// TODO: Add job timeout and cancellation support
+//   Context: Implement timeout handling and cancellation for long-running provisioning jobs.
+//   labels: area/utils, feature/connect, type/enhancement
+//   assignees: omzification
+//   milestone: 0.0.1
+
 export async function processProvisionJob(payload: ProvisionJobPayload): Promise<void> {
   const { orgId, correlationId } = payload
   const db = createServiceClient()

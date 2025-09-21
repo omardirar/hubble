@@ -106,7 +106,7 @@ export function useConnect(): UseConnectReturn {
         } catch (error) {
           logger.error("connect.sse.end_parse_error", {
             error: error instanceof Error ? error.message : String(error),
-            correlationId: data.correlation_id,
+            correlationId: data?.correlation_id || "unknown",
           })
           setState("error")
           setError("Failed to parse response. Please try again.")
@@ -132,3 +132,9 @@ export function useConnect(): UseConnectReturn {
     handleEnable,
   }
 }
+
+// TODO: Add retry mechanism for failed status checks
+//   Context: Implement exponential backoff retry for status check failures to improve reliability.
+//   labels: area/ui, feature/connect, type/enhancement
+//   assignees: omzification
+//   milestone: 0.0.1

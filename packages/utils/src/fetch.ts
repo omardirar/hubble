@@ -95,6 +95,12 @@ export async function safeFetch(input: RequestInfo | URL, init?: RequestInit) {
   return res
 }
 
+// TODO: Add request/response caching
+//   Context: Implement intelligent caching for GET requests to reduce API calls and improve performance.
+//   labels: area/utils, feature/performance, type/enhancement
+//   assignees: omzification
+//   milestone: 0.0.1
+
 /**
  * Alias for safeFetch commonly used in applications for clarity
  *

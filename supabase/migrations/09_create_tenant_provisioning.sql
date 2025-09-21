@@ -25,6 +25,12 @@ UPDATE public.tenant_provisioning SET metadata = '{}'::jsonb WHERE metadata IS N
 -- Create index
 CREATE INDEX IF NOT EXISTS tenant_provisioning_slug_lower_idx ON public.tenant_provisioning (lower(slug));
 
+-- TODO: Add composite indexes for common query patterns
+--   Context: Add composite indexes for org_id + status and org_id + updated_at for better query performance.
+--   labels: area/db, feature/performance, type/enhancement
+--   assignees: omzification
+--   milestone: 0.0.1
+
 -- Migrate data from tenants table if it exists
 DO $$
 BEGIN
