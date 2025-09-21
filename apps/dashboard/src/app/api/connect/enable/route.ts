@@ -195,6 +195,31 @@ export async function POST(request: Request) {
 
       const body = { correlation_id, status: "pending" as const, request_id: reqId }
       EnableResponseSchema.parse(body)
+
+      // Check if this is a browser request (has Accept header with text/html)
+      const acceptHeader = request.headers.get("accept") || ""
+      const isBrowserRequest = acceptHeader.includes("text/html")
+
+      if (isBrowserRequest) {
+        // PRG pattern: redirect to /connect with correlation_id
+        const headers = new Headers(request.headers)
+        const host = headers.get("x-forwarded-host") ?? headers.get("host") ?? "localhost:3000"
+        const protocol = (headers.get("x-forwarded-proto") ??
+          (host.startsWith("localhost") ? "http" : "https")) as "http" | "https"
+        const baseUrl = `${protocol}://${host}`
+        const redirectUrl = new URL("/connect", baseUrl)
+        redirectUrl.searchParams.set("correlation_id", correlation_id)
+
+        reqLogger.info("connect.enable.prg_redirect", {
+          orgId: auth.orgId,
+          correlationId: correlation_id,
+          redirectUrl: redirectUrl.toString(),
+        })
+
+        return NextResponse.redirect(redirectUrl.toString(), { status: 303 })
+      }
+
+      // For non-browser requests (API clients), return JSON
       return NextResponse.json(body)
     },
     { requireAuth: true, requireOrg: true, loggerContext: { endpoint: "/api/connect/enable" } },

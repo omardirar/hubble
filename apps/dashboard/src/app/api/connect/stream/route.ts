@@ -9,6 +9,8 @@ export async function GET(request: Request) {
       const reqId = crypto.randomUUID()
       const url = new URL(req.url)
       const correlationId = url.searchParams.get("correlation_id")?.trim() ?? ""
+      const lastEventIdHeader = req.headers.get("last-event-id")
+      const lastEventId = lastEventIdHeader ? parseInt(lastEventIdHeader, 10) : undefined
 
       // SSE clients must provide the correlation id that /enable returned.
       if (!correlationId) {
@@ -27,6 +29,7 @@ export async function GET(request: Request) {
           correlationId,
           reqLogger,
           auth!.token,
+          lastEventId,
         )
         return response
       } catch (error) {

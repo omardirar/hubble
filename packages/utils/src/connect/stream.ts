@@ -16,6 +16,7 @@ export async function createConnectStatusStream(
   correlationId: string,
   logger: StreamLogger,
   authToken?: string,
+  lastEventId?: number,
 ): Promise<Response> {
   let initialStatus: connect.StatusResponse
   let retries = 0
@@ -28,7 +29,7 @@ export async function createConnectStatusStream(
         org_id: orgId,
         retry: retries,
       })
-      initialStatus = await getStatus(orgId, correlationId, undefined, true, authToken)
+      initialStatus = await getStatus(orgId, correlationId, lastEventId, true, authToken)
       logger.info("connect.stream.initial_status_success", {
         correlation_id: correlationId,
         org_id: orgId,
