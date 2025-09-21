@@ -102,10 +102,6 @@ export async function fivetranGetGroup(
   const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
   const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
 
-  logger.info("connect.fivetran.get_group.started", {
-    groupId: validatedGroupId,
-  })
-
   try {
     const res = await httpFetch(
       `https://api.fivetran.com/v1/groups/${encodeURIComponent(validatedGroupId)}`,
@@ -120,9 +116,6 @@ export async function fivetranGetGroup(
     )
 
     if (res.status === 404) {
-      logger.info("connect.fivetran.get_group.not_found", {
-        groupId: validatedGroupId,
-      })
       return null
     }
 
@@ -185,6 +178,12 @@ export async function fivetranGetGroup(
  * @returns Promise with the group ID
  * @throws Error if creation fails
  */
+// TODO: Add retry logic with exponential backoff
+//   Context: Implement retry logic for Fivetran API calls to handle transient failures.
+//   labels: area/utils, feature/connect, type/enhancement
+//   assignees: omzification
+//   milestone: 0.0.1
+
 export async function fivetranCreateGroup(
   groupId: string,
   groupName: string,
@@ -514,10 +513,6 @@ export async function fivetranTestDestination(destinationId: string): Promise<bo
   const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
   const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
 
-  logger.info("connect.fivetran.test_destination.started", {
-    destinationId: validatedDestinationId,
-  })
-
   try {
     const res = await httpFetch(
       `https://api.fivetran.com/v1/destinations/${encodeURIComponent(validatedDestinationId)}/test`,
@@ -585,7 +580,7 @@ export async function fivetranTestDestination(destinationId: string): Promise<bo
     )
 
     // Success if setup status is CONNECTED and all tests passed
-    const success = setupStatus === "CONNECTED" && allTestsPassed && !hasFailedTests
+    const success = setupStatus?.toUpperCase() === "CONNECTED" && allTestsPassed && !hasFailedTests
 
     logger.info("connect.fivetran.test_destination.completed", {
       destinationId: validatedDestinationId,

@@ -73,5 +73,5 @@ export async function GET(request: Request) {
       }
     },
     { requireAuth: true, requireOrg: true, loggerContext: { endpoint: "/api/connect/stream" } },
-  )(request as unknown as Request)
+  )(request)
 }

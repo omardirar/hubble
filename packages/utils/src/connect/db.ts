@@ -254,6 +254,41 @@ export async function getStatus(
   return StatusResponseSchema.parse(result)
 }
 
+export async function updateTenantProvisioningStatus(
+  orgId: string,
+  status: "running" | "ready" | "failed",
+  errorMessage?: string,
+): Promise<void> {
+  const db = createServiceClient()
+
+  const updates: Record<string, unknown> = {
+    status,
+    updated_at: new Date().toISOString(),
+  }
+
+  if (errorMessage) {
+    updates.metadata = {
+      error_message: errorMessage,
+    }
+  }
+
+  const { error } = await db.from("tenant_provisioning").update(updates).eq("org_id", orgId)
+
+  if (error) {
+    logger.error("connect.db.update_tenant_provisioning_status_failed", {
+      org_id: orgId,
+      status,
+      error: error.message,
+    })
+    throw error
+  }
+
+  logger.info("connect.db.update_tenant_provisioning_status_success", {
+    org_id: orgId,
+    status,
+  })
+}
+
 export async function upsertTenantDestination(
   orgId: string,
   mdDbName: string,

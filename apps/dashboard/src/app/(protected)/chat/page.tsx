@@ -22,15 +22,31 @@ async function sendChat(text: string): Promise<string> {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ text }),
     })
+
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "Unknown error")
+      throw new Error(`Chat API error: ${res.status} - ${errorText}`)
+    }
+
     const data = (await res.json().catch(() => ({}))) as { reply?: string }
     return data.reply ?? ""
-  } catch {
-    return ""
+  } catch (error) {
+    logger.error("chat.send_failed", {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    // Return a user-friendly error message instead of empty string
+    return "Sorry, I couldn't process your message. Please try again."
   }
 }
 // TODO: Expand test coverage for useChatState and related components
 //   Context: Add unit tests for optimistic updates, sidebar refresh logic, and error paths.
 //   labels: area/web, feature/chat, type/tests
+//   assignees: omzification
+//   milestone: 0.0.1
+
+// TODO: Refactor to use useReducer for better state management
+//   Context: Consolidate multiple useState calls into a single reducer for better performance and maintainability.
+//   labels: area/web, feature/chat, type/refactor
 //   assignees: omzification
 //   milestone: 0.0.1
 

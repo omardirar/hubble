@@ -16,6 +16,12 @@ export function useChatList(storageKey: string = "chat_sessions") {
     initializeWithValue: false,
   })
 
+  // TODO: Add session persistence and sync across tabs
+  //   Context: Implement cross-tab synchronization for chat sessions using storage events.
+  //   labels: area/ui, feature/chat, type/enhancement
+  //   assignees: omzification
+  //   milestone: 0.0.1
+
   const addSession = React.useCallback(
     (title: string) => {
       const id = generateId()

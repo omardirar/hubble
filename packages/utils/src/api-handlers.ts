@@ -89,8 +89,45 @@ export async function getAuthContext(options: ApiHandlerOptions = {}): Promise<A
 }
 
 /**
+ * Simple in-memory rate limiter
+ * @param key - Unique identifier for the rate limit
+ * @param limit - Maximum number of requests
+ * @param windowMs - Time window in milliseconds
+ * @returns true if request is allowed, false if rate limited
+ */
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
+
+export function checkRateLimit(
+  key: string,
+  limit: number = 100,
+  windowMs: number = 60000, // 1 minute
+): boolean {
+  const now = Date.now()
+  const record = rateLimitMap.get(key)
+
+  if (!record || now > record.resetTime) {
+    // First request or window expired
+    rateLimitMap.set(key, { count: 1, resetTime: now + windowMs })
+    return true
+  }
+
+  if (record.count >= limit) {
+    return false // Rate limited
+  }
+
+  record.count++
+  return true
+}
+
+/**
  * Create a standardized API handler with common patterns
  */
+// TODO: Add generic type parameters for better type safety
+//   Context: Replace 'any' types with proper generic constraints for request/response types.
+//   labels: area/utils, feature/types, type/quality
+//   assignees: omzification
+//   milestone: 0.0.1
+
 export function createApiHandler(
   handler: (request: any, auth: AuthContext | null, logger: Logger) => Promise<any>,
   options: ApiHandlerOptions = {},

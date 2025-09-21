@@ -26,8 +26,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const { conversationId } = await params
 
   return createApiHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async (_req: any, auth, logger) => {
+    async (_req: NextRequest, auth, logger) => {
       logger.info("Fetching messages", {
         userId: auth!.userId,
         conversationId,
@@ -74,8 +73,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const { conversationId } = await params
 
   return createApiHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async (req: any, auth, logger) => {
+    async (req: NextRequest, auth, logger) => {
       // Parse and validate request body
       const {
         text,
