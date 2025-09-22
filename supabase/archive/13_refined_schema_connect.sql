@@ -31,7 +31,7 @@ END$$;
 -- Connect Tables
 -- =============================================================================
 
--- Data destinations table (renamed from tenant_destinations)
+-- Data destinations table
 CREATE TABLE IF NOT EXISTS connect.data_destinations (
   id                      uuid primary key default extensions.gen_random_uuid(),
   org_id                  text not null references core.organizations(org_id) on delete cascade,
@@ -42,7 +42,9 @@ CREATE TABLE IF NOT EXISTS connect.data_destinations (
   last_event_at           timestamptz,
   created_at              timestamptz not null default now(),
   updated_at              timestamptz not null default now(),
-  CONSTRAINT uq_data_destinations_per_org UNIQUE (org_id) DEFERRABLE INITIALLY IMMEDIATE
+  CONSTRAINT uq_data_destinations_per_org UNIQUE (org_id) DEFERRABLE INITIALLY IMMEDIATE,
+  CONSTRAINT chk_data_destinations_md_db_name_format CHECK (md_db_name ~ '^md_[a-z0-9_-]+$'),
+  CONSTRAINT chk_data_destinations_md_token_ref_nonempty CHECK (length(md_token_ref) > 0)
 );
 
 -- Create indexes
@@ -55,7 +57,7 @@ CREATE TRIGGER trg_data_destinations_set_updated_at
 BEFORE UPDATE ON connect.data_destinations
 FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- Data connections table (renamed from connections)
+-- Data connections table
 CREATE TABLE IF NOT EXISTS connect.data_connections (
   id                      uuid primary key default extensions.gen_random_uuid(),
   org_id                  text not null references core.organizations(org_id) on delete cascade,
@@ -65,7 +67,8 @@ CREATE TABLE IF NOT EXISTS connect.data_connections (
   status                  connect.connection_status_t not null default 'not_configured',
   created_at              timestamptz not null default now(),
   updated_at              timestamptz not null default now(),
-  CONSTRAINT uq_data_connections_per_source UNIQUE (org_id, source_type) DEFERRABLE INITIALLY IMMEDIATE
+  CONSTRAINT uq_data_connections_per_source UNIQUE (org_id, source_type) DEFERRABLE INITIALLY IMMEDIATE,
+  CONSTRAINT chk_data_connections_schema_name_nonempty CHECK (schema_name IS NULL OR length(schema_name) > 0)
 );
 
 -- Create indexes
@@ -105,50 +108,6 @@ ALTER TABLE connect.data_connections
 -- Validate foreign key constraint
 ALTER TABLE connect.data_connections VALIDATE CONSTRAINT fk_data_connections_source_type;
 
--- =============================================================================
--- Constraints
--- =============================================================================
-
--- Data destinations constraints
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'chk_data_destinations_md_db_name_format'
-    AND conrelid = 'connect.data_destinations'::regclass
-  ) THEN
-    ALTER TABLE connect.data_destinations
-      ADD CONSTRAINT chk_data_destinations_md_db_name_format
-      CHECK (md_db_name ~ '^md_[a-z0-9_-]+$');
-  END IF;
-END$$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'chk_data_destinations_md_token_ref_nonempty'
-    AND conrelid = 'connect.data_destinations'::regclass
-  ) THEN
-    ALTER TABLE connect.data_destinations
-      ADD CONSTRAINT chk_data_destinations_md_token_ref_nonempty
-      CHECK (length(md_token_ref) > 0);
-  END IF;
-END$$;
-
--- Data connections constraints
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'chk_data_connections_schema_name_nonempty'
-    AND conrelid = 'connect.data_connections'::regclass
-  ) THEN
-    ALTER TABLE connect.data_connections
-      ADD CONSTRAINT chk_data_connections_schema_name_nonempty
-      CHECK (schema_name IS NULL OR length(schema_name) > 0);
-  END IF;
-END$$;
 
 -- =============================================================================
 -- RLS Policies

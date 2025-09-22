@@ -8,54 +8,20 @@
 -- Migrate Organizations Data
 -- =============================================================================
 
--- Migrate from public.tenants to core.organizations (if source table exists)
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tenants') THEN
-    INSERT INTO core.organizations (org_id, slug, status, created_at, updated_at)
-    SELECT
-      org_id,
-      slug,
-      status::core.organization_status_t,
-      created_at,
-      updated_at
-    FROM public.tenants
-    WHERE NOT EXISTS (
-      SELECT 1 FROM core.organizations c
-      WHERE c.org_id = public.tenants.org_id
-    )
-    ON CONFLICT (org_id) DO UPDATE SET
-      slug = EXCLUDED.slug,
-      status = EXCLUDED.status,
-      updated_at = EXCLUDED.updated_at;
-  END IF;
-END$$;
-
--- Migrate from public.tenant_provisioning to core.organizations (if different)
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tenant_provisioning') THEN
-    INSERT INTO core.organizations (org_id, slug, status, created_at, updated_at)
-    SELECT
-      org_id,
-      slug,
-      CASE
-        WHEN status = 'running' THEN 'provisioning'::core.organization_status_t
-        ELSE status::core.organization_status_t
-      END,
-      created_at,
-      updated_at
-    FROM public.tenant_provisioning
-    WHERE NOT EXISTS (
-      SELECT 1 FROM core.organizations c
-      WHERE c.org_id = public.tenant_provisioning.org_id
-    )
-    ON CONFLICT (org_id) DO UPDATE SET
-      slug = EXCLUDED.slug,
-      status = EXCLUDED.status,
-      updated_at = EXCLUDED.updated_at;
-  END IF;
-END$$;
+-- Migrate from public.tenants to core.organizations
+INSERT INTO core.organizations (org_id, slug, status, created_at, updated_at)
+SELECT
+  org_id,
+  slug,
+  status::core.organization_status_t,
+  created_at,
+  updated_at
+FROM public.tenants
+WHERE EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tenants')
+ON CONFLICT (org_id) DO UPDATE SET
+  slug = EXCLUDED.slug,
+  status = EXCLUDED.status,
+  updated_at = EXCLUDED.updated_at;
 
 -- =============================================================================
 -- Migrate Provisioning Workflows Data

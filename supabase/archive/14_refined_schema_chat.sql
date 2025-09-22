@@ -2,7 +2,7 @@
 -- Refined Schema: Chat and Messaging Features
 -- =============================================================================
 -- This migration creates the chat schema with improved table names and organization
--- for chat and messaging features.
+-- for chat and messaging features. Also creates public schema tables for Supabase client compatibility.
 
 -- Create chat schema
 CREATE SCHEMA IF NOT EXISTS chat;
@@ -454,3 +454,218 @@ COMMENT ON COLUMN chat.messages.tool_name IS 'Tool name used (if any)';
 COMMENT ON COLUMN chat.messages.tool_call_id IS 'Tool call id (if any)';
 COMMENT ON COLUMN chat.messages.error IS 'Error text if generation failed';
 COMMENT ON COLUMN chat.messages.idempotency_key IS 'Idempotency key for retries';
+
+-- =============================================================================
+-- Public Schema Tables for Supabase Client Compatibility
+-- =============================================================================
+-- Create tables in public schema to make them accessible via Supabase JavaScript client
+
+-- Create conversations table in public schema
+CREATE TABLE IF NOT EXISTS public.conversations (
+  id             uuid primary key default extensions.gen_random_uuid(),
+  org_id         text not null references core.organizations(org_id) on delete cascade,
+  owner_user_id  text not null,
+  title          text,
+  status         text not null default 'active' check (status in ('active','archived')),
+  archived_at    timestamptz,
+  model          text,
+  system_prompt  text,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+
+-- Create messages table in public schema
+CREATE TABLE IF NOT EXISTS public.messages (
+  id               uuid primary key default extensions.gen_random_uuid(),
+  conversation_id  uuid not null references public.conversations(id) on delete cascade,
+  org_id           text not null,
+  owner_user_id    text not null,
+  author_user_id   text,
+  role             text not null check (role in ('user','assistant','system','tool','function')),
+  content          jsonb not null default '{}'::jsonb,
+  text_content     text generated always as (
+    case
+      when jsonb_typeof(content) = 'string' then trim(both '"' from content::text)
+      when content ? 'text' then content->>'text'
+      else null
+    end
+  ) stored,
+  model            text,
+  tool_name        text,
+  tool_call_id     text,
+  error            text,
+  idempotency_key  text,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+
+-- Create indexes for public schema tables
+CREATE INDEX IF NOT EXISTS idx_public_conversations_org ON public.conversations (org_id, created_at desc);
+CREATE INDEX IF NOT EXISTS idx_public_conversations_owner ON public.conversations (owner_user_id);
+CREATE INDEX IF NOT EXISTS idx_public_conversations_org_updated ON public.conversations (org_id, updated_at desc);
+CREATE INDEX IF NOT EXISTS idx_public_conversations_org_owner_updated ON public.conversations (org_id, owner_user_id, updated_at desc);
+CREATE INDEX IF NOT EXISTS idx_public_conversations_org_updated_active ON public.conversations (org_id, updated_at desc)
+  WHERE archived_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_public_messages_conversation ON public.messages (conversation_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_public_messages_org ON public.messages (org_id);
+CREATE INDEX IF NOT EXISTS idx_public_messages_org_owner_created ON public.messages (org_id, owner_user_id, created_at asc);
+CREATE INDEX IF NOT EXISTS idx_public_messages_conversation_created_ok ON public.messages (conversation_id, created_at asc)
+  WHERE error IS NULL;
+CREATE INDEX IF NOT EXISTS idx_public_messages_org_role_time ON public.messages (org_id, role, created_at desc);
+
+-- Unique index for idempotency
+CREATE UNIQUE INDEX IF NOT EXISTS uq_public_messages_conversation_idempotency
+  ON public.messages (conversation_id, idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
+
+-- Updated_at triggers for public schema tables
+DROP TRIGGER IF EXISTS trg_public_conversations_set_updated_at ON public.conversations;
+CREATE TRIGGER trg_public_conversations_set_updated_at
+BEFORE UPDATE ON public.conversations
+FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_public_messages_set_updated_at ON public.messages;
+CREATE TRIGGER trg_public_messages_set_updated_at
+BEFORE UPDATE ON public.messages
+FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- =============================================================================
+-- RLS Policies for Public Schema Tables
+-- =============================================================================
+
+ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+
+-- Conversations policies
+DROP POLICY IF EXISTS public_conversations_select_own ON public.conversations;
+CREATE POLICY public_conversations_select_own
+ON public.conversations
+FOR SELECT
+USING (
+  owner_user_id = (SELECT public.jwt_claim('sub'))
+  AND org_id = (SELECT public.jwt_claim('org_id'))
+);
+
+DROP POLICY IF EXISTS public_conversations_insert_self ON public.conversations;
+CREATE POLICY public_conversations_insert_self
+ON public.conversations
+FOR INSERT
+WITH CHECK (
+  owner_user_id = (SELECT public.jwt_claim('sub'))
+  AND org_id = (SELECT public.jwt_claim('org_id'))
+);
+
+DROP POLICY IF EXISTS public_conversations_update_own ON public.conversations;
+CREATE POLICY public_conversations_update_own
+ON public.conversations
+FOR UPDATE
+USING (
+  owner_user_id = (SELECT public.jwt_claim('sub'))
+  AND org_id = (SELECT public.jwt_claim('org_id'))
+)
+WITH CHECK (
+  owner_user_id = (SELECT public.jwt_claim('sub'))
+  AND org_id = (SELECT public.jwt_claim('org_id'))
+);
+
+DROP POLICY IF EXISTS public_conversations_delete_own ON public.conversations;
+CREATE POLICY public_conversations_delete_own
+ON public.conversations
+FOR DELETE
+USING (
+  owner_user_id = (SELECT public.jwt_claim('sub'))
+  AND org_id = (SELECT public.jwt_claim('org_id'))
+);
+
+-- Messages policies
+DROP POLICY IF EXISTS public_messages_select_own ON public.messages;
+CREATE POLICY public_messages_select_own
+ON public.messages
+FOR SELECT
+USING (
+  owner_user_id = (SELECT public.jwt_claim('sub'))
+  AND org_id = (SELECT public.jwt_claim('org_id'))
+  AND EXISTS (
+    SELECT 1
+    FROM public.conversations c
+    WHERE c.id = public.messages.conversation_id
+      AND c.owner_user_id = (SELECT public.jwt_claim('sub'))
+      AND c.org_id = (SELECT public.jwt_claim('org_id'))
+  )
+);
+
+DROP POLICY IF EXISTS public_messages_insert_own ON public.messages;
+CREATE POLICY public_messages_insert_own
+ON public.messages
+FOR INSERT
+WITH CHECK (
+  EXISTS (
+    SELECT 1
+    FROM public.conversations c
+    WHERE c.id = conversation_id
+      AND c.owner_user_id = (SELECT public.jwt_claim('sub'))
+      AND c.org_id = (SELECT public.jwt_claim('org_id'))
+  )
+);
+
+DROP POLICY IF EXISTS public_messages_update_own ON public.messages;
+CREATE POLICY public_messages_update_own
+ON public.messages
+FOR UPDATE
+USING (
+  owner_user_id = (SELECT public.jwt_claim('sub'))
+  AND org_id = (SELECT public.jwt_claim('org_id'))
+  AND EXISTS (
+    SELECT 1
+    FROM public.conversations c
+    WHERE c.id = public.messages.conversation_id
+      AND c.owner_user_id = (SELECT public.jwt_claim('sub'))
+      AND c.org_id = (SELECT public.jwt_claim('org_id'))
+  )
+)
+WITH CHECK (
+  owner_user_id = (SELECT public.jwt_claim('sub'))
+  AND org_id = (SELECT public.jwt_claim('org_id'))
+);
+
+DROP POLICY IF EXISTS public_messages_delete_own ON public.messages;
+CREATE POLICY public_messages_delete_own
+ON public.messages
+FOR DELETE
+USING (
+  owner_user_id = (SELECT public.jwt_claim('sub'))
+  AND org_id = (SELECT public.jwt_claim('org_id'))
+  AND EXISTS (
+    SELECT 1
+    FROM public.conversations c
+    WHERE c.id = public.messages.conversation_id
+      AND c.owner_user_id = (SELECT public.jwt_claim('sub'))
+      AND c.org_id = (SELECT public.jwt_claim('org_id'))
+  )
+);
+
+-- =============================================================================
+-- Permissions for Public Schema Tables
+-- =============================================================================
+
+-- Grant permissions to authenticated users
+GRANT SELECT ON TABLE public.conversations TO authenticated;
+GRANT INSERT ON TABLE public.conversations TO authenticated;
+GRANT UPDATE ON TABLE public.conversations TO authenticated;
+GRANT DELETE ON TABLE public.conversations TO authenticated;
+GRANT SELECT ON TABLE public.messages TO authenticated;
+GRANT INSERT ON TABLE public.messages TO authenticated;
+GRANT UPDATE ON TABLE public.messages TO authenticated;
+GRANT DELETE ON TABLE public.messages TO authenticated;
+
+-- Grant permissions to service_role
+GRANT ALL ON TABLE public.conversations TO service_role;
+GRANT ALL ON TABLE public.messages TO service_role;
+
+-- =============================================================================
+-- Comments for Public Schema Tables
+-- =============================================================================
+
+COMMENT ON TABLE public.conversations IS 'Chat conversations per organization and user (public schema for Supabase client)';
+COMMENT ON TABLE public.messages IS 'Chat messages within conversations (public schema for Supabase client)';

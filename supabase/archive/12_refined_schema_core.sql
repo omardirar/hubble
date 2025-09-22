@@ -8,6 +8,31 @@
 CREATE SCHEMA IF NOT EXISTS core;
 
 -- =============================================================================
+-- Essential Utility Functions
+-- =============================================================================
+
+-- Create set_updated_at function if it doesn't exist
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+-- Create block_update_delete function if it doesn't exist
+CREATE OR REPLACE FUNCTION public.block_update_delete()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RAISE EXCEPTION 'Updates and deletes are not allowed on this table';
+END;
+$$;
+
+-- =============================================================================
 -- Core Types
 -- =============================================================================
 
@@ -31,18 +56,21 @@ END$$;
 -- Core Tables
 -- =============================================================================
 
--- Organizations table (renamed from tenants)
+-- Organizations table
 CREATE TABLE IF NOT EXISTS core.organizations (
   org_id     text primary key,
   slug       text unique not null,
   status     core.organization_status_t not null default 'provisioning',
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  CONSTRAINT chk_organizations_org_id_format CHECK (org_id ~ '^org_[a-zA-Z0-9]+$'),
+  CONSTRAINT chk_organizations_slug_format CHECK (slug ~ '^[a-z0-9-]+$' AND length(slug) >= 3)
 );
 
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_organizations_slug_lower ON core.organizations (lower(slug));
 CREATE INDEX IF NOT EXISTS idx_organizations_status ON core.organizations (status);
+CREATE INDEX IF NOT EXISTS idx_organizations_created_at ON core.organizations (created_at desc);
 
 -- Slug update prevention trigger
 CREATE OR REPLACE FUNCTION core.block_slug_update()
@@ -69,7 +97,7 @@ CREATE TRIGGER trg_organizations_set_updated_at
 BEFORE UPDATE ON core.organizations
 FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- Provisioning workflows table (renamed from provisioning_runs)
+-- Provisioning workflows table
 CREATE TABLE IF NOT EXISTS core.provisioning_workflows (
   correlation_id          text primary key default (extensions.gen_random_uuid())::text,
   org_id                  text not null references core.organizations(org_id) on delete cascade,
@@ -82,7 +110,11 @@ CREATE TABLE IF NOT EXISTS core.provisioning_workflows (
   started_at              timestamptz not null default now(),
   finished_at             timestamptz,
   created_at              timestamptz not null default now(),
-  updated_at              timestamptz not null default now()
+  updated_at              timestamptz not null default now(),
+  CONSTRAINT chk_provisioning_workflows_correlation_id_format CHECK (correlation_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'),
+  CONSTRAINT chk_provisioning_workflows_md_db_name_format CHECK (md_db_name IS NULL OR md_db_name ~ '^md_[a-z0-9_-]+$'),
+  CONSTRAINT chk_provisioning_workflows_finished_after_started CHECK (finished_at IS NULL OR finished_at >= started_at),
+  CONSTRAINT chk_provisioning_workflows_metadata_object CHECK (jsonb_typeof(metadata) = 'object')
 );
 
 -- Create indexes
@@ -97,32 +129,21 @@ CREATE TRIGGER trg_provisioning_workflows_set_updated_at
 BEFORE UPDATE ON core.provisioning_workflows
 FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- Organization quotas table (renamed from tenant_quotas)
+-- Organization quotas table
 CREATE TABLE IF NOT EXISTS core.organization_quotas (
   org_id               text primary key references core.organizations(org_id) on delete cascade,
   max_connectors       integer,
-  max_storage_gb_est   numeric,
+  max_storage_gb_est   numeric(10,2),
   max_daily_rows       bigint,
   max_query_runtime_ms integer,
-  updated_at           timestamptz not null default now()
+  updated_at           timestamptz not null default now(),
+  CONSTRAINT chk_organization_quotas_positive CHECK (
+    (max_connectors IS NULL OR max_connectors > 0) AND
+    (max_storage_gb_est IS NULL OR max_storage_gb_est > 0) AND
+    (max_daily_rows IS NULL OR max_daily_rows > 0) AND
+    (max_query_runtime_ms IS NULL OR max_query_runtime_ms > 0)
+  )
 );
-
--- Ensure quotas are positive
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'chk_organization_quotas_positive'
-    AND conrelid = 'core.organization_quotas'::regclass
-  ) THEN
-    ALTER TABLE core.organization_quotas
-      ADD CONSTRAINT chk_organization_quotas_positive CHECK (
-        (max_connectors IS NULL OR max_connectors > 0) AND
-        (max_storage_gb_est IS NULL OR max_storage_gb_est > 0) AND
-        (max_daily_rows IS NULL OR max_daily_rows > 0)
-      );
-  END IF;
-END$$;
 
 -- Updated_at trigger
 DROP TRIGGER IF EXISTS trg_organization_quotas_set_updated_at ON core.organization_quotas;

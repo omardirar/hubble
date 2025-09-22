@@ -11,7 +11,7 @@ CREATE SCHEMA IF NOT EXISTS system;
 -- System Tables
 -- =============================================================================
 
--- Audit events table (renamed from events)
+-- Audit events table
 CREATE TABLE IF NOT EXISTS system.audit_events (
   id             bigserial primary key,
   event_seq      bigint not null,
@@ -21,7 +21,10 @@ CREATE TABLE IF NOT EXISTS system.audit_events (
   correlation_id text,
   payload        jsonb not null default '{}'::jsonb,
   created_at     timestamptz not null default now(),
-  created_on     date not null default (now() at time zone 'UTC')::date
+  created_on     date not null default (now() at time zone 'UTC')::date,
+  CONSTRAINT chk_audit_events_provider_nonempty CHECK (length(provider) > 0),
+  CONSTRAINT chk_audit_events_type_nonempty CHECK (length(type) > 0),
+  CONSTRAINT chk_audit_events_payload_object CHECK (jsonb_typeof(payload) = 'object')
 );
 
 -- Create indexes
@@ -39,42 +42,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_audit_events_vendor_dedupe
   ON system.audit_events (org_id, provider, (payload->>'id'))
   WHERE payload ? 'id';
 
--- Constraints
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'chk_audit_events_provider_nonempty'
-    AND conrelid = 'system.audit_events'::regclass
-  ) THEN
-    ALTER TABLE system.audit_events
-      ADD CONSTRAINT chk_audit_events_provider_nonempty CHECK (length(provider) > 0);
-  END IF;
-END$$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'chk_audit_events_type_nonempty'
-    AND conrelid = 'system.audit_events'::regclass
-  ) THEN
-    ALTER TABLE system.audit_events
-      ADD CONSTRAINT chk_audit_events_type_nonempty CHECK (length(type) > 0);
-  END IF;
-END$$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'chk_audit_events_payload_object'
-    AND conrelid = 'system.audit_events'::regclass
-  ) THEN
-    ALTER TABLE system.audit_events
-      ADD CONSTRAINT chk_audit_events_payload_object CHECK (jsonb_typeof(payload) = 'object');
-  END IF;
-END$$;
 
 -- Block update/delete trigger (append-only)
 DROP TRIGGER IF EXISTS trg_audit_events_block ON system.audit_events;
@@ -130,15 +97,17 @@ CREATE TRIGGER trg_audit_events_set_seq
 BEFORE INSERT ON system.audit_events
 FOR EACH ROW EXECUTE FUNCTION system.set_audit_event_seq();
 
--- Secrets table (renamed from service_secrets)
+-- Secrets table
 CREATE TABLE IF NOT EXISTS system.secrets (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  org_id TEXT NOT NULL REFERENCES core.organizations(org_id) ON DELETE CASCADE,
-  secret_name TEXT NOT NULL,
-  secret_value TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(org_id, secret_name)
+  id           uuid primary key default gen_random_uuid(),
+  org_id       text not null references core.organizations(org_id) on delete cascade,
+  secret_name  text not null,
+  secret_value text not null,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now(),
+  CONSTRAINT uq_system_secrets_org_name UNIQUE (org_id, secret_name),
+  CONSTRAINT chk_system_secrets_secret_name_nonempty CHECK (length(secret_name) > 0),
+  CONSTRAINT chk_system_secrets_secret_value_nonempty CHECK (length(secret_value) > 0)
 );
 
 -- Create indexes
@@ -152,38 +121,28 @@ CREATE TRIGGER trg_system_secrets_set_updated_at
   BEFORE UPDATE ON system.secrets
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- Idempotency keys table (renamed from idempotency_keys)
+-- Idempotency keys table
 CREATE TABLE IF NOT EXISTS system.idempotency_keys (
   key           text primary key,
   org_id        text not null references core.organizations(org_id) on delete cascade,
   first_seen_at timestamptz not null default now(),
-  last_result   jsonb
+  last_result   jsonb,
+  CONSTRAINT chk_system_idempotency_nonempty CHECK (length(key) > 0),
+  CONSTRAINT chk_system_idempotency_last_result_object CHECK (last_result IS NULL OR jsonb_typeof(last_result) = 'object')
 );
 
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_system_idempotency_org ON system.idempotency_keys (org_id);
 CREATE INDEX IF NOT EXISTS idx_system_idempotency_first_seen ON system.idempotency_keys (first_seen_at desc);
 
--- Constraints
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'chk_system_idempotency_nonempty'
-    AND conrelid = 'system.idempotency_keys'::regclass
-  ) THEN
-    ALTER TABLE system.idempotency_keys
-      ADD CONSTRAINT chk_system_idempotency_nonempty CHECK (length(key) > 0);
-  END IF;
-END$$;
-
--- Rate limits table (renamed from rate_limits)
+-- Rate limits table
 CREATE TABLE IF NOT EXISTS system.rate_limits (
-  user_id text,
-  action text,
-  window_start timestamptz,
-  count int,
-  primary key (user_id, action, window_start)
+  user_id      text not null,
+  action       text not null,
+  window_start timestamptz not null,
+  count        integer not null default 0,
+  CONSTRAINT pk_system_rate_limits PRIMARY KEY (user_id, action, window_start),
+  CONSTRAINT chk_system_rate_limits_count_nonnegative CHECK (count >= 0)
 );
 
 -- =============================================================================
