@@ -129,10 +129,96 @@ EXCEPTION
 END $$;
 
 -- =============================================================================
--- Note: Views inherit permissions from underlying tables
+-- View Permissions (Required for Supabase Client Access)
 -- =============================================================================
--- Views automatically inherit permissions from their underlying tables.
--- No need to grant permissions on views directly.
+-- Views need explicit permissions even though they inherit from underlying tables.
+
+-- Organizations view permissions
+DO $$ BEGIN
+  GRANT SELECT ON TABLE public.organizations TO authenticated;
+  GRANT INSERT ON TABLE public.organizations TO authenticated;
+  GRANT UPDATE ON TABLE public.organizations TO authenticated;
+  GRANT ALL ON TABLE public.organizations TO service_role;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
+
+-- Provisioning workflows view permissions
+DO $$ BEGIN
+  GRANT SELECT ON TABLE public.provisioning_workflows TO authenticated;
+  GRANT INSERT ON TABLE public.provisioning_workflows TO authenticated;
+  GRANT UPDATE ON TABLE public.provisioning_workflows TO authenticated;
+  GRANT DELETE ON TABLE public.provisioning_workflows TO authenticated;
+  GRANT ALL ON TABLE public.provisioning_workflows TO service_role;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
+
+-- Organization quotas view permissions
+DO $$ BEGIN
+  GRANT SELECT ON TABLE public.organization_quotas TO authenticated;
+  GRANT ALL ON TABLE public.organization_quotas TO service_role;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
+
+-- Data destinations view permissions
+DO $$ BEGIN
+  GRANT SELECT ON TABLE public.data_destinations TO authenticated;
+  GRANT ALL ON TABLE public.data_destinations TO service_role;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
+
+-- Data connections view permissions
+DO $$ BEGIN
+  GRANT SELECT ON TABLE public.data_connections TO authenticated;
+  GRANT INSERT ON TABLE public.data_connections TO authenticated;
+  GRANT UPDATE ON TABLE public.data_connections TO authenticated;
+  GRANT DELETE ON TABLE public.data_connections TO authenticated;
+  GRANT ALL ON TABLE public.data_connections TO service_role;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
+
+-- Connector types view permissions
+DO $$ BEGIN
+  GRANT SELECT ON TABLE public.connector_types TO authenticated;
+  GRANT ALL ON TABLE public.connector_types TO service_role;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
+
+-- Audit events view permissions
+DO $$ BEGIN
+  GRANT SELECT ON TABLE public.audit_events TO authenticated;
+  GRANT INSERT ON TABLE public.audit_events TO authenticated;
+  GRANT ALL ON TABLE public.audit_events TO service_role;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
+
+-- Secrets view permissions (service role only)
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.secrets TO service_role;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
+
+-- Idempotency keys view permissions
+DO $$ BEGIN
+  GRANT SELECT ON TABLE public.idempotency_keys TO authenticated;
+  GRANT ALL ON TABLE public.idempotency_keys TO service_role;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
+
+-- Rate limits view permissions (service role only)
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.rate_limits TO service_role;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
 
 -- =============================================================================
 -- Chat Table Permissions

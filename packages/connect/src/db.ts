@@ -248,12 +248,6 @@ export async function updateTenantProvisioningStatus(
     updated_at: new Date().toISOString(),
   }
 
-  if (errorMessage) {
-    updates.metadata = {
-      error_message: errorMessage,
-    }
-  }
-
   const { error } = await db.from("organizations").update(updates).eq("org_id", orgId)
 
   if (error) {
@@ -261,6 +255,7 @@ export async function updateTenantProvisioningStatus(
       org_id: orgId,
       status,
       error: error.message,
+      errorMessage,
     })
     throw error
   }
@@ -268,6 +263,7 @@ export async function updateTenantProvisioningStatus(
   logger.info("connect.db.update_tenant_provisioning_status_success", {
     org_id: orgId,
     status,
+    errorMessage,
   })
 }
 

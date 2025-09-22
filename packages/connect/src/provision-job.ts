@@ -236,7 +236,7 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     let tokenFromSecrets = false
 
     try {
-      const { data: existingToken } = await db.rpc("get_service_secret", {
+      const { data: existingToken } = await db.rpc("get_secret", {
         p_org_id: orgId,
         p_secret_name: "md_sa_token",
       })
@@ -275,7 +275,7 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
       })
 
       try {
-        await db.rpc("set_service_secret", {
+        await db.rpc("set_secret", {
           p_org_id: orgId,
           p_secret_name: "md_sa_token",
           p_secret_value: token,
@@ -313,7 +313,7 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     // Retrieve the actual token from secrets table for Fivetran
     let actualToken: string
     try {
-      const { data: secretsToken } = await db.rpc("get_service_secret", {
+      const { data: secretsToken } = await db.rpc("get_secret", {
         p_org_id: orgId,
         p_secret_name: "md_sa_token",
       })
