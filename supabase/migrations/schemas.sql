@@ -122,7 +122,7 @@ CREATE TABLE IF NOT EXISTS core.provisioning_workflows (
   CONSTRAINT chk_provisioning_workflows_correlation_id_format
     CHECK (correlation_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'),
   CONSTRAINT chk_provisioning_workflows_md_db_name_format
-    CHECK (md_db_name IS NULL OR md_db_name ~ '^md_[a-z0-9_-]+$'),
+    CHECK (md_db_name IS NULL OR md_db_name ~ '^md_[a-zA-Z0-9_-]+$'),
   CONSTRAINT chk_provisioning_workflows_finished_after_started
     CHECK (finished_at IS NULL OR finished_at >= started_at),
   CONSTRAINT chk_provisioning_workflows_metadata_object
@@ -166,7 +166,7 @@ CREATE TABLE IF NOT EXISTS connect.data_destinations (
   -- Constraints
   CONSTRAINT uq_data_destinations_per_org UNIQUE (org_id) DEFERRABLE INITIALLY IMMEDIATE,
   CONSTRAINT chk_data_destinations_md_db_name_format
-    CHECK (md_db_name ~ '^md_[a-z0-9_-]+$'),
+    CHECK (md_db_name ~ '^md_[a-zA-Z0-9_-]+$'),
   CONSTRAINT chk_data_destinations_md_token_ref_nonempty
     CHECK (length(md_token_ref) > 0)
 );

@@ -38,6 +38,7 @@ export async function publishJson<TBody = unknown>(
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
         "Upstash-Method": method,
+        "Upstash-Retries": "0", // Disable retries
         ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET
           ? {
               "Upstash-Forward-x-vercel-protection-bypass":
