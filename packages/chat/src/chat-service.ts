@@ -9,15 +9,7 @@ import { apiFetch, generateId } from "@hubble/core"
 import { logger } from "@hubble/logger"
 import { validateChatRequest, validateChatResponse } from "@hubble/schemas/chat"
 import type { ChatMessage } from "./chat"
-
-/**
- * Conversation interface
- */
-export interface Conversation {
-  id: string
-  title: string
-  updated_at?: string
-}
+import type { Conversation } from "./db"
 
 /**
  * Chat service class for managing chat operations

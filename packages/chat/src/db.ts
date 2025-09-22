@@ -1,14 +1,12 @@
 /**
- * Database Operations Utilities
+ * Chat Database Operations
  *
- * This module provides common database operations with proper error handling
- * and validation for the Hubble application.
+ * This module provides database operations specifically for chat functionality
+ * including conversations and messages with proper error handling and validation.
  */
 
 import { createBrowserClient } from "@hubble/db"
 import { logger } from "@hubble/logger"
-import { ApiErrorCodes } from "@hubble/core"
-import { NextResponse } from "next/server"
 
 type Logger = ReturnType<typeof logger.child>
 
@@ -52,7 +50,7 @@ export async function getConversations(
   requestLogger: Logger,
 ): Promise<ConversationSummary[]> {
   const { data, error } = await supabase
-    .from("chat.conversations")
+    .from("conversations")
     .select("id,title,updated_at,archived_at")
     .is("archived_at", null)
     .order("updated_at", { ascending: false })
@@ -76,7 +74,7 @@ export async function createConversation(
   requestLogger: Logger,
 ): Promise<Conversation> {
   const { data, error } = await supabase
-    .from("chat.conversations")
+    .from("conversations")
     .insert({
       title,
       owner_user_id: userId,
@@ -103,7 +101,7 @@ export async function updateConversation(
   requestLogger: Logger,
 ): Promise<Conversation> {
   const { data, error } = await supabase
-    .from("chat.conversations")
+    .from("conversations")
     .update(updates)
     .eq("id", id)
     .select()
@@ -131,7 +129,7 @@ export async function getMessages(
   requestLogger: Logger,
 ): Promise<Message[]> {
   const { data, error } = await supabase
-    .from("chat.messages")
+    .from("messages")
     .select(
       "id, conversation_id, content, role, model, tool_name, tool_call_id, error, idempotency_key, created_at, updated_at",
     )
@@ -158,7 +156,7 @@ export async function createMessage(
   requestLogger: Logger,
 ): Promise<Message> {
   const { data, error } = await supabase
-    .from("chat.messages")
+    .from("messages")
     .insert({
       conversation_id: conversationId,
       content: { text },
@@ -188,7 +186,7 @@ export async function findExistingMessage(
   requestLogger: Logger,
 ): Promise<Message | null> {
   const { data } = await supabase
-    .from("chat.messages")
+    .from("messages")
     .select(
       "id, conversation_id, content, role, model, tool_name, tool_call_id, error, idempotency_key, created_at, updated_at",
     )
@@ -208,7 +206,7 @@ export async function verifyConversationAccess(
   requestLogger: Logger,
 ): Promise<boolean> {
   const { data, error } = await supabase
-    .from("chat.conversations")
+    .from("conversations")
     .select("id")
     .eq("id", conversationId)
     .single()
@@ -223,6 +221,6 @@ export async function verifyConversationAccess(
 
 // TODO: Add caching for conversation access verification
 //   Context: Implement Redis-based caching for conversation access checks to reduce database load.
-//   labels: area/utils, feature/performance, type/enhancement
+//   labels: area/chat, feature/performance, type/enhancement
 //   assignees: omzification
 //   milestone: 0.0.1

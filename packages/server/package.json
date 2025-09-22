@@ -25,6 +25,7 @@
     "@hubble/logger": "workspace:*",
     "@hubble/infrastructure": "workspace:*",
     "@hubble/connect": "workspace:*",
+    "@hubble/chat": "workspace:*",
     "@clerk/nextjs": "^6.31.10",
     "zod": "^3.23.8"
   },

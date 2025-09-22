@@ -11,7 +11,8 @@ import { useState, useCallback, useEffect, useRef } from "react"
 import { toast } from "sonner"
 import { logger } from "@hubble/logger"
 import type { ChatMessage } from "./chat"
-import { ChatService, type Conversation } from "./chat-service"
+import { ChatService } from "./chat-service"
+import type { Conversation } from "./db"
 
 /**
  * Chat state interface

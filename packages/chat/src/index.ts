@@ -8,3 +8,4 @@
 export * from "./chat"
 export * from "./chat-service"
 export * from "./use-chat-state"
+export * from "./db"
