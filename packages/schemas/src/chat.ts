@@ -38,7 +38,6 @@ export const ConversationSummarySchema = z.object({
   title: z.string().nullable(),
   updated_at: z.string(), // Supabase timestamps are ISO strings but not always RFC3339
   archived_at: z.string().nullable(),
-  last_message_text: z.string().nullable(),
 })
 export type ConversationSummary = z.infer<typeof ConversationSummarySchema>
 

@@ -15,7 +15,6 @@ export interface ConversationSummary {
   title: string
   updated_at: string
   archived_at?: string
-  last_message_text?: string
 }
 
 export interface Conversation {
