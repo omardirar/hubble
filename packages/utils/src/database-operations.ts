@@ -52,8 +52,8 @@ export async function getConversations(
   requestLogger: Logger,
 ): Promise<ConversationSummary[]> {
   const { data, error } = await supabase
-    .from("conversation_summaries")
-    .select("id,title,updated_at,archived_at,last_message_text")
+    .from("chat.conversations")
+    .select("id,title,updated_at,archived_at")
     .is("archived_at", null)
     .order("updated_at", { ascending: false })
 
@@ -76,7 +76,7 @@ export async function createConversation(
   requestLogger: Logger,
 ): Promise<Conversation> {
   const { data, error } = await supabase
-    .from("conversations")
+    .from("chat.conversations")
     .insert({
       title,
       owner_user_id: userId,
@@ -103,7 +103,7 @@ export async function updateConversation(
   requestLogger: Logger,
 ): Promise<Conversation> {
   const { data, error } = await supabase
-    .from("conversations")
+    .from("chat.conversations")
     .update(updates)
     .eq("id", id)
     .select()
@@ -131,7 +131,7 @@ export async function getMessages(
   requestLogger: Logger,
 ): Promise<Message[]> {
   const { data, error } = await supabase
-    .from("messages")
+    .from("chat.messages")
     .select(
       "id, conversation_id, content, role, model, tool_name, tool_call_id, error, idempotency_key, created_at, updated_at",
     )
@@ -158,7 +158,7 @@ export async function createMessage(
   requestLogger: Logger,
 ): Promise<Message> {
   const { data, error } = await supabase
-    .from("messages")
+    .from("chat.messages")
     .insert({
       conversation_id: conversationId,
       content: { text },
@@ -188,7 +188,7 @@ export async function findExistingMessage(
   requestLogger: Logger,
 ): Promise<Message | null> {
   const { data } = await supabase
-    .from("messages")
+    .from("chat.messages")
     .select(
       "id, conversation_id, content, role, model, tool_name, tool_call_id, error, idempotency_key, created_at, updated_at",
     )
@@ -208,7 +208,7 @@ export async function verifyConversationAccess(
   requestLogger: Logger,
 ): Promise<boolean> {
   const { data, error } = await supabase
-    .from("conversations")
+    .from("chat.conversations")
     .select("id")
     .eq("id", conversationId)
     .single()

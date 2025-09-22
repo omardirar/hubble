@@ -31,7 +31,7 @@ export type MessageContent = z.infer<typeof MessageContentSchema>
 // =============================================================================
 
 /**
- * Conversation summary as returned by the conversation_summaries view
+ * Conversation summary as returned by the chat.conversations table
  */
 export const ConversationSummarySchema = z.object({
   id: z.string().uuid(),

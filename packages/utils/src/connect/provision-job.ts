@@ -168,7 +168,7 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
     // Check if provisioning is already complete (idempotency)
     try {
       const { data: existingDestination } = await db
-        .from("tenant_destinations")
+        .from("connect.data_destinations")
         .select("fivetran_destination_id, status")
         .eq("org_id", orgId)
         .single()

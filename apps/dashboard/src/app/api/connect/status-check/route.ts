@@ -32,56 +32,53 @@ export async function GET(request: Request) {
         const orgId = auth.orgId
         const supabase = createBrowserClient({ authToken: auth.token })
 
-        // Check tenant provisioning status
-        const { data: tenant, error: tenantError } = await supabase
-          .from("tenant_provisioning")
-          .select("status, updated_at, metadata")
+        // Check organization provisioning status
+        const { data: organization, error: organizationError } = await supabase
+          .from("core.organizations")
+          .select("status, updated_at")
           .eq("org_id", orgId)
           .single()
 
-        if (tenantError) {
-          reqLogger.error("connect.status-check.tenant_query_failed", {
-            error: tenantError.message,
+        if (organizationError) {
+          reqLogger.error("connect.status-check.organization_query_failed", {
+            error: organizationError.message,
             orgId,
           })
           return NextResponse.json(
             {
-              error: { code: "QUERY_FAILED", message: "Failed to check tenant status" },
+              error: { code: "QUERY_FAILED", message: "Failed to check organization status" },
               request_id: reqId,
             },
             { status: 500 },
           )
         }
 
-        if (!tenant) {
-          reqLogger.error("connect.status-check.tenant_not_found", { orgId })
+        if (!organization) {
+          reqLogger.error("connect.status-check.organization_not_found", { orgId })
           return NextResponse.json(
             {
-              error: { code: "TENANT_NOT_FOUND", message: "Tenant not found" },
+              error: { code: "ORGANIZATION_NOT_FOUND", message: "Organization not found" },
               request_id: reqId,
             },
             { status: 404 },
           )
         }
 
-        const status = tenant.status as "running" | "ready" | "failed"
+        const status = organization.status as "provisioning" | "ready" | "suspended" | "failed"
         const isProvisioned = status === "ready"
-        const lastProvisionedAt = tenant.updated_at
-        const errorMessage = tenant.metadata?.error_message
+        const lastProvisionedAt = organization.updated_at
 
         reqLogger.info("connect.status-check.success", {
           orgId,
           status,
           isProvisioned,
           lastProvisionedAt,
-          hasError: !!errorMessage,
         })
 
         return NextResponse.json({
           status,
           isProvisioned,
           lastProvisionedAt,
-          errorMessage,
           request_id: reqId,
         })
       } catch (error) {
