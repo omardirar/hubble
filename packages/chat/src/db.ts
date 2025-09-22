@@ -33,6 +33,7 @@ export interface Message {
   conversation_id: string
   content: { text: string }
   role: string
+  author_user_id?: string
   model?: string
   tool_name?: string
   tool_call_id?: string
@@ -131,7 +132,7 @@ export async function getMessages(
   const { data, error } = await supabase
     .from("messages")
     .select(
-      "id, conversation_id, content, role, model, tool_name, tool_call_id, error, idempotency_key, created_at, updated_at",
+      "id, conversation_id, content, role, author_user_id, model, tool_name, tool_call_id, error, idempotency_key, created_at, updated_at",
     )
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true })
@@ -164,7 +165,7 @@ export async function createMessage(
       idempotency_key: idempotencyKey,
     })
     .select(
-      "id, conversation_id, content, role, model, tool_name, tool_call_id, error, idempotency_key, created_at, updated_at",
+      "id, conversation_id, content, role, author_user_id, model, tool_name, tool_call_id, error, idempotency_key, created_at, updated_at",
     )
     .single()
 
@@ -188,7 +189,7 @@ export async function findExistingMessage(
   const { data } = await supabase
     .from("messages")
     .select(
-      "id, conversation_id, content, role, model, tool_name, tool_call_id, error, idempotency_key, created_at, updated_at",
+      "id, conversation_id, content, role, author_user_id, model, tool_name, tool_call_id, error, idempotency_key, created_at, updated_at",
     )
     .eq("conversation_id", conversationId)
     .eq("idempotency_key", idempotencyKey)

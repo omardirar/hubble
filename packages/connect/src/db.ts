@@ -30,7 +30,7 @@ export async function insertProvisionRun(orgId: string): Promise<{ correlation_i
   }
   // Provisioning runs start in "pending"; returning correlation id ties subsequent steps together.
   const { data, error } = await db
-    .from("connect.provisioning_workflows")
+    .from("core.provisioning_workflows")
     .insert({ org_id: orgId, status: "pending" })
     .select("correlation_id")
     .single()
@@ -71,7 +71,7 @@ export async function updateProvisionRun(
   }
 
   const { error } = await db
-    .from("connect.provisioning_workflows")
+    .from("core.provisioning_workflows")
     .update(filteredUpdates)
     .eq("correlation_id", correlationId)
 
@@ -143,7 +143,7 @@ export async function getStatus(
   // Fetch run metadata and timeline concurrently for minimal round-trips.
   const [runResult, eventsResult] = await Promise.all([
     db
-      .from("connect.provisioning_workflows")
+      .from("core.provisioning_workflows")
       .select("status, md_db_name, fivetran_destination_id, metadata")
       .eq("correlation_id", correlationId)
       .eq("org_id", orgId)

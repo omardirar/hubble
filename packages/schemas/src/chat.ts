@@ -107,6 +107,7 @@ export const MessageSchema = z.object({
   conversation_id: z.string().uuid(),
   org_id: z.string(),
   owner_user_id: z.string(),
+  author_user_id: z.string().nullable(),
   role: MessageRoleSchema,
   content: MessageContentSchema,
   model: z.string().nullable(),
