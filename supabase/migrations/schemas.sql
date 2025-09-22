@@ -380,6 +380,51 @@ EXCEPTION
 END $$;
 
 -- =============================================================================
+-- Views for Supabase Client Compatibility
+-- =============================================================================
+
+-- Create views in public schema for Supabase client access
+CREATE OR REPLACE VIEW public.organizations AS
+SELECT org_id, slug, status, created_at, updated_at
+FROM core.organizations;
+
+CREATE OR REPLACE VIEW public.provisioning_workflows AS
+SELECT correlation_id, org_id, status, md_db_name, md_sa_username, fivetran_destination_id, metadata, error_message, started_at, finished_at, created_at, updated_at
+FROM core.provisioning_workflows;
+
+CREATE OR REPLACE VIEW public.organization_quotas AS
+SELECT org_id, max_connectors, max_storage_gb_est, max_daily_rows, max_query_runtime_ms, updated_at
+FROM core.organization_quotas;
+
+CREATE OR REPLACE VIEW public.data_destinations AS
+SELECT id, org_id, md_db_name, md_token_ref, fivetran_destination_id, status, last_event_at, created_at, updated_at
+FROM connect.data_destinations;
+
+CREATE OR REPLACE VIEW public.data_connections AS
+SELECT id, org_id, source_type, fivetran_connector_id, schema_name, status, created_at, updated_at
+FROM connect.data_connections;
+
+CREATE OR REPLACE VIEW public.connector_types AS
+SELECT code, label
+FROM connect.connector_types;
+
+CREATE OR REPLACE VIEW public.audit_events AS
+SELECT id, event_seq, org_id, provider, type, correlation_id, payload, created_at, created_on
+FROM system.audit_events;
+
+CREATE OR REPLACE VIEW public.secrets AS
+SELECT id, org_id, secret_name, secret_value, created_at, updated_at
+FROM system.secrets;
+
+CREATE OR REPLACE VIEW public.idempotency_keys AS
+SELECT key, org_id, first_seen_at, last_result
+FROM system.idempotency_keys;
+
+CREATE OR REPLACE VIEW public.rate_limits AS
+SELECT user_id, action, window_start, count
+FROM system.rate_limits;
+
+-- =============================================================================
 -- Comments
 -- =============================================================================
 

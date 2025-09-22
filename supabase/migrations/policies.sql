@@ -169,6 +169,13 @@ DROP POLICY IF EXISTS rate_limits_select_none ON system.rate_limits;
 CREATE POLICY rate_limits_select_none ON system.rate_limits FOR SELECT USING (false);
 
 -- =============================================================================
+-- Note: Views inherit RLS from underlying tables
+-- =============================================================================
+-- Views automatically inherit RLS policies from their underlying tables.
+-- No need to enable RLS on views directly.
+
+
+-- =============================================================================
 -- Chat Policies
 -- =============================================================================
 

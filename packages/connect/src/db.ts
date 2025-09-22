@@ -30,7 +30,7 @@ export async function insertProvisionRun(orgId: string): Promise<{ correlation_i
   }
   // Provisioning runs start in "pending"; returning correlation id ties subsequent steps together.
   const { data, error } = await db
-    .from("core.provisioning_workflows")
+    .from("provisioning_workflows")
     .insert({ org_id: orgId, status: "pending" })
     .select("correlation_id")
     .single()
@@ -71,7 +71,7 @@ export async function updateProvisionRun(
   }
 
   const { error } = await db
-    .from("core.provisioning_workflows")
+    .from("provisioning_workflows")
     .update(filteredUpdates)
     .eq("correlation_id", correlationId)
 
@@ -105,7 +105,7 @@ export async function appendEvent(
 
   const payload = { step, status, message }
   const { data, error } = await db
-    .from("system.audit_events")
+    .from("audit_events")
     .insert({
       org_id: orgId,
       provider: "system",
@@ -130,7 +130,7 @@ export async function getStatus(
   const db = useServiceClient ? createServiceClient() : createBrowserClient({ authToken })
 
   const eventsQuery = db
-    .from("system.audit_events")
+    .from("audit_events")
     .select("event_seq, payload, created_at")
     .eq("org_id", orgId)
     .eq("correlation_id", correlationId)
@@ -143,7 +143,7 @@ export async function getStatus(
   // Fetch run metadata and timeline concurrently for minimal round-trips.
   const [runResult, eventsResult] = await Promise.all([
     db
-      .from("core.provisioning_workflows")
+      .from("provisioning_workflows")
       .select("status, md_db_name, fivetran_destination_id, metadata")
       .eq("correlation_id", correlationId)
       .eq("org_id", orgId)
@@ -254,7 +254,7 @@ export async function updateTenantProvisioningStatus(
     }
   }
 
-  const { error } = await db.from("core.organizations").update(updates).eq("org_id", orgId)
+  const { error } = await db.from("organizations").update(updates).eq("org_id", orgId)
 
   if (error) {
     logger.error("connect.db.update_tenant_provisioning_status_failed", {
@@ -278,7 +278,7 @@ export async function upsertTenantDestination(
   fivetranDestinationId: string,
 ): Promise<void> {
   const db = createServiceClient()
-  const { error } = await db.from("connect.data_destinations").upsert(
+  const { error } = await db.from("data_destinations").upsert(
     {
       org_id: orgId,
       md_db_name: mdDbName,

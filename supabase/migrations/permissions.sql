@@ -129,6 +129,12 @@ EXCEPTION
 END $$;
 
 -- =============================================================================
+-- Note: Views inherit permissions from underlying tables
+-- =============================================================================
+-- Views automatically inherit permissions from their underlying tables.
+-- No need to grant permissions on views directly.
+
+-- =============================================================================
 -- Chat Table Permissions
 -- =============================================================================
 

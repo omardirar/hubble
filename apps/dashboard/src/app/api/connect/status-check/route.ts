@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 
         // Check organization provisioning status
         const { data: organization, error: organizationError } = await supabase
-          .from("core.organizations")
+          .from("organizations")
           .select("status, updated_at")
           .eq("org_id", orgId)
           .single()
