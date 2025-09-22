@@ -26,13 +26,15 @@
     "@hubble/infrastructure": "workspace:*",
     "@clerk/nextjs": "^6.31.10",
     "zod": "^3.23.8",
-    "sonner": "^1.4.0"
+    "sonner": "^1.4.0",
+    "react": "^19.0.0"
   },
   "devDependencies": {
     "typescript": "^5.5.0",
     "@hubble/tsconfig": "workspace:*",
     "@hubble/eslint-config": "workspace:*",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0"
   },
   "peerDependencies": {
     "next": ">=15.0.0",
