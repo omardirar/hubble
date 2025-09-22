@@ -577,6 +577,41 @@ CREATE TRIGGER trg_public_messages_set_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 -- =============================================================================
+-- Public Wrapper Functions for Client Access
+-- =============================================================================
+
+-- Public wrapper for get_secret (for service operations)
+CREATE OR REPLACE FUNCTION public.get_secret(
+  p_org_id TEXT,
+  p_secret_name TEXT
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, system
+AS $$
+BEGIN
+  RETURN system.get_secret(p_org_id, p_secret_name);
+END;
+$$;
+
+-- Public wrapper for set_secret (for service operations)
+CREATE OR REPLACE FUNCTION public.set_secret(
+  p_org_id TEXT,
+  p_secret_name TEXT,
+  p_secret_value TEXT
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, system
+AS $$
+BEGIN
+  PERFORM system.set_secret(p_org_id, p_secret_name, p_secret_value);
+END;
+$$;
+
+-- =============================================================================
 -- Function Permissions
 -- =============================================================================
 
@@ -595,6 +630,10 @@ GRANT EXECUTE ON FUNCTION public.debug_jwt() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.ensure_tenant_exists(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_org_from_clerk_mirror(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_append_message(uuid, text, jsonb, text) TO authenticated;
+
+-- Grant execute permissions for public wrapper functions to service_role
+GRANT EXECUTE ON FUNCTION public.get_secret(TEXT, TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.set_secret(TEXT, TEXT, TEXT) TO service_role;
 
 -- Revoke permissions from public
 REVOKE ALL ON FUNCTION system.set_secret(TEXT, TEXT, TEXT) FROM public, anon, authenticated;
