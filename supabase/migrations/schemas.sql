@@ -40,6 +40,15 @@ EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;
 
+-- Ensure 'running' value exists in the enum (for existing databases)
+-- This handles cases where the enum was created without 'running'
+DO $$ BEGIN
+  ALTER TYPE core.organization_status_t ADD VALUE IF NOT EXISTS 'running';
+EXCEPTION
+  WHEN duplicate_object THEN null;
+  WHEN invalid_parameter_value THEN null; -- Value already exists
+END $$;
+
 DO $$ BEGIN
   CREATE TYPE core.provisioning_status_t AS ENUM (
     'pending',

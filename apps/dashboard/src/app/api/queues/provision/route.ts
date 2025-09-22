@@ -4,6 +4,12 @@ import { processProvisionJob } from "@hubble/connect"
 import { validateProvisionJobPayload } from "@hubble/schemas/connect"
 import { generateRequestId } from "@hubble/core"
 
+// TODO: Implement non-retryable errors for QStash
+//   Context: Add support for 489 status code with Upstash-NonRetryable-Error header to prevent retries for known unrecoverable errors like invalid payloads or authentication failures.
+//   labels: area/api, feature/queue, type/enhancement https://upstash.com/docs/qstash/features/retry
+//   assignees: omzification
+//   milestone: 0.0.1
+
 export const runtime = "nodejs"
 
 export async function POST(request: Request) {
