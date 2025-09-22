@@ -2,23 +2,23 @@
  * Hubble Utils Package - Main Export
  *
  * This package provides shared utility functions used across the Hubble application.
- * It includes utilities for HTTP requests, error handling, styling, ID generation,
- * and chat functionality.
+ * It re-exports utilities from the specialized packages for backward compatibility.
  *
- * Modules:
- * - fetch: HTTP request utilities with error handling
- * - errors: Custom error classes and error handling utilities
- * - cn: Class name utility for conditional styling (clsx + tailwind-merge)
- * - id: ID generation utilities (UUID, nanoid, etc.)
- * - chat: Chat-specific utility functions
+ * IMPORTANT: This package only exports client-safe utilities to avoid bundling
+ * server-only code in client-side applications.
  */
+
+// Re-export client-safe utilities only
+export * from "@hubble/core"
+export * from "@hubble/chat"
+export * from "@hubble/types"
+export * from "@hubble/logger"
 
 // Re-export client-safe utilities for backward compatibility
 export * from "./client"
-export * from "./cn"
-export * from "./fetch"
-export * from "./id"
-export * from "@hubble/logger"
-export * from "./chat"
 export * from "./clerk-schema"
-// Server-only modules (qstash/redis/db ops) are available under "@hubble/utils/server"
+
+// Server-only modules are available under "@hubble/server"
+// Connect utilities are available under "@hubble/connect"
+// Note: Use @hubble/server for server-side utilities
+// Note: Use @hubble/connect for connection-related utilities

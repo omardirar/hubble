@@ -5,6 +5,13 @@
  * with appropriate log levels and context information.
  */
 
+// Re-export all logging functionality
+export * from "./structured-logger"
+export * from "./specialized-loggers"
+export * from "./middleware-logger"
+export * from "./config"
+
+// Legacy logger for backward compatibility
 type LogLevel = "debug" | "info" | "warn" | "error"
 type LogContext = Record<string, any>
 
@@ -101,7 +108,8 @@ function log(level: LogLevel, message: string, context?: LogContext, error?: Err
 }
 
 /**
- * Logger interface with convenience methods
+ * Legacy logger interface for backward compatibility
+ * @deprecated Use structuredLogger or specialized loggers instead
  */
 export const logger = {
   debug: (message: string, context?: LogContext) => log("debug", message, context),
@@ -126,7 +134,8 @@ export const logger = {
 }
 
 /**
- * Request logging middleware
+ * Legacy request logging middleware
+ * @deprecated Use withComprehensiveLogging from middleware-logger instead
  */
 export function withRequestLogging(handler: (req: any, res: any) => Promise<void>) {
   return async (req: any, res: any) => {

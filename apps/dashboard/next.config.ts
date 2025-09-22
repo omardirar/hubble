@@ -30,10 +30,14 @@ const nextConfig: NextConfig = {
   transpilePackages: [
     "@hubble/ui", // UI components package
     "@hubble/utils", // Utility functions package
-    "@hubble/env", // Environment management package
+    "@hubble/config", // Configuration management package
     "@hubble/db", // Database client package
-    "@hubble/api-contracts", // API contract definitions
+    "@hubble/schemas", // Schema definitions
     "@hubble/auth", // Authentication utilities
+    "@hubble/core", // Core utilities
+    "@hubble/chat", // Chat utilities
+    "@hubble/types", // Type definitions
+    // Note: @hubble/connect, @hubble/server, and @hubble/infrastructure are server-only
   ],
 
   // Webpack configuration to externalize native dependencies

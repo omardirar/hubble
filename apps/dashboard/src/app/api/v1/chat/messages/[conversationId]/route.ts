@@ -15,8 +15,8 @@ import {
   verifyConversationAccess,
   generateId,
   ApiErrorCodes,
-} from "@hubble/utils/server"
-import { validateCreateMessageRequest, validateApiMessage } from "@hubble/api-contracts/chat"
+} from "@hubble/server"
+import { validateCreateMessageRequest, validateApiMessage } from "@hubble/schemas/chat"
 
 interface RouteParams {
   params: Promise<{ conversationId: string }>

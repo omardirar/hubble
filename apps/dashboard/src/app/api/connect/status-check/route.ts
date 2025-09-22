@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server"
-import { createApiHandler } from "@hubble/utils/server"
+import { createApiHandler } from "@hubble/server"
 import { createBrowserClient } from "@hubble/db"
+import { generateRequestId } from "@hubble/core"
 
 export const runtime = "nodejs"
 
 export async function GET(request: Request) {
   return createApiHandler(
     async (_req: Request, auth, reqLogger) => {
-      const reqId = crypto.randomUUID()
+      const reqId = generateRequestId()
 
       if (!auth) {
         reqLogger.error("connect.status-check.unauthorized", {})

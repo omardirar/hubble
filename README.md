@@ -101,7 +101,7 @@ An AI‑powered Marketing Assistant with a full‑stack Next.js 15 app, Clerk au
 - Multi-step tenant provisioning that issues a dedicated MotherDuck database and Fivetran destination per organization.
 - Orchestrated via Upstash QStash (ingress queue) and Upstash Redis (distributed lock + pub/sub fan-out for status streaming).
 - DB state lives in Supabase (`tenants`, `provisioning_runs`, `events`, `tenant_destinations`) with strict RLS; service-role flows happen only inside the queue consumer.
-- Shared logic is packaged in `@hubble/queue` (QStash helpers), `@hubble/redis` (lock/event primitives), and `@hubble/env` (runtime validation) to keep app routes thin.
+- Shared logic is packaged in `@hubble/infrastructure` (QStash queue helpers and Redis lock/event primitives) and `@hubble/config` (runtime validation) to keep app routes thin.
 
 #### API surface
 
@@ -112,7 +112,7 @@ An AI‑powered Marketing Assistant with a full‑stack Next.js 15 app, Clerk au
 
 #### Provisioning workflow (idempotent)
 
-1. Acquire `provision:org:<org_id>` lock via `@hubble/redis` (random token + Lua release) — TTL refreshed as steps complete.
+1. Acquire `provision:org:<org_id>` lock via `@hubble/infrastructure/redis` (random token + Lua release) — TTL refreshed as steps complete.
 2. Transition Supabase run status to `running` and write timeline events with monotonic `event_seq`.
 3. MotherDuck:
 
@@ -135,7 +135,7 @@ An AI‑powered Marketing Assistant with a full‑stack Next.js 15 app, Clerk au
   - **Redis**: REST (`UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`) and optional WebSocket credentials (`UPSTASH_REDIS_WS_URL`, `UPSTASH_REDIS_WS_TOKEN`) for SSE.
   - **MotherDuck**: `MD_ADMIN_TOKEN` (admin scope; never returned to clients).
   - **Fivetran**: `FIVETRAN_API_KEY`, `FIVETRAN_API_SECRET`.
-- `@hubble/env` caches validated configs; use `clearEnvCache()` in tests to reset between suites.
+- `@hubble/config` caches validated configs; use `clearEnvCache()` in tests to reset between suites.
 
 #### Redis & locking
 

@@ -72,6 +72,10 @@
     "@hubble/db": "workspace:*",
     "@hubble/logger": "workspace:*",
     "@hubble/utils": "workspace:*",
+    "@hubble/core": "workspace:*",
+    "@hubble/connect": "workspace:*",
+    "@hubble/chat": "workspace:*",
+    "@hubble/types": "workspace:*",
     "@supabase/supabase-js": "^2.39.0"
   }
 }

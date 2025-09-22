@@ -19,7 +19,7 @@
  */
 
 import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js"
-import { getSupabaseConfig } from "@hubble/env"
+import { getSupabaseConfig } from "@hubble/config"
 
 /**
  * Creates a Supabase client with service role privileges for server-side usage.

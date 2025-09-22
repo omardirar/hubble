@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
-import { createApiHandler, withQStashVerification } from "@hubble/utils/server"
-import { processProvisionJob } from "@hubble/utils/connect/provision-job"
-import { validateProvisionJobPayload } from "@hubble/api-contracts/connect"
+import { createApiHandler, withQStashVerification } from "@hubble/server"
+import { processProvisionJob } from "@hubble/connect"
+import { validateProvisionJobPayload } from "@hubble/schemas/connect"
+import { generateRequestId } from "@hubble/core"
 
 export const runtime = "nodejs"
 
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
     async (req: Request) => {
       return createApiHandler(
         async (_req: Request, auth, reqLogger) => {
-          const reqId = crypto.randomUUID()
+          const reqId = generateRequestId()
 
           let body: unknown
           try {
