@@ -154,12 +154,16 @@ export async function createMessage(
   text: string,
   role: string,
   idempotencyKey: string,
+  orgId: string,
+  ownerUserId: string,
   requestLogger: Logger,
 ): Promise<Message> {
   const { data, error } = await supabase
     .from("messages")
     .insert({
       conversation_id: conversationId,
+      org_id: orgId,
+      owner_user_id: ownerUserId,
       content: { text },
       role,
       idempotency_key: idempotencyKey,

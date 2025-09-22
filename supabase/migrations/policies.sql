@@ -111,6 +111,22 @@ CREATE POLICY data_connections_select_org
   ON connect.data_connections FOR SELECT
   USING (org_id = (SELECT public.jwt_claim('org_id')));
 
+DROP POLICY IF EXISTS data_connections_insert_org ON connect.data_connections;
+CREATE POLICY data_connections_insert_org
+  ON connect.data_connections FOR INSERT
+  WITH CHECK (org_id = (SELECT public.jwt_claim('org_id')));
+
+DROP POLICY IF EXISTS data_connections_update_org ON connect.data_connections;
+CREATE POLICY data_connections_update_org
+  ON connect.data_connections FOR UPDATE
+  USING (org_id = (SELECT public.jwt_claim('org_id')))
+  WITH CHECK (org_id = (SELECT public.jwt_claim('org_id')));
+
+DROP POLICY IF EXISTS data_connections_delete_org ON connect.data_connections;
+CREATE POLICY data_connections_delete_org
+  ON connect.data_connections FOR DELETE
+  USING (org_id = (SELECT public.jwt_claim('org_id')));
+
 -- Connector types policies (read-only for all authenticated users)
 DROP POLICY IF EXISTS connector_types_read_all ON connect.connector_types;
 CREATE POLICY connector_types_read_all

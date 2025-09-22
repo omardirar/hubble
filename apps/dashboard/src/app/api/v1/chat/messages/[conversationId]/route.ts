@@ -137,6 +137,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           text,
           role,
           idempotencyKey,
+          auth!.orgId,
+          auth!.userId,
           logger,
         )
 

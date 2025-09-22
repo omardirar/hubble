@@ -75,6 +75,9 @@ END $$;
 -- Data connections permissions
 DO $$ BEGIN
   GRANT SELECT ON TABLE connect.data_connections TO authenticated;
+  GRANT INSERT ON TABLE connect.data_connections TO authenticated;
+  GRANT UPDATE ON TABLE connect.data_connections TO authenticated;
+  GRANT DELETE ON TABLE connect.data_connections TO authenticated;
   GRANT ALL ON TABLE connect.data_connections TO service_role;
 EXCEPTION
   WHEN OTHERS THEN NULL;
@@ -169,6 +172,7 @@ END $$;
 
 -- Core functions
 DO $$ BEGIN
+  GRANT EXECUTE ON FUNCTION public.jwt_claim(text) TO authenticated, service_role;
   GRANT EXECUTE ON FUNCTION public.set_updated_at() TO authenticated, service_role;
   GRANT EXECUTE ON FUNCTION public.block_update_delete() TO service_role;
   GRANT EXECUTE ON FUNCTION core.block_slug_update() TO service_role;

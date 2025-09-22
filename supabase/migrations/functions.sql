@@ -8,25 +8,74 @@
 -- Utility Functions
 -- =============================================================================
 
--- JWT claim function wrapper (fallback for auth.jwt_claim)
+-- JWT claim function for Clerk JWT structure
 CREATE OR REPLACE FUNCTION public.jwt_claim(claim text)
 RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_catalog
 AS $$
+DECLARE
+  jwt_payload jsonb;
 BEGIN
-  -- Try to use auth.jwt_claim if available
-  BEGIN
-    RETURN auth.jwt_claim(claim);
-  EXCEPTION
-    WHEN undefined_function THEN
-      -- Fallback: return null if auth.jwt_claim doesn't exist
-      RETURN NULL;
-    WHEN OTHERS THEN
-      -- For any other error, return null
-      RETURN NULL;
-  END;
+  -- Get the JWT payload
+  jwt_payload := auth.jwt();
+
+  -- Handle different JWT claim patterns
+  CASE claim
+    WHEN 'sub' THEN
+      -- User ID is in the 'sub' claim
+      RETURN jwt_payload ->> 'sub';
+    WHEN 'org_id' THEN
+      -- Try both Clerk JWT structures: direct org_id claim and nested 'o' object
+      IF jwt_payload ? 'org_id' THEN
+        RETURN jwt_payload ->> 'org_id';
+      ELSIF jwt_payload ? 'o' AND jsonb_typeof(jwt_payload -> 'o') = 'object' THEN
+        RETURN jwt_payload -> 'o' ->> 'id';
+      ELSE
+        RETURN NULL;
+      END IF;
+    WHEN 'org_role' THEN
+      -- Try both Clerk JWT structures
+      IF jwt_payload ? 'org_role' THEN
+        RETURN jwt_payload ->> 'org_role';
+      ELSIF jwt_payload ? 'o' AND jsonb_typeof(jwt_payload -> 'o') = 'object' THEN
+        RETURN jwt_payload -> 'o' ->> 'rol';
+      ELSE
+        RETURN NULL;
+      END IF;
+    WHEN 'org_slug' THEN
+      -- Try both Clerk JWT structures
+      IF jwt_payload ? 'org_slug' THEN
+        RETURN jwt_payload ->> 'org_slug';
+      ELSIF jwt_payload ? 'o' AND jsonb_typeof(jwt_payload -> 'o') = 'object' THEN
+        RETURN jwt_payload -> 'o' ->> 'slg';
+      ELSE
+        RETURN NULL;
+      END IF;
+    ELSE
+      -- For any other claim, try direct access
+      RETURN jwt_payload ->> claim;
+  END CASE;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Return null for any error
+    RETURN NULL;
+END;
+$$;
+
+-- Debug function to inspect JWT payload (for troubleshooting)
+CREATE OR REPLACE FUNCTION public.debug_jwt()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_catalog
+AS $$
+BEGIN
+  RETURN auth.jwt();
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN '{"error": "Failed to get JWT"}'::jsonb;
 END;
 $$;
 
@@ -541,6 +590,8 @@ GRANT EXECUTE ON FUNCTION system.set_md_sa_token(TEXT, TEXT) TO service_role;
 GRANT EXECUTE ON FUNCTION system.rate_limit_check(text, text, interval, int) TO service_role;
 
 -- Grant execute permissions to authenticated users
+GRANT EXECUTE ON FUNCTION public.jwt_claim(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.debug_jwt() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.ensure_tenant_exists(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_org_from_clerk_mirror(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_append_message(uuid, text, jsonb, text) TO authenticated;
