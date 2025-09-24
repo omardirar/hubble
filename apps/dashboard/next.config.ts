@@ -40,10 +40,24 @@ const nextConfig: NextConfig = {
     // Note: @hubble/connect, @hubble/server, and @hubble/infrastructure are server-only
   ],
 
-  // Webpack configuration to externalize native dependencies
+  // Turbopack configuration for improved development performance
+  turbopack: {
+    // Handle native dependencies for server-side only
+    rules: {
+      "*.node": {
+        loaders: ["file-loader"],
+        as: "*.js",
+      },
+    },
+    // Note: Native dependencies are handled by webpack externals
+    // Turbopack will use the webpack configuration for externalization
+  },
+
+  // Webpack configuration (fallback for non-Turbopack builds)
   webpack: (config, { isServer }) => {
     if (isServer) {
       // Externalize DuckDB Node.js dependencies for server-side only
+      // This is a fallback for production builds that don't use Turbopack
       config.externals = config.externals || []
       config.externals.push({
         "@duckdb/node-api": "commonjs @duckdb/node-api",

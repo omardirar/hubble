@@ -287,3 +287,154 @@ export async function upsertTenantDestination(
   )
   if (error) throw error
 }
+
+/**
+ * Get all available connector types
+ */
+export async function getConnectorTypes(): Promise<Array<{ code: string; label: string }>> {
+  const db = createServiceClient()
+
+  const { data, error } = await db.from("connector_types").select("code, label").order("label")
+
+  if (error) {
+    logger.error("connect.db.get_connector_types_failed", {
+      error: error.message,
+    })
+    throw error
+  }
+
+  return data || []
+}
+
+/**
+ * Get user's active data connections for an organization
+ */
+export async function getDataConnections(
+  orgId: string,
+  authToken?: string,
+): Promise<
+  Array<{
+    id: string
+    source_type: string
+    fivetran_connector_id: string | null
+    schema_name: string | null
+    status: string
+    created_at: string
+    updated_at: string
+  }>
+> {
+  const db = authToken ? createBrowserClient({ authToken }) : createServiceClient()
+
+  const { data, error } = await db
+    .from("data_connections")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    logger.error("connect.db.get_data_connections_failed", {
+      org_id: orgId,
+      error: error.message,
+    })
+    throw error
+  }
+
+  return data || []
+}
+
+/**
+ * Create a new data connection
+ */
+export async function createDataConnection(
+  orgId: string,
+  sourceType: string,
+  fivetranConnectorId?: string,
+  schemaName?: string,
+): Promise<{ id: string }> {
+  const db = createServiceClient()
+
+  const { data, error } = await db
+    .from("data_connections")
+    .insert({
+      org_id: orgId,
+      source_type: sourceType,
+      fivetran_connector_id: fivetranConnectorId || null,
+      schema_name: schemaName || null,
+      status: "needs_auth",
+    })
+    .select("id")
+    .single()
+
+  if (error) {
+    logger.error("connect.db.create_data_connection_failed", {
+      org_id: orgId,
+      source_type: sourceType,
+      error: error.message,
+    })
+    throw error
+  }
+
+  return { id: data.id }
+}
+
+/**
+ * Update a data connection
+ */
+export async function updateDataConnection(
+  connectionId: string,
+  updates: {
+    fivetran_connector_id?: string
+    schema_name?: string
+    status?: string
+  },
+): Promise<void> {
+  const db = createServiceClient()
+
+  const { error } = await db
+    .from("data_connections")
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", connectionId)
+
+  if (error) {
+    logger.error("connect.db.update_data_connection_failed", {
+      connection_id: connectionId,
+      updates,
+      error: error.message,
+    })
+    throw error
+  }
+}
+
+/**
+ * Get tenant destination information by organization ID
+ */
+export async function getTenantByOrgId(orgId: string): Promise<{
+  fivetran_destination_id: string
+  md_db_name: string
+  status: string
+} | null> {
+  const db = createServiceClient()
+
+  const { data, error } = await db
+    .from("data_destinations")
+    .select("fivetran_destination_id, md_db_name, status")
+    .eq("org_id", orgId)
+    .single()
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      // No rows found
+      return null
+    }
+    logger.error("connect.db.get_tenant_by_org_id_failed", {
+      org_id: orgId,
+      error: error.message,
+    })
+    throw error
+  }
+
+  return data
+}

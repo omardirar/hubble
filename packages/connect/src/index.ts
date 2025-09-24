@@ -7,6 +7,9 @@
 
 export * from "./db"
 export * from "./provision-job"
+export * from "./fivetran"
 export * from "./stream"
 export * from "./motherduck"
-export * from "./fivetran"
+
+// Client-side exports (separate to avoid conflicts)
+export * from "./client"

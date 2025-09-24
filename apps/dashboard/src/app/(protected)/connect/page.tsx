@@ -8,8 +8,8 @@ import {
   ConnectStatusChecker,
   ConnectEnableButton,
   ConnectLoadingState,
-  ConnectSuccessState,
   ConnectErrorState,
+  ConnectSections,
 } from "@hubble/ui"
 
 export default function Page() {
@@ -23,7 +23,7 @@ export default function Page() {
           {state === "checking" && <ConnectStatusChecker />}
           {state === "idle" && <ConnectEnableButton onEnable={handleEnable} />}
           {state === "loading" && <ConnectLoadingState />}
-          {state === "ready" && <ConnectSuccessState />}
+          {state === "ready" && <ConnectSections />}
           {state === "error" && (
             <ConnectErrorState
               error={error || "An unknown error occurred"}

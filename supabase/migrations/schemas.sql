@@ -49,6 +49,51 @@ EXCEPTION
   WHEN invalid_parameter_value THEN null; -- Value already exists
 END $$;
 
+-- Update existing constraints to allow uppercase letters in database names
+-- This handles cases where the constraints were created with only lowercase pattern
+DO $$ BEGIN
+  -- Drop and recreate the constraint for data_destinations
+  ALTER TABLE connect.data_destinations
+    DROP CONSTRAINT IF EXISTS chk_data_destinations_md_db_name_format;
+  ALTER TABLE connect.data_destinations
+    ADD CONSTRAINT chk_data_destinations_md_db_name_format
+    CHECK (md_db_name ~ '^md_[a-zA-Z0-9_-]+$');
+EXCEPTION
+  WHEN OTHERS THEN null;
+END $$;
+
+DO $$ BEGIN
+  -- Drop and recreate the constraint for provisioning_workflows
+  ALTER TABLE core.provisioning_workflows
+    DROP CONSTRAINT IF EXISTS chk_provisioning_workflows_md_db_name_format;
+  ALTER TABLE core.provisioning_workflows
+    ADD CONSTRAINT chk_provisioning_workflows_md_db_name_format
+    CHECK (md_db_name IS NULL OR md_db_name ~ '^md_[a-zA-Z0-9_-]+$');
+EXCEPTION
+  WHEN OTHERS THEN null;
+END $$;
+
+-- Remove DEFERRABLE from unique constraints to support ON CONFLICT
+DO $$ BEGIN
+  -- Drop and recreate the constraint for data_destinations
+  ALTER TABLE connect.data_destinations
+    DROP CONSTRAINT IF EXISTS uq_data_destinations_per_org;
+  ALTER TABLE connect.data_destinations
+    ADD CONSTRAINT uq_data_destinations_per_org UNIQUE (org_id);
+EXCEPTION
+  WHEN OTHERS THEN null;
+END $$;
+
+DO $$ BEGIN
+  -- Drop and recreate the constraint for data_connections
+  ALTER TABLE connect.data_connections
+    DROP CONSTRAINT IF EXISTS uq_data_connections_per_source;
+  ALTER TABLE connect.data_connections
+    ADD CONSTRAINT uq_data_connections_per_source UNIQUE (org_id, source_type);
+EXCEPTION
+  WHEN OTHERS THEN null;
+END $$;
+
 DO $$ BEGIN
   CREATE TYPE core.provisioning_status_t AS ENUM (
     'pending',
@@ -164,7 +209,7 @@ CREATE TABLE IF NOT EXISTS connect.data_destinations (
   updated_at              timestamptz NOT NULL DEFAULT now(),
 
   -- Constraints
-  CONSTRAINT uq_data_destinations_per_org UNIQUE (org_id) DEFERRABLE INITIALLY IMMEDIATE,
+  CONSTRAINT uq_data_destinations_per_org UNIQUE (org_id),
   CONSTRAINT chk_data_destinations_md_db_name_format
     CHECK (md_db_name ~ '^md_[a-zA-Z0-9_-]+$'),
   CONSTRAINT chk_data_destinations_md_token_ref_nonempty
@@ -183,7 +228,7 @@ CREATE TABLE IF NOT EXISTS connect.data_connections (
   updated_at              timestamptz NOT NULL DEFAULT now(),
 
   -- Constraints
-  CONSTRAINT uq_data_connections_per_source UNIQUE (org_id, source_type) DEFERRABLE INITIALLY IMMEDIATE,
+  CONSTRAINT uq_data_connections_per_source UNIQUE (org_id, source_type),
   CONSTRAINT chk_data_connections_schema_name_nonempty
     CHECK (schema_name IS NULL OR length(schema_name) > 0)
 );

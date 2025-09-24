@@ -499,6 +499,219 @@ export async function fivetranUpsertMotherDuckDestination(
 }
 
 /**
+ * Creates a Fivetran connector
+ *
+ * @param groupId - The group ID for the connector
+ * @param service - The service name (e.g., 'facebook_ads', 'google_ads')
+ * @param config - The connector configuration
+ * @returns Promise with the connector ID
+ * @throws Error if creation fails
+ */
+export async function fivetranCreateConnector(
+  groupId: string,
+  service: string,
+  config: Record<string, unknown>,
+): Promise<{ connector_id: string }> {
+  const { FIVETRAN_API_KEY, FIVETRAN_API_SECRET } = getConnectEnv()
+
+  // Validate inputs using centralized validation
+  const validatedGroupId = validateExternalId(groupId)
+  const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
+  const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
+
+  logger.info("connect.fivetran.create_connector.started", {
+    group_id: validatedGroupId,
+    service,
+    config_keys: Object.keys(config),
+  })
+
+  try {
+    const requestBody = JSON.stringify({
+      group_id: validatedGroupId,
+      service,
+      config,
+      run_setup_tests: false, // Disable automatic setup tests
+    })
+
+    const res = await httpFetch("https://api.fivetran.com/v1/connectors", {
+      method: "POST",
+      headers: {
+        Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
+        "Content-Type": "application/json",
+      },
+      body: requestBody,
+      timeoutMs: 60000, // 60 seconds for connector creation
+    })
+
+    if (!res.ok) {
+      let errorBody = ""
+      try {
+        errorBody = await res.text()
+      } catch {
+        errorBody = "Unable to read error response"
+      }
+
+      logger.error("connect.fivetran.create_connector.api_error", {
+        status: res.status,
+        statusText: res.statusText,
+        errorBody,
+        group_id: validatedGroupId,
+        service,
+      })
+
+      throw new Error(
+        `Fivetran create connector failed: ${res.status} ${res.statusText} - ${errorBody}`,
+      )
+    }
+
+    const data = (await res.json().catch(() => ({}))) as { data?: { id?: string } }
+    const connector_id = data?.data?.id ?? ""
+
+    if (!connector_id) {
+      throw new Error("Fivetran API returned empty connector ID")
+    }
+
+    logger.info("connect.fivetran.create_connector.success", {
+      group_id: validatedGroupId,
+      service,
+      connector_id,
+    })
+
+    return { connector_id }
+  } catch (error) {
+    logger.error("connect.fivetran.create_connector.failed", {
+      error: error instanceof Error ? error.message : String(error),
+      group_id: validatedGroupId,
+      service,
+    })
+
+    if (error instanceof Error) {
+      throw new Error(`Failed to create Fivetran connector: ${error.message}`)
+    }
+    throw new Error(`Failed to create Fivetran connector: ${String(error)}`)
+  }
+}
+
+/**
+ * Gets a Fivetran connector by ID
+ *
+ * @param connectorId - The connector ID to retrieve
+ * @returns Promise with the connector details or null if not found
+ * @throws Error if retrieval fails (other than 404)
+ */
+export async function fivetranGetConnector(connectorId: string): Promise<{
+  id: string
+  service: string
+  schema: string
+  status: string
+  connected_by: string
+  created_at: string
+  succeeded_at: string | null
+  failed_at: string | null
+} | null> {
+  const { FIVETRAN_API_KEY, FIVETRAN_API_SECRET } = getConnectEnv()
+
+  // Validate inputs using centralized validation
+  const validatedConnectorId = validateExternalId(connectorId)
+  const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
+  const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
+
+  logger.info("connect.fivetran.get_connector.started", {
+    connector_id: validatedConnectorId,
+  })
+
+  try {
+    const res = await httpFetch(
+      `https://api.fivetran.com/v1/connectors/${encodeURIComponent(validatedConnectorId)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
+          "Content-Type": "application/json",
+        },
+        timeoutMs: 30000, // 30 seconds for connector retrieval
+      },
+    )
+
+    if (res.status === 404) {
+      logger.warn("connect.fivetran.get_connector.not_found", {
+        connector_id: validatedConnectorId,
+      })
+      return null
+    }
+
+    if (!res.ok) {
+      let errorBody = ""
+      try {
+        errorBody = await res.text()
+      } catch {
+        errorBody = "Unable to read error response"
+      }
+
+      logger.error("connect.fivetran.get_connector.api_error", {
+        connector_id: validatedConnectorId,
+        status: res.status,
+        statusText: res.statusText,
+        errorBody,
+      })
+
+      throw new Error(
+        `Fivetran get connector failed: ${res.status} ${res.statusText} - ${errorBody}`,
+      )
+    }
+
+    const data = (await res.json().catch(() => ({}))) as {
+      data?: {
+        id?: string
+        service?: string
+        schema?: string
+        status?: string
+        connected_by?: string
+        created_at?: string
+        succeeded_at?: string | null
+        failed_at?: string | null
+      }
+    }
+
+    const connector = data?.data
+    if (!connector?.id) {
+      logger.warn("connect.fivetran.get_connector.invalid_response", {
+        connector_id: validatedConnectorId,
+        response: data,
+      })
+      return null
+    }
+
+    logger.info("connect.fivetran.get_connector.success", {
+      connector_id: validatedConnectorId,
+      service: connector.service,
+      status: connector.status,
+    })
+
+    return {
+      id: connector.id,
+      service: connector.service ?? "",
+      schema: connector.schema ?? "",
+      status: connector.status ?? "",
+      connected_by: connector.connected_by ?? "",
+      created_at: connector.created_at ?? "",
+      succeeded_at: connector.succeeded_at ?? null,
+      failed_at: connector.failed_at ?? null,
+    }
+  } catch (error) {
+    logger.error("connect.fivetran.get_connector.failed", {
+      error: error instanceof Error ? error.message : String(error),
+      connector_id: validatedConnectorId,
+    })
+
+    if (error instanceof Error) {
+      throw new Error(`Failed to get Fivetran connector: ${error.message}`)
+    }
+    throw new Error(`Failed to get Fivetran connector: ${String(error)}`)
+  }
+}
+
+/**
  * Tests a Fivetran destination connection
  *
  * @param destinationId - The destination ID to test

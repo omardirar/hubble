@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { logger } from "@hubble/logger"
+// No direct imports needed - using API calls
+import { useAuth } from "@clerk/nextjs"
 
 export type ConnectState = "idle" | "loading" | "ready" | "error" | "checking"
 
@@ -9,12 +11,45 @@ export interface UseConnectReturn {
   state: ConnectState
   error: string | null
   handleEnable: () => Promise<void>
+  // New connection management
+  connections: Array<{
+    id: string
+    source_type: string
+    fivetran_connector_id: string | null
+    schema_name: string | null
+    status: string
+    created_at: string
+    updated_at: string
+  }>
+  connectors: Array<{ code: string; label: string }>
+  loadingConnections: boolean
+  loadingConnectors: boolean
+  refreshConnections: () => Promise<void>
+  refreshConnectors: () => Promise<void>
 }
 
 export function useConnect(): UseConnectReturn {
   const [state, setState] = useState<ConnectState>("checking")
   const [error, setError] = useState<string | null>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
+
+  // New connection management state
+  const [connections, setConnections] = useState<
+    Array<{
+      id: string
+      source_type: string
+      fivetran_connector_id: string | null
+      schema_name: string | null
+      status: string
+      created_at: string
+      updated_at: string
+    }>
+  >([])
+  const [connectors, setConnectors] = useState<Array<{ code: string; label: string }>>([])
+  const [loadingConnections, setLoadingConnections] = useState(false)
+  const [loadingConnectors, setLoadingConnectors] = useState(false)
+
+  const { getToken, orgId } = useAuth()
 
   // Check provisioning status on component mount
   useEffect(() => {
@@ -126,10 +161,79 @@ export function useConnect(): UseConnectReturn {
     }
   }, [])
 
+  // Refresh connections
+  const refreshConnections = useCallback(async () => {
+    try {
+      setLoadingConnections(true)
+
+      const token = await getToken()
+      if (!token) {
+        throw new Error("No authentication token available")
+      }
+
+      if (!orgId) {
+        throw new Error("No organization ID found")
+      }
+
+      const response = await fetch("/api/connect/connections", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      if (!response.ok) {
+        throw new Error(`Failed to fetch connections: ${response.status}`)
+      }
+      const result = await response.json()
+      const data = result.connections || []
+      setConnections(data)
+    } catch (err) {
+      logger.error("connect.useConnect.refresh_connections_failed", {
+        error: err instanceof Error ? err.message : String(err),
+      })
+    } finally {
+      setLoadingConnections(false)
+    }
+  }, [getToken, orgId])
+
+  // Refresh connectors
+  const refreshConnectors = useCallback(async () => {
+    try {
+      setLoadingConnectors(true)
+
+      const response = await fetch("/api/connect/connector-types")
+      if (!response.ok) {
+        throw new Error(`Failed to fetch connector types: ${response.status}`)
+      }
+      const result = await response.json()
+      const data = result.connector_types || []
+      setConnectors(data)
+    } catch (err) {
+      logger.error("connect.useConnect.refresh_connectors_failed", {
+        error: err instanceof Error ? err.message : String(err),
+      })
+    } finally {
+      setLoadingConnectors(false)
+    }
+  }, [])
+
+  // Load initial data when ready
+  useEffect(() => {
+    if (state === "ready") {
+      refreshConnections()
+      refreshConnectors()
+    }
+  }, [state, refreshConnections, refreshConnectors])
+
   return {
     state,
     error,
     handleEnable,
+    connections,
+    connectors,
+    loadingConnections,
+    loadingConnectors,
+    refreshConnections,
+    refreshConnectors,
   }
 }
 
