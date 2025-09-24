@@ -76,17 +76,18 @@ export function AvailableConnectionsSection() {
 
       const data = await response.json()
 
-      logger.info("connect.available_connections.connector_created", {
-        connector_id: data.connector_id,
+      logger.info("connect.available_connections.connect_card_generated", {
         connection_id: data.connection_id,
+        connect_card_url: data.connect_card_url,
       })
 
-      // TODO: Open Fivetran embedded setup page
-      // For now, show success message
-      alert(`Connector created successfully! Connector ID: ${data.connector_id}`)
-
-      // Refresh connections to show the new one
-      window.location.reload()
+      // Redirect to Fivetran Connect Card for setup
+      if (data.connect_card_url) {
+        // Open in same window for better UX
+        window.location.href = data.connect_card_url
+      } else {
+        throw new Error("No Connect Card URL received")
+      }
     } catch (error) {
       logger.error("connect.available_connections.connect_failed", {
         error: error instanceof Error ? error.message : String(error),

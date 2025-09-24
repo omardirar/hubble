@@ -19,8 +19,7 @@ import { NextResponse } from "next/server"
 import {
   createApiHandler,
   createDataConnection,
-  updateDataConnection,
-  fivetranCreateConnector,
+  fivetranCreateConnection,
   getTenantByOrgId,
 } from "@hubble/server"
 import { generateRequestId } from "@hubble/core"
@@ -115,18 +114,7 @@ export async function POST(request: Request) {
           requestId: reqId,
         })
 
-        // Step 3: Create data connection record in database
-        const { id: connectionId } = await createDataConnection(
-          auth.orgId,
-          validatedRequest.source_type,
-        )
-
-        reqLogger.info("connect.connector.create.data_connection_created", {
-          connectionId,
-          requestId: reqId,
-        })
-
-        // Step 4: Get Fivetran destination ID for this organization
+        // Step 3: Get Fivetran destination ID for this organization
         const tenant = await getTenantByOrgId(auth.orgId)
         if (!tenant?.fivetran_destination_id) {
           reqLogger.error("connect.connector.create.no_destination", {
@@ -146,42 +134,57 @@ export async function POST(request: Request) {
           )
         }
 
-        // Step 5: Create Fivetran connector using the destination ID as group ID
-        const { connector_id } = await fivetranCreateConnector(
-          tenant.fivetran_destination_id, // Use destination ID as group_id
+        // Step 4: Create Fivetran connection using Connect Card approach
+        let connection_id: string
+        let connect_card_uri: string
+        try {
+          const result = await fivetranCreateConnection(
+            tenant.fivetran_destination_id, // Use destination ID as group_id
+            validatedRequest.source_type,
+            `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/connect`, // Redirect back to connect page
+          )
+          connection_id = result.connection_id
+          connect_card_uri = result.connect_card_uri
+
+          reqLogger.info("connect.connector.create.fivetran_connection_created", {
+            connectionId: connection_id,
+            requestId: reqId,
+          })
+        } catch (fivetranError) {
+          reqLogger.error("connect.connector.create.fivetran_creation_failed", {
+            error: fivetranError instanceof Error ? fivetranError.message : String(fivetranError),
+            orgId: auth.orgId,
+            requestId: reqId,
+          })
+          throw fivetranError
+        }
+
+        // Step 5: Create data connection record in database only after successful Fivetran creation
+        const { id: dbConnectionId } = await createDataConnection(
+          auth.orgId,
           validatedRequest.source_type,
-          validatedRequest.config,
+          connection_id, // Pass Fivetran connection ID
         )
 
-        reqLogger.info("connect.connector.create.fivetran_connector_created", {
-          connectorId: connector_id,
+        reqLogger.info("connect.connector.create.data_connection_created", {
+          dbConnectionId,
+          fivetranConnectionId: connection_id,
           requestId: reqId,
         })
 
-        // Step 6: Update database with connector ID
-        await updateDataConnection(connectionId, {
-          fivetran_connector_id: connector_id,
-          status: "needs_auth",
-        })
-
-        reqLogger.info("connect.connector.create.connection_updated", {
-          connectionId,
-          connectorId: connector_id,
-          requestId: reqId,
-        })
-
-        // Step 7: Return success response
+        // Step 6: Return Connect Card URI for frontend to redirect
         const response = {
-          connection_id: connectionId,
-          connector_id: connector_id,
+          connection_id: dbConnectionId,
+          fivetran_connection_id: connection_id,
+          connect_card_url: connect_card_uri,
           source_type: validatedRequest.source_type,
           status: "needs_auth",
           request_id: reqId,
         }
 
         reqLogger.info("connect.connector.create.completed", {
-          connectionId,
-          connectorId: connector_id,
+          dbConnectionId,
+          fivetranConnectionId: connection_id,
           requestId: reqId,
         })
 

@@ -499,13 +499,369 @@ export async function fivetranUpsertMotherDuckDestination(
 }
 
 /**
- * Creates a Fivetran connector
+ * Get connector-specific configuration
+ * Based on Fivetran documentation for each connector type
+ *
+ * @param service - The service name (e.g., 'facebook_ads', 'google_ads')
+ * @returns Config object for the connector
+ */
+function getConnectorConfig(service: string): Record<string, unknown> {
+  switch (service) {
+    case "facebook_ads":
+      return {
+        // Facebook Ads requires these fields
+        schema: "facebook_ads",
+        timeframe_months: "TWELVE",
+        sync_mode: "SpecificAccounts", // Correct enum value
+        accounts: [],
+        // Additional fields will be filled through Connect Card
+      }
+    case "google_ads":
+      return {
+        // Google Ads requires these fields
+        schema: "google_ads",
+        timeframe_months: "TWELVE",
+        sync_mode: "SpecificAccounts", // Correct enum value
+        accounts: [],
+        // Additional fields will be filled through Connect Card
+      }
+    case "tiktok_ads":
+      return {
+        // TikTok Ads requires these fields
+        schema: "tiktok_ads",
+        timeframe_months: "TWELVE",
+        sync_mode: "SpecificAccounts", // Correct enum value
+        accounts: [],
+        // Additional fields will be filled through Connect Card
+      }
+    case "linkedin_ads":
+      return {
+        // LinkedIn Ads requires these fields
+        schema: "linkedin_ads",
+        timeframe_months: "TWELVE",
+        sync_mode: "SpecificAccounts", // Correct enum value
+        accounts: [],
+        // Additional fields will be filled through Connect Card
+      }
+    default:
+      // Generic config for unknown services
+      return {
+        schema: service,
+        timeframe_months: "TWELVE",
+        sync_mode: "SpecificAccounts", // Correct enum value
+        accounts: [],
+      }
+  }
+}
+
+/**
+ * Create a Fivetran connection using Connect Card approach
+ * Based on Fivetran sample project: https://github.com/fivetran/fivetran-connect-card-sample-js
+ * Following the exact pattern from the sample project's ApiClient class
+ *
+ * @param groupId - The group ID for the connection
+ * @param service - The service name (e.g., 'facebook_ads', 'google_ads')
+ * @param redirectUrl - Optional redirect URL after setup
+ * @returns Promise with connection ID and Connect Card URI
+ */
+export async function fivetranCreateConnection(
+  groupId: string,
+  service: string,
+  redirectUrl?: string,
+): Promise<{ connection_id: string; connect_card_uri: string }> {
+  const { FIVETRAN_API_KEY, FIVETRAN_API_SECRET } = getConnectEnv()
+
+  // Validate inputs using centralized validation
+  const validatedGroupId = validateExternalId(groupId)
+  const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
+  const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
+
+  logger.info("connect.fivetran.create_connection.started", {
+    group_id: validatedGroupId,
+    service,
+  })
+
+  try {
+    // Create connection with Connect Card config in a single request
+    // Following the sample project's approach of including connect_card_config in the initial request
+    const requestBody = JSON.stringify({
+      group_id: validatedGroupId,
+      service,
+      config: getConnectorConfig(service),
+      connect_card_config: {
+        redirect_uri: redirectUrl,
+      },
+    })
+
+    const res = await httpFetch("https://api.fivetran.com/v1/connections", {
+      method: "POST",
+      headers: {
+        Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
+        "Content-Type": "application/json",
+        Accept: "application/json;version=2",
+      },
+      body: requestBody,
+      timeoutMs: 60000,
+    })
+
+    if (!res.ok) {
+      let errorBody = ""
+      try {
+        errorBody = await res.text()
+      } catch {
+        errorBody = "Unable to read error response"
+      }
+
+      logger.error("connect.fivetran.create_connection.api_error", {
+        status: res.status,
+        statusText: res.statusText,
+        errorBody,
+        group_id: validatedGroupId,
+        service,
+      })
+
+      throw new Error(
+        `Fivetran create connection failed: ${res.status} ${res.statusText} - ${errorBody}`,
+      )
+    }
+
+    const responseData = await res.json()
+    const connectionId = responseData.data.id
+    const connectCardUri = responseData.data.connect_card?.uri
+
+    if (!connectCardUri) {
+      logger.error("connect.fivetran.create_connection.no_connect_card", {
+        connection_id: connectionId,
+        response_data: responseData,
+      })
+      throw new Error("No Connect Card URI returned from Fivetran API")
+    }
+
+    logger.info("connect.fivetran.create_connection.succeeded", {
+      connection_id: connectionId,
+      connect_card_uri: connectCardUri,
+      group_id: validatedGroupId,
+      service,
+    })
+
+    return {
+      connection_id: connectionId,
+      connect_card_uri: connectCardUri,
+    }
+  } catch (error) {
+    logger.error("connect.fivetran.create_connection.failed", {
+      error: error instanceof Error ? error.message : String(error),
+      group_id: validatedGroupId,
+      service,
+    })
+    throw new Error(
+      `Failed to create Fivetran connection: ${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
+}
+
+/**
+ * Get Connect Card URL for existing connection
+ * Based on Fivetran sample project pattern
+ *
+ * @param connectionId - The connection ID
+ * @param redirectUrl - Optional redirect URL after setup
+ * @returns Promise with Connect Card URL
+ */
+export async function fivetranGetConnectCardUrl(
+  connectionId: string,
+  redirectUrl?: string,
+): Promise<{ connect_card_uri: string }> {
+  const { FIVETRAN_API_KEY, FIVETRAN_API_SECRET } = getConnectEnv()
+
+  const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
+  const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
+
+  logger.info("connect.fivetran.get_connect_card.started", {
+    connection_id: connectionId,
+  })
+
+  try {
+    const requestBody = JSON.stringify({
+      connect_card_config: {
+        redirect_uri: redirectUrl,
+      },
+    })
+
+    const res = await httpFetch(
+      `https://api.fivetran.com/v1/connections/${connectionId}/connect-card`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
+          "Content-Type": "application/json",
+          Accept: "application/json;version=2",
+        },
+        body: requestBody,
+        timeoutMs: 60000,
+      },
+    )
+
+    if (!res.ok) {
+      let errorBody = ""
+      try {
+        errorBody = await res.text()
+      } catch {
+        errorBody = "Unable to read error response"
+      }
+
+      logger.error("connect.fivetran.get_connect_card.api_error", {
+        status: res.status,
+        statusText: res.statusText,
+        errorBody,
+        connection_id: connectionId,
+      })
+
+      throw new Error(
+        `Fivetran get connect card failed: ${res.status} ${res.statusText} - ${errorBody}`,
+      )
+    }
+
+    const responseData = await res.json()
+    const connectCardUri = responseData.data.connect_card?.uri
+
+    if (!connectCardUri) {
+      logger.error("connect.fivetran.get_connect_card.no_uri", {
+        connection_id: connectionId,
+        response_data: responseData,
+      })
+      throw new Error("No Connect Card URI returned from Fivetran API")
+    }
+
+    logger.info("connect.fivetran.get_connect_card.succeeded", {
+      connection_id: connectionId,
+      connect_card_uri: connectCardUri,
+    })
+
+    return {
+      connect_card_uri: connectCardUri,
+    }
+  } catch (error) {
+    logger.error("connect.fivetran.get_connect_card.failed", {
+      error: error instanceof Error ? error.message : String(error),
+      connection_id: connectionId,
+    })
+    throw new Error(
+      `Failed to get Fivetran Connect Card: ${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
+}
+
+/**
+ * Get list of connections in a group
+ * Based on Fivetran sample project pattern
+ *
+ * @param groupId - The group ID
+ * @returns Promise with list of connections
+ */
+export async function fivetranGetConnections(groupId: string): Promise<
+  Array<{
+    id: string
+    service: string
+    status: string
+    created_at: string
+    connect_card?: { uri: string }
+  }>
+> {
+  const { FIVETRAN_API_KEY, FIVETRAN_API_SECRET } = getConnectEnv()
+
+  const validatedGroupId = validateExternalId(groupId)
+  const validatedApiKey = validateFivetranApiKey(FIVETRAN_API_KEY)
+  const validatedApiSecret = validateFivetranApiSecret(FIVETRAN_API_SECRET)
+
+  logger.info("connect.fivetran.get_connections.started", {
+    group_id: validatedGroupId,
+  })
+
+  try {
+    const res = await httpFetch(
+      `https://api.fivetran.com/v1/connections?group_id=${validatedGroupId}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
+          Accept: "application/json;version=2",
+        },
+        timeoutMs: 60000,
+      },
+    )
+
+    if (!res.ok) {
+      let errorBody = ""
+      try {
+        errorBody = await res.text()
+      } catch {
+        errorBody = "Unable to read error response"
+      }
+
+      logger.error("connect.fivetran.get_connections.api_error", {
+        status: res.status,
+        statusText: res.statusText,
+        errorBody,
+        group_id: validatedGroupId,
+      })
+
+      throw new Error(
+        `Fivetran get connections failed: ${res.status} ${res.statusText} - ${errorBody}`,
+      )
+    }
+
+    const responseData = await res.json()
+    const connections = responseData.data?.items || []
+
+    logger.info("connect.fivetran.get_connections.succeeded", {
+      group_id: validatedGroupId,
+      count: connections.length,
+    })
+
+    return connections
+  } catch (error) {
+    logger.error("connect.fivetran.get_connections.failed", {
+      error: error instanceof Error ? error.message : String(error),
+      group_id: validatedGroupId,
+    })
+    throw new Error(
+      `Failed to get Fivetran connections: ${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
+}
+
+/**
+ * Generate Fivetran Connect Card URL for existing connector setup
+ * Legacy function - use fivetranGetConnectCardUrl for new implementations
+ *
+ * @param connectorId - The connector ID
+ * @param redirectUrl - Optional redirect URL after setup
+ * @returns Connect Card URL for embedded setup
+ * @deprecated Use fivetranGetConnectCardUrl instead
+ */
+export function fivetranGenerateConnectCardUrl(connectorId: string, redirectUrl?: string): string {
+  const baseUrl = "https://fivetran.com/connect-card"
+  const params = new URLSearchParams({
+    connector_id: connectorId,
+  })
+
+  if (redirectUrl) {
+    params.set("redirect_url", redirectUrl)
+  }
+
+  return `${baseUrl}?${params.toString()}`
+}
+
+/**
+ * Creates a Fivetran connector (deprecated - use Connect Card instead)
  *
  * @param groupId - The group ID for the connector
  * @param service - The service name (e.g., 'facebook_ads', 'google_ads')
  * @param config - The connector configuration
  * @returns Promise with the connector ID
  * @throws Error if creation fails
+ * @deprecated Use Connect Card approach instead
  */
 export async function fivetranCreateConnector(
   groupId: string,
