@@ -39,7 +39,9 @@
       "@hubble/infrastructure": ["packages/infrastructure/src/index.ts"],
       "@hubble/infrastructure/*": ["packages/infrastructure/src/*"],
       "@hubble/logger": ["packages/logger/src/index.ts"],
-      "@hubble/logger/*": ["packages/logger/src/*"]
+      "@hubble/logger/*": ["packages/logger/src/*"],
+      "@hubble/metrics": ["packages/metrics/src/index.ts"],
+      "@hubble/metrics/*": ["packages/metrics/src/*"]
     }
   },
   "exclude": ["node_modules"]

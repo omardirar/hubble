@@ -13,6 +13,7 @@ import {
   LockServiceUnavailableError,
   ProvisionJobFailedError,
 } from "@hubble/core"
+// TODO: Add metrics collection once metrics system is properly integrated
 import {
   appendEvent,
   updateProvisionRun,
@@ -189,10 +190,16 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
 
     await logStep("CREATE_SERVICE_ACCOUNT", "started")
 
+    const createServiceAccountStart = Date.now()
     try {
       await mdCreateServiceAccount(mdSaUsername)
+      const createServiceAccountDuration = Date.now() - createServiceAccountStart
+
+      // TODO: Add metrics collection once metrics system is properly integrated
       await logStep("CREATE_SERVICE_ACCOUNT", "succeeded")
     } catch (error) {
+      const createServiceAccountDuration = Date.now() - createServiceAccountStart
+
       // Enhanced error logging for debugging
       let errorMessage: string
       let errorDetails: Record<string, any>
@@ -219,6 +226,8 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
         errorDetails = { error: String(error) }
       }
 
+      // TODO: Add metrics collection once metrics system is properly integrated
+
       logger.error("connect.provision.create_service_account_failed", {
         correlation_id: correlationId,
         org_id: orgId,
@@ -231,6 +240,7 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
 
     await logStep("ISSUE_SA_TOKEN", "started")
 
+    const issueTokenStart = Date.now()
     // Check if token already exists in secrets table (idempotency)
     let token: string
     let tokenFromSecrets = false
@@ -266,6 +276,8 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
       tokenFromSecrets = false // Ensure we store the new token
     }
 
+    // TODO: Add metrics collection once metrics system is properly integrated
+
     // Store the token in secrets table (idempotent operation)
     if (!tokenFromSecrets) {
       logger.info("connect.provision.storing_token", {
@@ -274,13 +286,19 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
         token_length: token?.length || 0,
       })
 
+      const storeTokenStart = Date.now()
       try {
         await db.rpc("set_secret", {
           p_org_id: orgId,
           p_secret_name: "md_sa_token",
           p_secret_value: token,
         })
+
+        // TODO: Add metrics collection once metrics system is properly integrated
       } catch (storageError) {
+        const storeTokenDuration = Date.now() - storeTokenStart
+        // TODO: Add metrics collection once metrics system is properly integrated
+
         logger.error("connect.provision.secrets_storage_failed", {
           correlation_id: correlationId,
           org_id: orgId,
@@ -297,13 +315,21 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
 
     await logStep("CREATE_TENANT_DATABASE", "started")
 
+    const createDatabaseStart = Date.now()
     await mdCreateDatabase(mdDbName, token)
+    const createDatabaseDuration = Date.now() - createDatabaseStart
+
+    // TODO: Add metrics collection once metrics system is properly integrated
     await logStep("CREATE_TENANT_DATABASE", "succeeded")
 
     await logStep("CONFIGURE_COMPUTE", "succeeded", "skipped/not-required")
 
     await logStep("CREATE_FIVETRAN_GROUP", "started")
+    const createGroupStart = Date.now()
     const { group_id } = await fivetranCreateGroup(orgId, orgId)
+    const createGroupDuration = Date.now() - createGroupStart
+
+    // TODO: Add metrics collection once metrics system is properly integrated
     await logStep("CREATE_FIVETRAN_GROUP", "succeeded", undefined, {
       fivetran_group_id: group_id,
     })
@@ -337,22 +363,32 @@ export async function processProvisionJob(payload: ProvisionJobPayload): Promise
       )
     }
 
+    const createDestinationStart = Date.now()
     const { destination_id } = await fivetranUpsertMotherDuckDestination(
       group_id,
       mdDbName,
       actualToken, // Pass the actual token, not the reference
     )
+    const createDestinationDuration = Date.now() - createDestinationStart
+
+    // TODO: Add metrics collection once metrics system is properly integrated
     await logStep("CREATE_FIVETRAN_DESTINATION", "succeeded", undefined, {
       fivetran_destination_id: destination_id,
     })
 
     await logStep("TEST_DESTINATION", "started")
 
+    const testDestinationStart = Date.now()
     // Test destination once - Fivetran tests can take time but we don't need to retry
     const testResult = await fivetranTestDestination(destination_id)
+    const testDestinationDuration = Date.now() - testDestinationStart
+
     if (!testResult) {
+      // TODO: Add metrics collection once metrics system is properly integrated
       throw new ProvisionJobFailedError("Destination test failed")
     }
+
+    // TODO: Add metrics collection once metrics system is properly integrated
     await logStep("TEST_DESTINATION", "succeeded")
 
     // Update tenant destination, provisioning run, and tenant status

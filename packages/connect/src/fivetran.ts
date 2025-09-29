@@ -7,7 +7,17 @@
 
 import { getConnectEnv } from "@hubble/config"
 import { logger } from "@hubble/logger"
-import { httpFetch, createBasicAuthHeader } from "@hubble/core"
+import {
+  httpFetch,
+  createBasicAuthHeader,
+  retryWithBackoff,
+  CircuitBreakerRetry,
+  RateLimiter,
+  globalCacheManager,
+  CacheKeys,
+  withCache,
+} from "@hubble/core"
+// TODO: Add metrics collection once metrics system is properly integrated
 import {
   validateExternalId,
   validateDestinationId,
@@ -17,6 +27,17 @@ import {
   validateMotherDuckToken,
   validateFivetranGroupName,
 } from "@hubble/schemas/connect"
+
+// Global instances for rate limiting and circuit breaking
+const fivetranRateLimiter = new RateLimiter(100, 60000) // 100 requests per minute
+const fivetranCircuitBreaker = new CircuitBreakerRetry(5, 60000, 3) // 5 failures, 1 minute timeout
+
+// Cache for API responses (temporarily disabled due to type issues)
+// const fivetranCache = globalCacheManager.createCache('fivetran', {
+//   ttlMs: 300000, // 5 minutes
+//   maxSize: 1000,
+//   namespace: 'fivetran',
+// })
 
 /**
  * Lists all Fivetran groups
@@ -33,56 +54,80 @@ export async function fivetranListGroups(): Promise<{ id: string; name: string }
 
   logger.info("connect.fivetran.list_groups.started")
 
-  try {
-    const res = await httpFetch("https://api.fivetran.com/v1/groups", {
-      method: "GET",
-      headers: {
-        Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
-        "Content-Type": "application/json",
-      },
-      timeoutMs: 30000, // 30 seconds for listing groups
-    })
+  const retryResult = await retryWithBackoff(
+    async () => {
+      // Acquire rate limit token
+      await fivetranRateLimiter.acquire()
 
-    if (!res.ok) {
-      let errorBody = ""
-      try {
-        errorBody = await res.text()
-      } catch {
-        errorBody = "Unable to read error response"
-      }
+      return fivetranCircuitBreaker.execute(async () => {
+        const apiCallStart = Date.now()
+        const res = await httpFetch("https://api.fivetran.com/v1/groups", {
+          method: "GET",
+          headers: {
+            Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
+            "Content-Type": "application/json",
+          },
+          timeoutMs: 30000, // 30 seconds for listing groups
+        })
+        const apiCallDuration = Date.now() - apiCallStart
 
-      logger.error("connect.fivetran.list_groups.api_error", {
-        status: res.status,
-        statusText: res.statusText,
-        errorBody,
+        const success = res.ok
+        // TODO: Add metrics collection once metrics system is properly integrated
+
+        if (!res.ok) {
+          let errorBody = ""
+          try {
+            errorBody = await res.text()
+          } catch {
+            errorBody = "Unable to read error response"
+          }
+
+          logger.error("connect.fivetran.list_groups.api_error", {
+            status: res.status,
+            statusText: res.statusText,
+            errorBody,
+          })
+
+          throw new Error(
+            `Fivetran list groups failed: ${res.status} ${res.statusText} - ${errorBody}`,
+          )
+        }
+
+        const data = (await res.json().catch(() => ({}))) as {
+          data?: { items?: { id?: string; name?: string }[] }
+        }
+        const groups = data?.data?.items ?? []
+
+        logger.info("connect.fivetran.list_groups.success", {
+          groupCount: groups.length,
+        })
+
+        return groups.map((group) => ({
+          id: group.id ?? "",
+          name: group.name ?? "",
+        }))
       })
+    },
+    {
+      maxRetries: 3,
+      shouldRetry: (error, attempt) => {
+        // Don't retry on authentication errors
+        if (error instanceof Error && error.message.includes("401")) {
+          return false
+        }
+        return true
+      },
+      onRetry: (error, attempt, delayMs) => {
+        logger.warn("connect.fivetran.list_groups.retry", {
+          attempt,
+          delay_ms: delayMs,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      },
+    },
+  )
 
-      throw new Error(`Fivetran list groups failed: ${res.status} ${res.statusText} - ${errorBody}`)
-    }
-
-    const data = (await res.json().catch(() => ({}))) as {
-      data?: { items?: { id?: string; name?: string }[] }
-    }
-    const groups = data?.data?.items ?? []
-
-    logger.info("connect.fivetran.list_groups.success", {
-      groupCount: groups.length,
-    })
-
-    return groups.map((group) => ({
-      id: group.id ?? "",
-      name: group.name ?? "",
-    }))
-  } catch (error) {
-    logger.error("connect.fivetran.list_groups.failed", {
-      error: error instanceof Error ? error.message : String(error),
-    })
-
-    if (error instanceof Error) {
-      throw new Error(`Failed to list Fivetran groups: ${error.message}`)
-    }
-    throw new Error(`Failed to list Fivetran groups: ${String(error)}`)
-  }
+  return retryResult.result
 }
 
 /**
@@ -201,187 +246,211 @@ export async function fivetranCreateGroup(
     groupName: validatedGroupName,
   })
 
-  // Check if group already exists (idempotency)
-  try {
-    const existingGroup = await fivetranGetGroup(validatedGroupId)
-    if (existingGroup) {
-      logger.info("connect.fivetran.group_already_exists", {
-        groupId: validatedGroupId,
-        groupName: existingGroup.name,
-      })
-      return { group_id: existingGroup.id }
-    }
-  } catch (getError) {
-    logger.warn("connect.fivetran.group_lookup_failed", {
-      groupId: validatedGroupId,
-      error: getError instanceof Error ? getError.message : String(getError),
-    })
-    // Continue with creation if lookup fails
-  }
-
-  try {
-    const requestBody = JSON.stringify({
-      name: validatedGroupName,
-    })
-
-    const res = await httpFetch("https://api.fivetran.com/v1/groups", {
-      method: "POST",
-      headers: {
-        Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
-        "Content-Type": "application/json",
-      },
-      body: requestBody,
-      timeoutMs: 30000, // 30 seconds for group creation
-    })
-
-    // Handle group already exists (idempotency)
-    if (res.status === 409) {
-      logger.info("connect.fivetran.group_already_exists_409", {
-        groupName: validatedGroupName,
-      })
-      // If we get a 409, the group might exist but with a different ID
-      // Try to get the group by name (we'd need to implement this)
-      throw new Error(
-        "Group already exists with different ID - need to implement name-based lookup",
-      )
-    }
-
-    if (!res.ok) {
-      let errorBody = ""
+  const retryResult = await retryWithBackoff(
+    async () => {
+      // Check if group already exists (idempotency)
       try {
-        errorBody = await res.text()
-      } catch {
-        errorBody = "Unable to read error response"
+        const existingGroup = await fivetranGetGroup(validatedGroupId)
+        if (existingGroup) {
+          logger.info("connect.fivetran.group_already_exists", {
+            groupId: validatedGroupId,
+            groupName: existingGroup.name,
+          })
+          return { group_id: existingGroup.id } as { group_id: string }
+        }
+      } catch (getError) {
+        logger.warn("connect.fivetran.group_lookup_failed", {
+          groupId: validatedGroupId,
+          error: getError instanceof Error ? getError.message : String(getError),
+        })
+        // Continue with creation if lookup fails
       }
 
-      // Handle duplicate group error (idempotency)
-      if (res.status === 400) {
-        try {
-          const errorData = JSON.parse(errorBody)
-          if (errorData.code === "InvalidInput" && errorData.message?.includes("already in use")) {
-            logger.info("connect.fivetran.group_already_exists_invalid_input", {
-              groupName: validatedGroupName,
-              errorBody,
-            })
-            // Find the existing group by name
-            logger.info("connect.fivetran.group_name_already_in_use", {
-              groupName: validatedGroupName,
-            })
+      // Acquire rate limit token
+      await fivetranRateLimiter.acquire()
+
+      return fivetranCircuitBreaker.execute(async () => {
+        const requestBody = JSON.stringify({
+          name: validatedGroupName,
+        })
+
+        const res = await httpFetch("https://api.fivetran.com/v1/groups", {
+          method: "POST",
+          headers: {
+            Authorization: createBasicAuthHeader(validatedApiKey, validatedApiSecret),
+            "Content-Type": "application/json",
+          },
+          body: requestBody,
+          timeoutMs: 30000, // 30 seconds for group creation
+        })
+
+        // Handle group already exists (idempotency)
+        if (res.status === 409) {
+          logger.info("connect.fivetran.group_already_exists_409", {
+            groupName: validatedGroupName,
+          })
+          // If we get a 409, the group might exist but with a different ID
+          // Try to get the group by name (we'd need to implement this)
+          throw new Error(
+            "Group already exists with different ID - need to implement name-based lookup",
+          )
+        }
+
+        if (!res.ok) {
+          let errorBody = ""
+          try {
+            errorBody = await res.text()
+          } catch {
+            errorBody = "Unable to read error response"
+          }
+
+          // Handle duplicate group error (idempotency)
+          if (res.status === 400) {
             try {
-              const existingGroups = await fivetranListGroups()
-              const existingGroup = existingGroups.find(
-                (group) => group.name === validatedGroupName,
-              )
-              if (existingGroup) {
-                logger.info("connect.fivetran.group_found_by_name", {
+              const errorData = JSON.parse(errorBody)
+              if (
+                errorData.code === "InvalidInput" &&
+                errorData.message?.includes("already in use")
+              ) {
+                logger.info("connect.fivetran.group_already_exists_invalid_input", {
                   groupName: validatedGroupName,
-                  groupId: existingGroup.id,
+                  errorBody,
                 })
-                return { group_id: existingGroup.id }
-              } else {
-                logger.error("connect.fivetran.group_not_found_by_name", {
+                // Find the existing group by name
+                logger.info("connect.fivetran.group_name_already_in_use", {
                   groupName: validatedGroupName,
-                  availableGroups: existingGroups.map((g) => g.name),
                 })
-                throw new Error(
-                  `Group with name '${validatedGroupName}' not found in existing groups`,
-                )
+                try {
+                  const existingGroups = await fivetranListGroups()
+                  const existingGroup = existingGroups.find(
+                    (group) => group.name === validatedGroupName,
+                  )
+                  if (existingGroup) {
+                    logger.info("connect.fivetran.group_found_by_name", {
+                      groupName: validatedGroupName,
+                      groupId: existingGroup.id,
+                    })
+                    return { group_id: existingGroup.id } as { group_id: string }
+                  } else {
+                    logger.error("connect.fivetran.group_not_found_by_name", {
+                      groupName: validatedGroupName,
+                      availableGroups: existingGroups.map((g) => g.name),
+                    })
+                    throw new Error(
+                      `Group with name '${validatedGroupName}' not found in existing groups`,
+                    )
+                  }
+                } catch (listError) {
+                  logger.error("connect.fivetran.group_lookup_by_name_failed", {
+                    groupName: validatedGroupName,
+                    error: listError instanceof Error ? listError.message : String(listError),
+                  })
+                  throw new Error(
+                    `Failed to find existing group by name: ${listError instanceof Error ? listError.message : String(listError)}`,
+                  )
+                }
               }
-            } catch (listError) {
-              logger.error("connect.fivetran.group_lookup_by_name_failed", {
-                groupName: validatedGroupName,
-                error: listError instanceof Error ? listError.message : String(listError),
-              })
-              throw new Error(
-                `Failed to find existing group by name: ${listError instanceof Error ? listError.message : String(listError)}`,
-              )
+            } catch {
+              // Fallback to string matching if JSON parsing fails
+              if (errorBody.includes("already exists") || errorBody.includes("already in use")) {
+                logger.info("connect.fivetran.group_already_exists_constraint", {
+                  groupName: validatedGroupName,
+                  errorBody,
+                })
+                // Find the existing group by name (fallback)
+                logger.info("connect.fivetran.group_name_already_in_use_fallback", {
+                  groupName: validatedGroupName,
+                })
+                try {
+                  const existingGroups = await fivetranListGroups()
+                  const existingGroup = existingGroups.find(
+                    (group) => group.name === validatedGroupName,
+                  )
+                  if (existingGroup) {
+                    logger.info("connect.fivetran.group_found_by_name_fallback", {
+                      groupName: validatedGroupName,
+                      groupId: existingGroup.id,
+                    })
+                    return { group_id: existingGroup.id } as { group_id: string }
+                  } else {
+                    logger.error("connect.fivetran.group_not_found_by_name_fallback", {
+                      groupName: validatedGroupName,
+                      availableGroups: existingGroups.map((g) => g.name),
+                    })
+                    throw new Error(
+                      `Group with name '${validatedGroupName}' not found in existing groups`,
+                    )
+                  }
+                } catch (listError) {
+                  logger.error("connect.fivetran.group_lookup_by_name_failed_fallback", {
+                    groupName: validatedGroupName,
+                    error: listError instanceof Error ? listError.message : String(listError),
+                  })
+                  throw new Error(
+                    `Failed to find existing group by name: ${listError instanceof Error ? listError.message : String(listError)}`,
+                  )
+                }
+              }
             }
           }
-        } catch {
-          // Fallback to string matching if JSON parsing fails
-          if (errorBody.includes("already exists") || errorBody.includes("already in use")) {
-            logger.info("connect.fivetran.group_already_exists_constraint", {
-              groupName: validatedGroupName,
-              errorBody,
-            })
-            // Find the existing group by name (fallback)
-            logger.info("connect.fivetran.group_name_already_in_use_fallback", {
-              groupName: validatedGroupName,
-            })
-            try {
-              const existingGroups = await fivetranListGroups()
-              const existingGroup = existingGroups.find(
-                (group) => group.name === validatedGroupName,
-              )
-              if (existingGroup) {
-                logger.info("connect.fivetran.group_found_by_name_fallback", {
-                  groupName: validatedGroupName,
-                  groupId: existingGroup.id,
-                })
-                return { group_id: existingGroup.id }
-              } else {
-                logger.error("connect.fivetran.group_not_found_by_name_fallback", {
-                  groupName: validatedGroupName,
-                  availableGroups: existingGroups.map((g) => g.name),
-                })
-                throw new Error(
-                  `Group with name '${validatedGroupName}' not found in existing groups`,
-                )
-              }
-            } catch (listError) {
-              logger.error("connect.fivetran.group_lookup_by_name_failed_fallback", {
-                groupName: validatedGroupName,
-                error: listError instanceof Error ? listError.message : String(listError),
-              })
-              throw new Error(
-                `Failed to find existing group by name: ${listError instanceof Error ? listError.message : String(listError)}`,
-              )
-            }
+
+          logger.error("connect.fivetran.create_group.api_error", {
+            status: res.status,
+            statusText: res.statusText,
+            errorBody,
+            groupId: validatedGroupId,
+          })
+
+          throw new Error(
+            `Fivetran create group failed: ${res.status} ${res.statusText} - ${errorBody}`,
+          )
+        }
+
+        const data = (await res.json().catch(() => ({}))) as { data?: { id?: string } }
+        const group_id = data?.data?.id
+
+        if (!group_id) {
+          logger.error("connect.fivetran.create_group.no_id_returned", {
+            groupName: validatedGroupName,
+            api_response: data,
+          })
+          throw new Error("Fivetran did not return a group ID in the response")
+        }
+
+        logger.info("connect.fivetran.create_group.success", {
+          groupName: validatedGroupName,
+          group_id,
+          api_response: data,
+        })
+
+        return { group_id: group_id } as { group_id: string }
+      })
+    },
+    {
+      maxRetries: 3,
+      shouldRetry: (error, attempt) => {
+        // Don't retry on authentication errors or validation errors
+        if (error instanceof Error) {
+          if (error.message.includes("401") || error.message.includes("403")) {
+            return false
+          }
+          if (error.message.includes("InvalidInput") && error.message.includes("already in use")) {
+            return false // This is expected for idempotency
           }
         }
-      }
+        return true
+      },
+      onRetry: (error, attempt, delayMs) => {
+        logger.warn("connect.fivetran.create_group.retry", {
+          attempt,
+          delay_ms: delayMs,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      },
+    },
+  )
 
-      logger.error("connect.fivetran.create_group.api_error", {
-        status: res.status,
-        statusText: res.statusText,
-        errorBody,
-        groupId: validatedGroupId,
-      })
-
-      throw new Error(
-        `Fivetran create group failed: ${res.status} ${res.statusText} - ${errorBody}`,
-      )
-    }
-
-    const data = (await res.json().catch(() => ({}))) as { data?: { id?: string } }
-    const group_id = data?.data?.id
-
-    if (!group_id) {
-      logger.error("connect.fivetran.create_group.no_id_returned", {
-        groupName: validatedGroupName,
-        api_response: data,
-      })
-      throw new Error("Fivetran did not return a group ID in the response")
-    }
-
-    logger.info("connect.fivetran.create_group.success", {
-      groupName: validatedGroupName,
-      group_id,
-      api_response: data,
-    })
-
-    return { group_id }
-  } catch (error) {
-    logger.error("connect.fivetran.create_group.failed", {
-      groupName: validatedGroupName,
-      error: error instanceof Error ? error.message : String(error),
-    })
-
-    if (error instanceof Error) {
-      throw new Error(`Failed to create Fivetran group '${validatedGroupName}': ${error.message}`)
-    }
-    throw new Error(`Failed to create Fivetran group '${validatedGroupName}': ${String(error)}`)
-  }
+  return retryResult.result
 }
 
 /**

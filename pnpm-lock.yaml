@@ -532,6 +532,22 @@ importers:
         specifier: ^5.5.0
         version: 5.9.2
 
+  packages/metrics:
+    dependencies:
+      '@hubble/logger':
+        specifier: workspace:*
+        version: link:../logger
+    devDependencies:
+      '@hubble/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@hubble/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.2
+
   packages/prettier-config: {}
 
   packages/schemas:
