@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server"
-import { createApiHandler, withQStashVerification } from "@hubble/utils/server"
-import { processProvisionJob } from "@hubble/utils/connect/provision-job"
-import { validateProvisionJobPayload } from "@hubble/api-contracts/connect"
+import { createApiHandler, withQStashVerification } from "@hubble/server"
+import { processProvisionJob } from "@hubble/connect"
+import { validateProvisionJobPayload } from "@hubble/schemas/connect"
+import { generateRequestId } from "@hubble/core"
+
+// TODO: Implement non-retryable errors for QStash
+//   Context: Add support for 489 status code with Upstash-NonRetryable-Error header to prevent retries for known unrecoverable errors like invalid payloads or authentication failures.
+//   labels: area/api, feature/queue, type/enhancement https://upstash.com/docs/qstash/features/retry
+//   assignees: omzification
+//   milestone: 0.0.1
 
 export const runtime = "nodejs"
 
@@ -10,7 +17,7 @@ export async function POST(request: Request) {
     async (req: Request) => {
       return createApiHandler(
         async (_req: Request, auth, reqLogger) => {
-          const reqId = crypto.randomUUID()
+          const reqId = generateRequestId()
 
           let body: unknown
           try {

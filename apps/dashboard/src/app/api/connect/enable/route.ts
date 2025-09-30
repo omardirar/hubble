@@ -1,29 +1,48 @@
+/**
+ * Connect Enable API Route
+ *
+ * Enables data connection provisioning for an organization by creating
+ * a provisioning run and enqueueing it via QStash for background processing.
+ *
+ * Flow:
+ * 1. Validate request and authentication
+ * 2. Create provisioning run in database
+ * 3. Enqueue background job via QStash
+ * 4. Return correlation ID for status tracking
+ *
+ * @param request - HTTP request containing enable request data
+ * @returns JSON response with correlation ID and status
+ */
+
 import { NextResponse } from "next/server"
 import {
   createApiHandler,
   insertProvisionRun,
   updateProvisionRun,
-  dispatchQStashJson,
+  dispatchJson,
   QStashPublishError,
   TenantNotFoundError,
-} from "@hubble/utils/server"
-import { EnableResponseSchema, validateEnableRequest } from "@hubble/api-contracts/connect"
+} from "@hubble/server"
+import { EnableResponseSchema, validateEnableRequest } from "@hubble/schemas/connect"
+import { connectLogger } from "@hubble/logger"
+import { generateRequestId, buildApiUrl } from "@hubble/core"
 
-export const runtime = "nodejs" // Ensure Node runtime for SDKs
+// Ensure Node.js runtime for SDK compatibility
+export const runtime = "nodejs"
 
 export async function POST(request: Request) {
   return createApiHandler(
-    async (_req: Request, auth, reqLogger) => {
-      const reqId = crypto.randomUUID()
+    async (_req: Request, auth, _reqLogger) => {
+      const reqId = generateRequestId()
 
-      // Validate request body
+      // Step 1: Parse and validate request body
       let requestBody: unknown
       try {
         const text = await request.text()
         requestBody = text ? JSON.parse(text) : {}
       } catch (error) {
-        reqLogger.error("connect.enable.invalid_json", {
-          error: error instanceof Error ? error.message : String(error),
+        connectLogger.stepFailed(reqId, "json_parsing", error as Error, {
+          orgId: auth?.orgId,
         })
         return NextResponse.json(
           {
@@ -34,11 +53,12 @@ export async function POST(request: Request) {
         )
       }
 
+      // Validate request schema
       try {
         validateEnableRequest(requestBody)
       } catch (error) {
-        reqLogger.error("connect.enable.validation_failed", {
-          error: error instanceof Error ? error.message : String(error),
+        connectLogger.stepFailed(reqId, "validation", error as Error, {
+          orgId: auth?.orgId,
           body: requestBody,
         })
         return NextResponse.json(
@@ -50,8 +70,11 @@ export async function POST(request: Request) {
         )
       }
 
+      // Step 2: Verify authentication and organization context
       if (!auth) {
-        reqLogger.error("connect.enable.unauthorized", {})
+        connectLogger.stepFailed(reqId, "authentication", new Error("No authentication provided"), {
+          requestId: reqId,
+        })
         return NextResponse.json(
           { error: { code: "UNAUTHORIZED", message: "Unauthorized" }, request_id: reqId },
           { status: 401 },
@@ -59,7 +82,15 @@ export async function POST(request: Request) {
       }
 
       if (!auth.orgId) {
-        reqLogger.error("connect.enable.no_org", { userId: auth.userId })
+        connectLogger.stepFailed(
+          reqId,
+          "organization_validation",
+          new Error("No organization found"),
+          {
+            userId: auth.userId,
+            requestId: reqId,
+          },
+        )
         return NextResponse.json(
           {
             error: { code: "NO_ORGANIZATION", message: "No organization found" },
@@ -69,14 +100,21 @@ export async function POST(request: Request) {
         )
       }
 
-      // Create run in DB
+      // Step 3: Create provisioning run in database
       let correlation_id: string
       try {
         const run = await insertProvisionRun(auth.orgId)
         correlation_id = run.correlation_id
+        connectLogger.stepComplete(reqId, "run_creation", 0, {
+          orgId: auth.orgId,
+          correlationId: correlation_id,
+        })
       } catch (error) {
         if (error instanceof TenantNotFoundError) {
-          reqLogger.warn("connect.enable.tenant_missing", { orgId: auth.orgId })
+          connectLogger.stepFailed(reqId, "tenant_validation", error, {
+            orgId: auth.orgId,
+            errorCode: "TENANT_NOT_FOUND",
+          })
           return NextResponse.json(
             {
               error: {
@@ -90,13 +128,9 @@ export async function POST(request: Request) {
           )
         }
 
-        reqLogger.error("connect.enable.insert_failed", {
-          error: error instanceof Error ? error.message : String(error),
-          errorCode:
-            error instanceof Error && "code" in error
-              ? (error as { code?: string }).code
-              : undefined,
+        connectLogger.stepFailed(reqId, "run_creation", error as Error, {
           orgId: auth.orgId,
+          errorCode: (error as Error & { code?: string }).code,
         })
         return NextResponse.json(
           {
@@ -107,59 +141,48 @@ export async function POST(request: Request) {
         )
       }
 
-      // Enqueue provisioning job via QStash
-      const headers = new Headers(request.headers)
-      const host = headers.get("x-forwarded-host") ?? headers.get("host") ?? "localhost:3000"
-      const protocol = (headers.get("x-forwarded-proto") ??
-        (host.startsWith("localhost") ? "http" : "https")) as "http" | "https"
-      const baseUrl = `${protocol}://${host}`
-      const targetUrl = new URL("/api/queues/provision", baseUrl).toString()
+      // Step 4: Enqueue provisioning job via QStash
+      const targetUrl = buildApiUrl(request.headers, "/api/queues/provision")
 
       try {
-        reqLogger.info("connect.enable.enqueuing_job", {
+        connectLogger.stepProgress(correlation_id, "qstash_enqueue", "starting", {
           targetUrl,
           orgId: auth.orgId,
-          correlationId: correlation_id,
         })
 
-        await dispatchQStashJson({
+        // Dispatch job to QStash with deduplication key
+        await dispatchJson({
           targetUrl,
           body: { org_id: auth.orgId, correlation_id },
           dedupeKey: correlation_id,
         })
 
-        reqLogger.info("connect.enable.job_enqueued", {
+        connectLogger.stepComplete(correlation_id, "qstash_enqueue", 0, {
           orgId: auth.orgId,
-          correlationId: correlation_id,
         })
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
-        reqLogger.error("qstash.enqueue.failed", {
-          error: message,
+        connectLogger.stepFailed(correlation_id, "qstash_enqueue", error as Error, {
           orgId: auth.orgId,
-          correlationId: correlation_id,
         })
 
-        // Clean up the failed provisioning run
+        // Clean up the failed provisioning run to maintain data consistency
         try {
           await updateProvisionRun(correlation_id, {
             status: "failed",
             finished_at: new Date().toISOString(),
             error_message: message,
           })
-          reqLogger.info("connect.enable.cleanup_completed", {
+          connectLogger.stepComplete(correlation_id, "cleanup", 0, {
             orgId: auth.orgId,
-            correlationId: correlation_id,
           })
         } catch (cleanupError) {
-          reqLogger.error("connect.enable.cleanup_failed", {
+          connectLogger.stepFailed(correlation_id, "cleanup", cleanupError as Error, {
             orgId: auth.orgId,
-            correlationId: correlation_id,
-            cleanupError:
-              cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
           })
         }
 
+        // Handle specific QStash errors with user-friendly messages
         if (error instanceof QStashPublishError) {
           // Check if it's a development server token error
           if (message.includes("development server token")) {
@@ -184,6 +207,8 @@ export async function POST(request: Request) {
             { status: 502 },
           )
         }
+
+        // Generic enqueue failure
         return NextResponse.json(
           {
             error: { code: "ENQUEUE_FAILED", message: "Failed to enqueue provisioning" },
@@ -192,6 +217,12 @@ export async function POST(request: Request) {
           { status: 502 },
         )
       }
+
+      // Step 5: Return success response with correlation ID
+      connectLogger.provisionStart(correlation_id, auth.orgId, {
+        requestId: reqId,
+        status: "pending",
+      })
 
       const body = { correlation_id, status: "pending" as const, request_id: reqId }
       EnableResponseSchema.parse(body)

@@ -18,7 +18,7 @@
   "sideEffects": false,
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
-    "@hubble/env": "workspace:*"
+    "@hubble/config": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

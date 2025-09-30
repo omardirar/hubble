@@ -10,7 +10,7 @@ import {
   handleDatabaseError,
   updateConversation,
   ApiErrorCodes,
-} from "@hubble/utils/server"
+} from "@hubble/server"
 
 interface RouteParams {
   params: Promise<{ id: string }>

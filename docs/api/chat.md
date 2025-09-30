@@ -35,7 +35,7 @@ Columns: `id uuid`, `conversation_id uuid`, `org_id text`, `owner_user_id text`,
 
 ### Views
 
-`public.conversation_summaries` – includes `last_message_text`; used by the sidebar to show recent chats.
+`chat.conversations` – includes conversation details; used by the sidebar to show recent chats.
 
 ### RPCs
 

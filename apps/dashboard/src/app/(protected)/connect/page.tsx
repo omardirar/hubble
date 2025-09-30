@@ -4,12 +4,11 @@ import { ErrorBoundary, useConnect } from "@hubble/ui"
 import {
   ConnectContainer,
   ConnectContent,
-  ConnectHeader,
   ConnectStatusChecker,
   ConnectEnableButton,
   ConnectLoadingState,
-  ConnectSuccessState,
   ConnectErrorState,
+  ConnectSections,
 } from "@hubble/ui"
 
 export default function Page() {
@@ -18,12 +17,11 @@ export default function Page() {
   return (
     <ErrorBoundary>
       <ConnectContainer>
-        <ConnectHeader />
         <ConnectContent>
           {state === "checking" && <ConnectStatusChecker />}
           {state === "idle" && <ConnectEnableButton onEnable={handleEnable} />}
           {state === "loading" && <ConnectLoadingState />}
-          {state === "ready" && <ConnectSuccessState />}
+          {state === "ready" && <ConnectSections />}
           {state === "error" && (
             <ConnectErrorState
               error={error || "An unknown error occurred"}

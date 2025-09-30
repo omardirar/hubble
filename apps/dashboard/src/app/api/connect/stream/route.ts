@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server"
-import { createApiHandler, createConnectStatusStream, RunNotFoundError } from "@hubble/utils/server"
+import { createApiHandler, createConnectStatusStream, RunNotFoundError } from "@hubble/server"
+import { generateRequestId } from "@hubble/core"
 
 export const runtime = "nodejs" // Node runtime + Fluid compute configured in vercel.json
 
 export async function GET(request: Request) {
   return createApiHandler(
     async (req: Request, auth, reqLogger) => {
-      const reqId = crypto.randomUUID()
+      const reqId = generateRequestId()
       const url = new URL(req.url)
       const correlationId = url.searchParams.get("correlation_id")?.trim() ?? ""
 

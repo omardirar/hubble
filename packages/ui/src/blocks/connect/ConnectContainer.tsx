@@ -7,8 +7,8 @@ interface ConnectContainerProps {
 
 export function ConnectContainer({ children, className }: ConnectContainerProps) {
   return (
-    <div className={cn("container mx-auto py-3", className)}>
-      <div className="max-w-4xl">{children}</div>
+    <div className={cn("container mx-auto py-3 h-full", className)}>
+      <div className="max-auto h-full">{children}</div>
     </div>
   )
 }

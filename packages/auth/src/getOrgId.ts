@@ -9,31 +9,8 @@
 import { createServiceClient } from "@hubble/db"
 import { logger } from "@hubble/logger"
 
-/**
- * Determines the appropriate Clerk schema name based on the current environment.
- */
-function getClerkSchemaName(): string {
-  // Check for development environment
-  if (process.env.NODE_ENV === "development") {
-    return "clerk_dev"
-  }
-
-  // Check for Vercel preview environment
-  if (process.env.VERCEL_ENV === "preview") {
-    return "clerk_dev"
-  }
-
-  // Default to production schema
-  return "clerk"
-}
-
-/**
- * Gets the full table name for a Clerk table based on the current environment.
- */
-function getClerkTableName(tableName: string): string {
-  const schema = getClerkSchemaName()
-  return `${schema}.${tableName}`
-}
+// Import from centralized location to avoid duplication
+import { getClerkTableName } from "./clerk-schema"
 
 /**
  * Retrieves the organization ID for a specific user from Clerk data.

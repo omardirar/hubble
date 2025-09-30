@@ -5,9 +5,6 @@
  * These utilities do not contain server-only dependencies.
  */
 
-export * from "./cn" // Class name utilities
-export * from "./id" // ID generation utilities
-export * from "./chat" // Chat utilities
+export * from "@hubble/core" // Core utilities (cn, id, errors, fetch)
+export * from "@hubble/chat" // Chat utilities
 export * from "@hubble/logger" // Logging utilities
-export * from "./errors" // Error handling utilities
-export * from "./fetch" // HTTP request utilities

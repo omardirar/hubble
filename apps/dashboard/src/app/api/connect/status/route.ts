@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server"
-import { createApiHandler, getStatus, RunNotFoundError } from "@hubble/utils/server"
+import { createApiHandler, getStatus, RunNotFoundError } from "@hubble/server"
+import { generateRequestId } from "@hubble/core"
 
 export const runtime = "nodejs"
 
 export async function GET(request: Request) {
   return createApiHandler(
     async (req: Request, auth, reqLogger) => {
-      const reqId = crypto.randomUUID()
+      const reqId = generateRequestId()
       const url = new URL(req.url)
       const correlationId = url.searchParams.get("correlation_id")?.trim() ?? ""
       const sinceSeqRaw = url.searchParams.get("since_seq")
