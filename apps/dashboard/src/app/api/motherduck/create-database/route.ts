@@ -16,7 +16,14 @@ export async function POST(request: NextRequest) {
 
   // Simple API key authentication for internal use
   const apiKey = request.headers.get("x-api-key")
-  const expectedApiKey = process.env.INTERNAL_API_KEY || "internal-db-creation-key"
+  const expectedApiKey = process.env.INTERNAL_API_KEY
+
+  if (!expectedApiKey) {
+    logger.error("motherduck.create_database.api.misconfigured", {
+      error: "INTERNAL_API_KEY environment variable is not set",
+    })
+    return NextResponse.json({ error: "Service misconfigured" }, { status: 500 })
+  }
 
   logger.info("motherduck.create_database.api.auth_check", {
     providedKey: apiKey ? "***" : "none",

@@ -73,13 +73,12 @@ export async function createConnectStatusStream(
       }
 
       // Wait a bit before retrying (exponential backoff)
-      await new Promise((resolve) => setTimeout(resolve, 1000 * retries))
+      await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, retries)))
     }
   }
 
   let cleanup: () => void = () => {}
   const CONNECTION_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
-  const MAX_TERMINAL_CONTENT = 1000 // Limit terminal content to prevent memory leaks
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {

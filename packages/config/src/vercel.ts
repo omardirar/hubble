@@ -30,7 +30,7 @@ const serverEnvSchema = z.object({
   UPSTASH_REDIS_WS_URL: z.string().optional(),
   UPSTASH_REDIS_WS_TOKEN: z.string().optional(),
   // Internal API key for service-to-service communication
-  INTERNAL_API_KEY: z.string().optional().default("internal-db-creation-key"),
+  INTERNAL_API_KEY: z.string().optional(),
 })
 
 // Public environment variables schema

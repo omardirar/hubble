@@ -363,7 +363,16 @@ export async function mdCreateDatabase(dbName: string, saToken: string): Promise
 
     // Call the external API that handles DuckDB Node.js client
     // This is an internal API call, so we use a simple API key
-    const apiKey = process.env.INTERNAL_API_KEY || "internal-db-creation-key"
+    const apiKey = process.env.INTERNAL_API_KEY
+
+    if (!apiKey) {
+      const error = new Error("INTERNAL_API_KEY environment variable is not set")
+      logger.error("connect.motherduck.create_database.misconfigured", {
+        error: error.message,
+        dbName: validatedDbName,
+      })
+      throw error
+    }
 
     logger.info("connect.motherduck.create_database.api_key_debug", {
       dbName: validatedDbName,
