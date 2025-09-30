@@ -10,7 +10,7 @@ import {
   handleDatabaseError,
   updateConversation,
   ApiErrorCodes,
-} from "@hubble/utils/server"
+} from "@hubble/server"
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -20,8 +20,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { id } = await params
 
   return createApiHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async (req: any, auth, logger) => {
+    async (req: NextRequest, auth, logger) => {
       // Parse request body
       const body = await req.json()
       const updates: Record<string, unknown> = {}

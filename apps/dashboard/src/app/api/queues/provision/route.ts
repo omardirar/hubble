@@ -1,41 +1,134 @@
 import { NextResponse } from "next/server"
-import { verifySignatureAppRouter } from "@upstash/qstash/nextjs"
-import {
-  LockNotAcquiredError,
-  processProvisionJob,
-  ProvisionJobFailedError,
-} from "@hubble/utils/server"
-import { getConnectEnv } from "@hubble/env"
+import { createApiHandler, withQStashVerification } from "@hubble/server"
+import { processProvisionJob } from "@hubble/connect"
+import { validateProvisionJobPayload } from "@hubble/schemas/connect"
+import { generateRequestId } from "@hubble/core"
+
+// TODO: Implement non-retryable errors for QStash
+//   Context: Add support for 489 status code with Upstash-NonRetryable-Error header to prevent retries for known unrecoverable errors like invalid payloads or authentication failures.
+//   labels: area/api, feature/queue, type/enhancement https://upstash.com/docs/qstash/features/retry
+//   assignees: omzification
+//   milestone: 0.0.1
 
 export const runtime = "nodejs"
 
-const { QSTASH_CURRENT_SIGNING_KEY, QSTASH_NEXT_SIGNING_KEY } = getConnectEnv()
+export async function POST(request: Request) {
+  return withQStashVerification(
+    async (req: Request) => {
+      return createApiHandler(
+        async (_req: Request, auth, reqLogger) => {
+          const reqId = generateRequestId()
 
-const handler = async (request: Request) => {
-  const { org_id, correlation_id } = (await request.json().catch(() => ({}))) as {
-    org_id?: string
-    correlation_id?: string
-  }
+          let body: unknown
+          try {
+            const text = await req.text()
+            body = text ? JSON.parse(text) : {}
+          } catch (error) {
+            reqLogger.error("queues.provision.invalid_json", {
+              error: error instanceof Error ? error.message : String(error),
+            })
+            return NextResponse.json(
+              {
+                error: { code: "INVALID_JSON", message: "Invalid JSON in request body" },
+                request_id: reqId,
+              },
+              { status: 400 },
+            )
+          }
 
-  if (!org_id || !correlation_id) {
-    return NextResponse.json({ error: "invalid payload" }, { status: 400 })
-  }
+          let validatedPayload
+          try {
+            validatedPayload = validateProvisionJobPayload(body)
+          } catch (error) {
+            reqLogger.error("queues.provision.validation_failed", {
+              error: error instanceof Error ? error.message : String(error),
+              body,
+            })
+            return NextResponse.json(
+              {
+                error: { code: "VALIDATION_ERROR", message: "Invalid request payload" },
+                request_id: reqId,
+              },
+              { status: 400 },
+            )
+          }
 
-  try {
-    await processProvisionJob({ orgId: org_id, correlationId: correlation_id })
-    return NextResponse.json({ ok: true })
-  } catch (error) {
-    if (error instanceof LockNotAcquiredError) {
-      return new Response("lock-not-acquired", { status: 409 })
-    }
-    if (error instanceof ProvisionJobFailedError) {
-      return new Response("failed", { status: 502 })
-    }
-    throw error
-  }
+          const { org_id, correlation_id } = validatedPayload
+
+          reqLogger.info("queues.provision.job_started", {
+            orgId: org_id,
+            correlationId: correlation_id,
+          })
+
+          try {
+            // Call the real provisioning job
+            await processProvisionJob({
+              orgId: org_id,
+              correlationId: correlation_id,
+            })
+
+            reqLogger.info("queues.provision.job_completed", {
+              orgId: org_id,
+              correlationId: correlation_id,
+            })
+
+            return NextResponse.json({ success: true })
+          } catch (error) {
+            // Better error message extraction
+            let message: string
+            let errorDetails: Record<string, unknown>
+
+            if (error instanceof Error) {
+              message = error.message || error.name || "Unknown error"
+              errorDetails = {
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+              }
+            } else if (typeof error === "string") {
+              message = error
+              errorDetails = { error: error }
+            } else if (error && typeof error === "object") {
+              // Handle objects that might not be Error instances
+              const errorObj = error as Record<string, unknown>
+              message =
+                (errorObj.message as string) || (errorObj.error as string) || JSON.stringify(error)
+              errorDetails = {
+                type: typeof error,
+                constructor: error.constructor?.name,
+                ...errorObj,
+              }
+            } else {
+              message = String(error)
+              errorDetails = { error: String(error) }
+            }
+
+            // Ensure error details are properly serialized
+            const serializedErrorDetails = JSON.parse(JSON.stringify(errorDetails))
+
+            reqLogger.error("queues.provision.job_failed", {
+              error: message,
+              error_details: serializedErrorDetails,
+              orgId: org_id,
+              correlationId: correlation_id,
+            })
+
+            return NextResponse.json(
+              {
+                error: {
+                  code: "PROVISIONING_FAILED",
+                  message: "Provisioning job failed",
+                  details: errorDetails,
+                },
+                request_id: reqId,
+              },
+              { status: 500 },
+            )
+          }
+        },
+        { requireAuth: false, loggerContext: { endpoint: "/api/queues/provision" } },
+      )(req)
+    },
+    { skipVerification: false },
+  )(request)
 }
-
-export const POST = verifySignatureAppRouter(handler, {
-  currentSigningKey: QSTASH_CURRENT_SIGNING_KEY,
-  nextSigningKey: QSTASH_NEXT_SIGNING_KEY,
-})

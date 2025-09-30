@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server"
-import { createApiHandler, createConnectStatusStream, RunNotFoundError } from "@hubble/utils/server"
+import { createApiHandler, createConnectStatusStream, RunNotFoundError } from "@hubble/server"
+import { generateRequestId } from "@hubble/core"
 
 export const runtime = "nodejs" // Node runtime + Fluid compute configured in vercel.json
 
 export async function GET(request: Request) {
   return createApiHandler(
     async (req: Request, auth, reqLogger) => {
-      const reqId = crypto.randomUUID()
+      const reqId = generateRequestId()
       const url = new URL(req.url)
       const correlationId = url.searchParams.get("correlation_id")?.trim() ?? ""
 
@@ -22,23 +23,50 @@ export async function GET(request: Request) {
       }
 
       try {
-        const response = await createConnectStatusStream(auth!.orgId, correlationId, reqLogger)
+        const response = await createConnectStatusStream(
+          auth!.orgId,
+          correlationId,
+          reqLogger,
+          auth!.token,
+        )
         return response
       } catch (error) {
         if (error instanceof RunNotFoundError) {
           return NextResponse.json(
-            { error: { code: "NOT_FOUND", message: "Run not found" }, request_id: reqId },
+            {
+              error: {
+                code: "RUN_NOT_FOUND",
+                message: "Provisioning run not found",
+              },
+              request_id: reqId,
+            },
             { status: 404 },
           )
         }
 
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        const errorDetails =
+          error instanceof Error
+            ? {
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+              }
+            : error
+
         reqLogger.error("connect.stream.bootstrap_failed", {
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage,
+          errorDetails,
           correlation_id: correlationId,
         })
+
         return NextResponse.json(
           {
-            error: { code: "INTERNAL_ERROR", message: "Failed to open stream" },
+            error: {
+              code: "STREAM_BOOTSTRAP_FAILED",
+              message: "Failed to open stream",
+              details: errorDetails,
+            },
             request_id: reqId,
           },
           { status: 500 },
@@ -46,5 +74,5 @@ export async function GET(request: Request) {
       }
     },
     { requireAuth: true, requireOrg: true, loggerContext: { endpoint: "/api/connect/stream" } },
-  )(request as unknown as Request)
+  )(request)
 }

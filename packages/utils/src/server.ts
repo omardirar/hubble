@@ -4,19 +4,11 @@
  * This module exports utilities that can only be used on the server side.
  * These should not be imported by client-side code as they contain
  * server-only dependencies.
+ *
+ * Note: This file is deprecated. Use @hubble/server instead.
+ * This file is kept for backward compatibility but does not export anything.
+ * Import directly from @hubble/server for server-side utilities.
  */
 
-export * from "./logger" // Structured logging utilities
-export * from "./api-handlers" // API route handler utilities
-export * from "./anthropic-client" // Anthropic API client
-export * from "./database-operations" // Database operation utilities
-export * from "./errors" // Error handling utilities
-export * from "./id" // ID generation utilities
-// Connect feature server-only helpers
-export * from "./connect/qstash"
-export * from "./connect/redis"
-export * from "./connect/motherduck"
-export * from "./connect/fivetran"
-export * from "./connect/db"
-export * from "./connect/provision-job"
-export * from "./connect/stream"
+// This file is deprecated - use @hubble/server directly
+// No exports to avoid bundling server-only code in client applications

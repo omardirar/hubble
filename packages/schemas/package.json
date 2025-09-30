@@ -1,0 +1,35 @@
+{
+  "name": "@hubble/schemas",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint . --max-warnings=0"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    },
+    "./chat": {
+      "types": "./src/chat.ts",
+      "import": "./src/chat.ts"
+    },
+    "./connect": {
+      "types": "./src/connect.ts",
+      "import": "./src/connect.ts"
+    }
+  },
+  "license": "MIT",
+  "sideEffects": false,
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@hubble/tsconfig": "workspace:*",
+    "@hubble/eslint-config": "workspace:*"
+  }
+}

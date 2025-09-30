@@ -1,14 +1,33 @@
 import { NextResponse } from "next/server"
-import { createApiHandler, getStatus, RunNotFoundError } from "@hubble/utils/server"
+import { createApiHandler, getStatus, RunNotFoundError } from "@hubble/server"
+import { generateRequestId } from "@hubble/core"
 
 export const runtime = "nodejs"
 
 export async function GET(request: Request) {
   return createApiHandler(
     async (req: Request, auth, reqLogger) => {
-      const reqId = crypto.randomUUID()
+      const reqId = generateRequestId()
       const url = new URL(req.url)
       const correlationId = url.searchParams.get("correlation_id")?.trim() ?? ""
+      const sinceSeqRaw = url.searchParams.get("since_seq")
+      let sinceSeq: number | undefined
+      if (sinceSeqRaw != null) {
+        const parsed = Number.parseInt(sinceSeqRaw, 10)
+        if (Number.isNaN(parsed) || parsed < 0) {
+          return NextResponse.json(
+            {
+              error: {
+                code: "VALIDATION_ERROR",
+                message: "since_seq must be a non-negative integer",
+              },
+              request_id: reqId,
+            },
+            { status: 400 },
+          )
+        }
+        sinceSeq = parsed
+      }
 
       // Reject early so clients get immediate feedback before hitting Supabase.
       if (!correlationId) {
@@ -23,7 +42,7 @@ export async function GET(request: Request) {
 
       try {
         // Server utilities enforce org scoping and return schema-safe payloads.
-        const result = await getStatus(auth!.orgId, correlationId)
+        const result = await getStatus(auth!.orgId, correlationId, sinceSeq)
         return NextResponse.json(result)
       } catch (error) {
         if (error instanceof RunNotFoundError) {
@@ -48,5 +67,5 @@ export async function GET(request: Request) {
       }
     },
     { requireAuth: true, requireOrg: true, loggerContext: { endpoint: "/api/connect/status" } },
-  )(request as unknown as Request)
+  )(request)
 }

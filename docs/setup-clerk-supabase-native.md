@@ -136,7 +136,7 @@ The API worker uses the native Clerk-Supabase integration:
 ```typescript
 // ✅ CORRECT: Use native integration in API worker
 const supabase = await createBrowserClientWithFallback(env, { authToken: token })
-const { data } = await supabase.from("conversations").select("*")
+const { data } = await supabase.from("chat.conversations").select("*")
 ```
 
 ### 4.4 Environment Variables

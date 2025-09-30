@@ -12,17 +12,17 @@ import {
   handleDatabaseError,
   getConversations,
   createConversation,
-} from "@hubble/utils/server"
+} from "@hubble/server"
 import {
   validateCreateConversationRequest,
   validateConversationSummary,
-} from "@hubble/api-contracts/chat"
+} from "@hubble/schemas/chat"
+import { chatLogger, databaseLogger } from "@hubble/logger"
 
 export async function GET(request: NextRequest) {
   return createApiHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async (_req: any, auth, logger) => {
-      logger.info("Fetching conversations", {
+    async (_req: NextRequest, auth, logger) => {
+      databaseLogger.queryStart("select", "conversations", {
         userId: auth!.userId,
         orgId: auth!.orgId,
       })
@@ -31,9 +31,17 @@ export async function GET(request: NextRequest) {
         const conversations = await getConversations(auth!.supabase, logger)
         const validatedData = conversations.map(validateConversationSummary)
 
-        logger.info("Successfully fetched conversations", { count: validatedData.length })
+        databaseLogger.queryComplete("select", "conversations", 0, validatedData.length, {
+          userId: auth!.userId,
+          orgId: auth!.orgId,
+        })
+
         return NextResponse.json(validatedData)
       } catch (error) {
+        databaseLogger.queryFailed("select", "conversations", error as Error, {
+          userId: auth!.userId,
+          orgId: auth!.orgId,
+        })
         return handleDatabaseError(error, "fetch conversations", logger)
       }
     },
@@ -47,29 +55,25 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   return createApiHandler(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async (req: any, auth, logger) => {
+    async (req: NextRequest, auth, logger) => {
       // Parse and validate request body
-      const validatedRequest = await parseRequestBody(
+      const { title = "New Chat" } = await parseRequestBody(
         req,
         validateCreateConversationRequest,
         logger,
       )
-      if (validatedRequest instanceof Response) {
-        return validatedRequest
-      }
 
-      const { title = "New Chat" } = validatedRequest
-
-      logger.info("Creating conversation", {
-        userId: auth!.userId,
+      chatLogger.conversationCreated("pending", auth!.userId, title, {
         orgId: auth!.orgId,
-        title,
       })
 
       // Verify organization exists in Clerk mirror
       const orgExists = await verifyOrganization(auth!.supabase, auth!.orgId, logger)
       if (!orgExists) {
+        chatLogger.chatError("organization_not_found", new Error("Organization not found"), {
+          userId: auth!.userId,
+          orgId: auth!.orgId,
+        })
         return NextResponse.json(
           { error: "Organization not found", code: "ORG_NOT_FOUND" },
           { status: 404 },
@@ -85,9 +89,16 @@ export async function POST(request: NextRequest) {
           logger,
         )
 
-        logger.info("Successfully created conversation", { id: conversation.id })
+        chatLogger.conversationCreated(conversation.id, auth!.userId, title, {
+          orgId: auth!.orgId,
+        })
         return NextResponse.json(conversation, { status: 201 })
       } catch (error) {
+        chatLogger.chatError("conversation_creation_failed", error as Error, {
+          userId: auth!.userId,
+          orgId: auth!.orgId,
+          title,
+        })
         return handleDatabaseError(error, "create conversation", logger)
       }
     },

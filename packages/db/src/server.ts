@@ -19,7 +19,7 @@
  */
 
 import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js"
-import { getSupabaseConfig } from "@hubble/env"
+import { getSupabaseConfig } from "@hubble/config"
 
 /**
  * Creates a Supabase client with service role privileges for server-side usage.
@@ -48,10 +48,16 @@ export function createServiceClient(): SupabaseClient {
   const { url, serviceRoleKey } = getSupabaseConfig()
 
   // Create client with service role key and stateless configuration
-  return createSupabaseClient(url, serviceRoleKey, {
+  const client = createSupabaseClient(url, serviceRoleKey, {
     auth: {
       autoRefreshToken: false, // No token refresh needed for service role
       persistSession: false, // No session persistence for stateless server operations
     },
   })
+
+  // Note: Environment variable for schema selection defaults to 'development'
+  // which uses clerk_dev schema. For production, the environment variable
+  // should be set to 'production' to use the clerk schema.
+
+  return client
 }

@@ -18,6 +18,8 @@
   "sideEffects": false,
   "dependencies": {
     "@hubble/db": "workspace:*",
+    "@hubble/logger": "workspace:*",
+    "@hubble/core": "workspace:*",
     "@clerk/nextjs": "^5.0.0"
   },
   "devDependencies": {
