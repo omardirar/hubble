@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { QueryProvider } from "@/providers/query-client-provider"
+import "@clerk/themes/shadcn.css"
 import "./globals.css"
 
 const geistSans = Geist({

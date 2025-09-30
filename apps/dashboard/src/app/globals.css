@@ -3,7 +3,6 @@
 @source "../../../../packages/ui/src/**/*.{ts,tsx,mdx}";
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@clerk/themes/shadcn.css";
 
 /* Enable class-based dark mode variant in Tailwind v4 */
 @custom-variant dark (&:is(.dark *));
