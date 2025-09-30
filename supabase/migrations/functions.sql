@@ -64,21 +64,6 @@ EXCEPTION
 END;
 $$;
 
--- Debug function to inspect JWT payload (for troubleshooting)
-CREATE OR REPLACE FUNCTION public.debug_jwt()
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_catalog
-AS $$
-BEGIN
-  RETURN auth.jwt();
-EXCEPTION
-  WHEN OTHERS THEN
-    RETURN '{"error": "Failed to get JWT"}'::jsonb;
-END;
-$$;
-
 -- Set updated_at function
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS trigger
@@ -626,7 +611,6 @@ GRANT EXECUTE ON FUNCTION system.rate_limit_check(text, text, interval, int) TO 
 
 -- Grant execute permissions to authenticated users
 GRANT EXECUTE ON FUNCTION public.jwt_claim(text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.debug_jwt() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.ensure_tenant_exists(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_org_from_clerk_mirror(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_append_message(uuid, text, jsonb, text) TO authenticated;

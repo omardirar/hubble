@@ -10,7 +10,7 @@
 
 -- Insert default connector types
 INSERT INTO connect.connector_types (code, label) VALUES
-  ('facebook_ads', 'Meta Ads'),
+  ('facebook_ads', 'Facebook Ads'),
   ('google_ads', 'Google Ads'),
   ('tiktok_ads', 'TikTok Ads'),
   ('linkedin_ads', 'LinkedIn Ads')

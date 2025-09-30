@@ -7,4 +7,9 @@ ignoredBuiltDependencies:
   - "@vercel/speed-insights"
 
 onlyBuiltDependencies:
+  - "@clerk/shared"
+  - "@tailwindcss/oxide"
   - duckdb
+  - esbuild
+  - sharp
+  - unrs-resolver

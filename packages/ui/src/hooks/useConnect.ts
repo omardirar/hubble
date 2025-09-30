@@ -1,9 +1,22 @@
 "use client"
 
+/**
+ * Connect State Management Hook
+ *
+ * This hook provides a simplified interface for Connect features using React Query
+ * for optimized data fetching and caching. It replaces the previous implementation
+ * that made multiple API calls with a single, efficient overview endpoint.
+ *
+ * Features:
+ * - Automatic caching and background revalidation
+ * - Optimistic updates for better UX
+ * - Request deduplication
+ * - EventSource streaming for real-time provisioning updates
+ */
+
 import { useState, useEffect, useRef, useCallback } from "react"
 import { logger } from "@hubble/logger"
-// No direct imports needed - using API calls
-import { useAuth } from "@clerk/nextjs"
+import { useConnectOverview, useEnableConnect } from "./queries/use-connect-overview"
 
 export type ConnectState = "idle" | "loading" | "ready" | "error" | "checking"
 
@@ -11,7 +24,7 @@ export interface UseConnectReturn {
   state: ConnectState
   error: string | null
   handleEnable: () => Promise<void>
-  // New connection management
+  // Connection data from React Query
   connections: Array<{
     id: string
     source_type: string
@@ -26,6 +39,7 @@ export interface UseConnectReturn {
   loadingConnectors: boolean
   refreshConnections: () => Promise<void>
   refreshConnectors: () => Promise<void>
+  refreshConnector: (connectorId: string) => Promise<void>
 }
 
 export function useConnect(): UseConnectReturn {
@@ -33,58 +47,43 @@ export function useConnect(): UseConnectReturn {
   const [error, setError] = useState<string | null>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
 
-  // New connection management state
-  const [connections, setConnections] = useState<
-    Array<{
-      id: string
-      source_type: string
-      fivetran_connector_id: string | null
-      schema_name: string | null
-      status: string
-      created_at: string
-      updated_at: string
-    }>
-  >([])
-  const [connectors, setConnectors] = useState<Array<{ code: string; label: string }>>([])
-  const [loadingConnections, setLoadingConnections] = useState(false)
-  const [loadingConnectors, setLoadingConnectors] = useState(false)
+  // Use React Query for data fetching
+  const { data: overview, isLoading, error: queryError, refetch } = useConnectOverview()
+  const enableMutation = useEnableConnect()
 
-  const { getToken, orgId } = useAuth()
-
-  // Check provisioning status on component mount
+  // Update state based on overview data
   useEffect(() => {
-    const checkProvisioningStatus = async () => {
-      try {
-        const response = await fetch("/api/connect/status-check")
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const data = await response.json()
-
-        // Handle the new status-based response
-        if (data.status === "ready") {
-          setState("ready")
-        } else if (data.status === "running") {
-          setState("loading")
-        } else if (data.status === "failed") {
-          setState("error")
-          setError(data.errorMessage || "Provisioning failed")
-        } else {
-          setState("idle")
-        }
-      } catch (error) {
-        logger.error("connect.status-check.failed", {
-          error: error instanceof Error ? error.message : String(error),
-        })
-        // If status check fails, default to idle state
-        setState("idle")
-      }
+    if (isLoading) {
+      setState("checking")
+      return
     }
 
-    checkProvisioningStatus()
-  }, [])
+    if (queryError) {
+      logger.error("connect.overview.query_error", {
+        error: queryError instanceof Error ? queryError.message : String(queryError),
+      })
+      // Don't set error state for initial load failures - default to idle
+      setState("idle")
+      return
+    }
+
+    if (!overview) {
+      setState("idle")
+      return
+    }
+
+    // Map overview status to UI state
+    if (overview.status === "ready") {
+      setState("ready")
+    } else if (overview.status === "provisioning") {
+      setState("loading")
+    } else if (overview.status === "failed") {
+      setState("error")
+      setError("Provisioning failed")
+    } else {
+      setState("idle")
+    }
+  }, [overview, isLoading, queryError])
 
   // Clean up EventSource on unmount
   useEffect(() => {
@@ -105,23 +104,12 @@ export function useConnect(): UseConnectReturn {
     }
 
     try {
-      const response = await fetch("/api/connect/enable", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data = await response.json()
+      // Trigger the mutation
+      const result = await enableMutation.mutateAsync(undefined)
 
       // Connect to real-time SSE stream
       const eventSource = new EventSource(
-        `/api/connect/stream?correlation_id=${data.correlation_id}`,
+        `/api/connect/stream?correlation_id=${result.correlation_id}`,
       )
       eventSourceRef.current = eventSource
 
@@ -131,6 +119,8 @@ export function useConnect(): UseConnectReturn {
 
           if (data.status === "ready") {
             setState("ready")
+            // Refetch overview to get updated data
+            refetch()
           } else {
             setState("error")
             setError("Setup failed. Please check the logs for more details.")
@@ -138,107 +128,66 @@ export function useConnect(): UseConnectReturn {
 
           eventSource.close()
           eventSourceRef.current = null
-        } catch (error) {
+        } catch (err) {
           logger.error("connect.sse.end_parse_error", {
-            error: error instanceof Error ? error.message : String(error),
-            correlationId: data?.correlation_id || "unknown",
+            error: err instanceof Error ? err.message : String(err),
+            correlationId: result?.correlation_id || "unknown",
           })
           setState("error")
           setError("Failed to parse response. Please try again.")
         }
       })
 
-      eventSource.onerror = (_error) => {
+      eventSource.onerror = () => {
         setState("error")
         setError("Connection lost. Please refresh to retry.")
         eventSource.close()
         eventSourceRef.current = null
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error"
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Unknown error"
       setState("error")
       setError(errorMessage)
     }
-  }, [])
+  }, [enableMutation, refetch])
 
-  // Refresh connections
+  // Refresh connections by refetching overview
   const refreshConnections = useCallback(async () => {
-    try {
-      setLoadingConnections(true)
+    await refetch()
+  }, [refetch])
 
-      const token = await getToken()
-      if (!token) {
-        throw new Error("No authentication token available")
-      }
-
-      if (!orgId) {
-        throw new Error("No organization ID found")
-      }
-
-      const response = await fetch("/api/connect/connections", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      if (!response.ok) {
-        throw new Error(`Failed to fetch connections: ${response.status}`)
-      }
-      const result = await response.json()
-      const data = result.connections || []
-      setConnections(data)
-    } catch (err) {
-      logger.error("connect.useConnect.refresh_connections_failed", {
-        error: err instanceof Error ? err.message : String(err),
-      })
-    } finally {
-      setLoadingConnections(false)
-    }
-  }, [getToken, orgId])
-
-  // Refresh connectors
+  // Refresh connectors by refetching overview
   const refreshConnectors = useCallback(async () => {
-    try {
-      setLoadingConnectors(true)
+    await refetch()
+  }, [refetch])
 
-      const response = await fetch("/api/connect/connector-types")
-      if (!response.ok) {
-        throw new Error(`Failed to fetch connector types: ${response.status}`)
+  // Refresh a specific connector status
+  // Note: This now just refetches the entire overview which includes Fivetran health
+  const refreshConnector = useCallback(
+    async (connectorId: string) => {
+      try {
+        logger.info("connect.refresh_connector.triggered", { connectorId })
+        await refetch()
+      } catch (err) {
+        logger.error("connect.refresh_connector.failed", {
+          error: err instanceof Error ? err.message : String(err),
+          connectorId,
+        })
       }
-      const result = await response.json()
-      const data = result.connector_types || []
-      setConnectors(data)
-    } catch (err) {
-      logger.error("connect.useConnect.refresh_connectors_failed", {
-        error: err instanceof Error ? err.message : String(err),
-      })
-    } finally {
-      setLoadingConnectors(false)
-    }
-  }, [])
-
-  // Load initial data when ready
-  useEffect(() => {
-    if (state === "ready") {
-      refreshConnections()
-      refreshConnectors()
-    }
-  }, [state, refreshConnections, refreshConnectors])
+    },
+    [refetch],
+  )
 
   return {
     state,
     error,
     handleEnable,
-    connections,
-    connectors,
-    loadingConnections,
-    loadingConnectors,
+    connections: overview?.connections || [],
+    connectors: overview?.connectors || [],
+    loadingConnections: isLoading,
+    loadingConnectors: isLoading,
     refreshConnections,
     refreshConnectors,
+    refreshConnector,
   }
 }
-
-// TODO: Add retry mechanism for failed status checks
-//   Context: Implement exponential backoff retry for status check failures to improve reliability.
-//   labels: area/ui, feature/connect, type/enhancement
-//   assignees: omzification
-//   milestone: 0.0.1

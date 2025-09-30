@@ -134,6 +134,16 @@ CREATE POLICY connector_types_read_all
   USING (true);
 
 -- =============================================================================
+-- Note: Fivetran views inherit RLS from underlying tables
+-- =============================================================================
+-- Views cannot have RLS policies directly. They automatically inherit RLS from
+-- their underlying tables. Since all Fivetran views join data_connections (which
+-- has RLS enabled), the views are automatically secured by org_id.
+--
+-- The views use security_invoker=true, so they execute with the querying user's
+-- permissions and respect the RLS policies on data_connections.
+
+-- =============================================================================
 -- System Policies
 -- =============================================================================
 
@@ -172,6 +182,7 @@ CREATE POLICY rate_limits_select_none ON system.rate_limits FOR SELECT USING (fa
 -- Note: Views cannot have RLS enabled directly
 -- =============================================================================
 -- Views inherit RLS from underlying tables, but need explicit permissions.
+-- Permissions are granted in permissions.sql
 
 
 

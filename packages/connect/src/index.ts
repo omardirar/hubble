@@ -8,6 +8,7 @@
 export * from "./db"
 export * from "./provision-job"
 export * from "./fivetran"
+export * from "./fivetran-health"
 export * from "./stream"
 export * from "./motherduck"
 

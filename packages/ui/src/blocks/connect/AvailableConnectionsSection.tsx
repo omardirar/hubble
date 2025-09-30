@@ -1,8 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@hubble/ui"
-// No direct imports needed - using API calls
+import { useConnectOverview } from "@hubble/ui"
 import { ConnectCardItem } from "./ConnectCards"
 import { logger } from "@hubble/logger"
 
@@ -13,43 +12,26 @@ interface ConnectorType {
 
 // Map connector codes to icon keys
 const connectorIconMap: Record<string, keyof typeof import("@hubble/ui").connectCardIcons> = {
-  facebook_ads: "facebookAds",
-  google_ads: "googleAds",
-  tiktok_ads: "tiktokAds",
-  linkedin_ads: "linkedinAds",
+  facebook_ads: "facebook_ads",
+  google_ads: "google_ads",
+  tiktok_ads: "tiktok_ads",
+  linkedin_ads: "linkedin_ads",
 }
 
 export function AvailableConnectionsSection() {
-  const [connectors, setConnectors] = useState<ConnectorType[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: overview, isLoading: loading, error: queryError } = useConnectOverview()
 
-  useEffect(() => {
-    const fetchConnectors = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+  const connectors = overview?.connectors || []
+  const connections = overview?.connections || []
+  const error = queryError instanceof Error ? queryError.message : null
 
-        const response = await fetch("/api/connect/connector-types")
-        if (!response.ok) {
-          throw new Error(`Failed to fetch connector types: ${response.status}`)
-        }
-        const result = await response.json()
-        const data = result.connector_types || []
-        setConnectors(data)
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Failed to fetch connectors"
-        logger.error("connect.available_connections.fetch_failed", {
-          error: errorMessage,
-        })
-        setError(errorMessage)
-      } finally {
-        setLoading(false)
-      }
-    }
+  // Get list of already connected source types
+  const connectedSourceTypes = new Set(connections.map((conn) => conn.source_type))
 
-    fetchConnectors()
-  }, [])
+  // Filter out connectors that are already connected
+  const availableConnectors = connectors.filter(
+    (connector) => !connectedSourceTypes.has(connector.code),
+  )
 
   const handleConnect = async (connectorCode: string) => {
     try {
@@ -130,27 +112,33 @@ export function AvailableConnectionsSection() {
         <CardTitle>Available Connections</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4 md:grid-cols-2">
-          {connectors.map((connector) => {
-            const iconKey = connectorIconMap[connector.code]
-            if (!iconKey) {
-              logger.warn("connect.available_connections.unknown_connector", {
-                connector_code: connector.code,
-              })
-              return null
-            }
+        {availableConnectors.length === 0 ? (
+          <div className="text-sm text-muted-foreground text-center py-8">
+            All available connectors are already connected. Great job! 🎉
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {availableConnectors.map((connector) => {
+              const iconKey = connectorIconMap[connector.code]
+              if (!iconKey) {
+                logger.warn("connect.available_connections.unknown_connector", {
+                  connector_code: connector.code,
+                })
+                return null
+              }
 
-            return (
-              <ConnectCardItem
-                key={connector.code}
-                icon={iconKey}
-                name={connector.label}
-                onConnect={() => handleConnect(connector.code)}
-                isConnected={false}
-              />
-            )
-          })}
-        </div>
+              return (
+                <ConnectCardItem
+                  key={connector.code}
+                  icon={iconKey}
+                  name={connector.label}
+                  onConnect={() => handleConnect(connector.code)}
+                  isConnected={false}
+                />
+              )
+            })}
+          </div>
+        )}
       </CardContent>
     </Card>
   )

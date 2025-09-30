@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { QueryProvider } from "@/providers/query-client-provider"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -31,14 +32,16 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} flex min-h-full flex-col antialiased`}
         >
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {children}
-          </ThemeProvider>
+          <QueryProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              {children}
+            </ThemeProvider>
+          </QueryProvider>
           <Analytics />
           <SpeedInsights />
         </body>

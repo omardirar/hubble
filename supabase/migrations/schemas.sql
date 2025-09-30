@@ -490,6 +490,27 @@ WITH (security_invoker = true) AS
 SELECT user_id, action, window_start, count
 FROM system.rate_limits;
 
+-- Create optimized view for organization overview (status + connections summary)
+-- Using security_invoker=true to respect RLS policies of underlying tables
+CREATE OR REPLACE VIEW public.v_organization_overview
+WITH (security_invoker = true) AS
+SELECT
+  o.org_id,
+  o.slug,
+  o.status as org_status,
+  o.created_at as org_created_at,
+  o.updated_at as org_updated_at,
+  dd.id as destination_id,
+  dd.status as destination_status,
+  dd.fivetran_destination_id,
+  dd.md_db_name,
+  (SELECT COUNT(*)::integer FROM connect.data_connections dc WHERE dc.org_id = o.org_id) as total_connections,
+  (SELECT COUNT(*)::integer FROM connect.data_connections dc WHERE dc.org_id = o.org_id AND dc.status = 'healthy') as healthy_connections,
+  (SELECT COUNT(*)::integer FROM connect.data_connections dc WHERE dc.org_id = o.org_id AND dc.status = 'error') as error_connections
+FROM core.organizations o
+LEFT JOIN connect.data_destinations dd ON dd.org_id = o.org_id
+WHERE o.org_id = (SELECT public.jwt_claim('org_id'));
+
 -- =============================================================================
 -- Comments
 -- =============================================================================

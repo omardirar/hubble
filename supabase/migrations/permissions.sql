@@ -12,6 +12,8 @@ DO $$ BEGIN
   GRANT USAGE ON SCHEMA core TO authenticated;
   GRANT USAGE ON SCHEMA connect TO authenticated;
   GRANT USAGE ON SCHEMA system TO authenticated;
+  -- Grant usage on fivetran_log schema if it exists (created by Fivetran connector)
+  GRANT USAGE ON SCHEMA fivetran_log TO authenticated;
 EXCEPTION
   WHEN OTHERS THEN NULL;
 END $$;
@@ -21,6 +23,8 @@ DO $$ BEGIN
   GRANT USAGE ON SCHEMA core TO service_role;
   GRANT USAGE ON SCHEMA connect TO service_role;
   GRANT USAGE ON SCHEMA system TO service_role;
+  -- Grant usage on fivetran_log schema if it exists (created by Fivetran connector)
+  GRANT USAGE ON SCHEMA fivetran_log TO service_role;
 EXCEPTION
   WHEN OTHERS THEN NULL;
 END $$;
@@ -91,7 +95,33 @@ EXCEPTION
   WHEN OTHERS THEN NULL;
 END $$;
 
--- Connect views permissions (no views defined in current schema)
+-- Connect views permissions (Fivetran connection overview)
+DO $$ BEGIN
+  GRANT SELECT ON TABLE connect.v_fivetran_connection_overview TO authenticated;
+  GRANT ALL ON TABLE connect.v_fivetran_connection_overview TO service_role;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
+
+-- =============================================================================
+-- Fivetran Log Table Permissions
+-- =============================================================================
+-- These tables are created by the Fivetran log connector
+-- Grant SELECT permissions so views with security_invoker=true can access them
+
+DO $$ BEGIN
+  -- Grant SELECT on all Fivetran log tables (if they exist)
+  GRANT SELECT ON ALL TABLES IN SCHEMA fivetran_log TO authenticated;
+  GRANT SELECT ON ALL TABLES IN SCHEMA fivetran_log TO service_role;
+
+  -- Grant SELECT on future tables in fivetran_log schema
+  ALTER DEFAULT PRIVILEGES IN SCHEMA fivetran_log
+    GRANT SELECT ON TABLES TO authenticated;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA fivetran_log
+    GRANT SELECT ON TABLES TO service_role;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
 
 -- =============================================================================
 -- System Table Permissions
@@ -185,6 +215,23 @@ END $$;
 DO $$ BEGIN
   GRANT SELECT ON TABLE public.connector_types TO authenticated;
   GRANT ALL ON TABLE public.connector_types TO service_role;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
+
+-- Organization overview view permissions
+DO $$ BEGIN
+  GRANT SELECT ON TABLE public.v_organization_overview TO authenticated;
+  GRANT SELECT ON TABLE public.v_organization_overview TO anon;
+  GRANT ALL ON TABLE public.v_organization_overview TO service_role;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
+
+-- Fivetran log view permissions
+DO $$ BEGIN
+  GRANT SELECT ON TABLE public.v_fivetran_connection_overview TO authenticated;
+  GRANT ALL ON TABLE public.v_fivetran_connection_overview TO service_role;
 EXCEPTION
   WHEN OTHERS THEN NULL;
 END $$;

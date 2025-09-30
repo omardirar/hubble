@@ -23,7 +23,6 @@
   "peerDependencies": {
     "@clerk/nextjs": "^6.0.0",
     "@clerk/themes": "^2.0.0",
-    "motion": "^11.0.0",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-checkbox": "^1.0.0",
     "@radix-ui/react-dialog": "^1.0.0",
@@ -42,6 +41,7 @@
     "class-variance-authority": "^0.7.0",
     "embla-carousel-react": "^8.0.0",
     "lucide-react": ">=0.541.0 <1",
+    "motion": "^11.0.0",
     "next": "^15.0.0",
     "next-themes": ">=0.3.0 <1",
     "react": "^18 || ^19",
@@ -69,13 +69,14 @@
   "dependencies": {
     "@clerk/nextjs": "^6.31.10",
     "@clerk/themes": "^2.4.18",
+    "@hubble/chat": "workspace:*",
+    "@hubble/connect": "workspace:*",
+    "@hubble/core": "workspace:*",
     "@hubble/db": "workspace:*",
     "@hubble/logger": "workspace:*",
-    "@hubble/utils": "workspace:*",
-    "@hubble/core": "workspace:*",
-    "@hubble/connect": "workspace:*",
-    "@hubble/chat": "workspace:*",
     "@hubble/types": "workspace:*",
-    "@supabase/supabase-js": "^2.39.0"
+    "@hubble/utils": "workspace:*",
+    "@supabase/supabase-js": "^2.39.0",
+    "@tanstack/react-query": "^5.90.2"
   }
 }
