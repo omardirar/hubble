@@ -213,8 +213,8 @@ export function YourConnectionsSection() {
 
                         {/* Last Synced */}
                         <span>
-                          {health?.last_synced_at
-                            ? `Synced ${formatLastSynced(health.last_synced_at)}`
+                          {health?.last_successful_sync_at
+                            ? `Synced ${formatLastSynced(health.last_successful_sync_at)}`
                             : "Not synced"}
                         </span>
 

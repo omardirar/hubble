@@ -71,7 +71,7 @@ SELECT
 
   fc.paused,
   fc.sync_frequency,
-  fc._fivetran_synced as last_synced_at,
+  last_sync.last_successful_sync_at,
 
   -- Additional metadata
   fc.deployment_type,
@@ -84,10 +84,17 @@ LEFT JOIN fivetran_log.connection fc
 LEFT JOIN fivetran_log.connector_type ct
   ON fc.connector_type_id = ct.id
 LEFT JOIN fivetran_log.destination d
-  ON fc.destination_id = d.id;
+  ON fc.destination_id = d.id
+LEFT JOIN LATERAL (
+  SELECT MAX(l.time_stamp) as last_successful_sync_at
+  FROM fivetran_log.log l
+  WHERE l.connection_id = dc.fivetran_connector_id
+    AND l.message_event = 'sync_end'
+    AND l.message_data = '{"status":"SUCCESSFUL"}'
+) last_sync ON true;
 
 COMMENT ON VIEW connect.v_fivetran_connection_overview IS
-'Fivetran connection overview with basic info: connector, status, last synced, and identifiers';
+'Fivetran connection overview with basic info: connector, status, last successful sync, and identifiers';
 
 
 -- =============================================================================

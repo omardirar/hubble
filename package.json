@@ -9,6 +9,8 @@
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
     "test": "turbo test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "commit": "cz"
   },
   "devDependencies": {
@@ -33,8 +35,5 @@
   "engines": {
     "node": ">=20.10 <25",
     "pnpm": ">=9"
-  },
-  "dependencies": {
-    "motion": "^11.18.2"
   }
 }

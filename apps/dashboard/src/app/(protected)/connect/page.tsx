@@ -4,7 +4,6 @@ import { ErrorBoundary, useConnect } from "@hubble/ui"
 import {
   ConnectContainer,
   ConnectContent,
-  ConnectHeader,
   ConnectStatusChecker,
   ConnectEnableButton,
   ConnectLoadingState,
@@ -18,7 +17,6 @@ export default function Page() {
   return (
     <ErrorBoundary>
       <ConnectContainer>
-        <ConnectHeader />
         <ConnectContent>
           {state === "checking" && <ConnectStatusChecker />}
           {state === "idle" && <ConnectEnableButton onEnable={handleEnable} />}

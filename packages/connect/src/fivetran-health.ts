@@ -43,7 +43,7 @@ export interface FivetranConnectionOverview {
   status: "deleted" | "paused" | "not_configured" | "active"
   paused: boolean | null
   sync_frequency: number | null
-  last_synced_at: string | null
+  last_successful_sync_at: string | null
   deployment_type: string | null
   destination_name: string | null
   destination_region: string | null
@@ -55,7 +55,7 @@ export interface FivetranConnectionOverview {
 
 /**
  * Fetches Fivetran connection overview for the current organization.
- * Returns basic info: connector, status, last synced, identifiers, and sync frequency.
+ * Returns basic info: connector, status, last successful sync, identifiers, and sync frequency.
  *
  * @param authToken Optional: JWT token for authenticated Supabase client.
  * @returns A promise that resolves to an array of FivetranConnectionOverview objects.

@@ -43,7 +43,7 @@ export interface ConnectOverviewData {
       status: "deleted" | "paused" | "not_configured" | "active"
       paused: boolean | null
       sync_frequency: number | null
-      last_synced_at: string | null
+      last_successful_sync_at: string | null
       deployment_type: string | null
       destination_name: string | null
       destination_region: string | null

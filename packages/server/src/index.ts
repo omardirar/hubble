@@ -8,7 +8,7 @@
 export * from "@hubble/logger" // Structured logging utilities
 export * from "./api-handlers" // API route handler utilities
 export * from "./anthropic-client" // Anthropic API client
-export * from "./clerk-schema" // Clerk schema utilities
+export * from "@hubble/auth" // Auth utilities (includes clerk-schema)
 export * from "@hubble/core" // Core utilities (errors, id, etc.)
 // Chat database operations
 export * from "@hubble/chat"

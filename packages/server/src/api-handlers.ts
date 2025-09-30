@@ -9,8 +9,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { createBrowserClient } from "@hubble/db"
 import { logger } from "@hubble/logger"
-import { extractJWTClaims } from "@hubble/auth"
-import { getClerkRpcName } from "./clerk-schema"
+import { extractJWTClaims, getClerkRpcName } from "@hubble/auth"
 import {
   ApiErrorCodes,
   AppError,

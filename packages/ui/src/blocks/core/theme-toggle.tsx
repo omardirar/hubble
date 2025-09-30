@@ -4,31 +4,63 @@ import * as React from "react"
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
-import { Button } from "../../ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../../ui/dropdown-menu"
+import { Switch } from "../../ui/switch"
 
 export function ModeToggle() {
-  const { setTheme } = useTheme()
+  const { theme, setTheme, systemTheme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
+
+  // Only run on client-side
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Determine if dark mode is active
+  const isDarkMode = theme === "dark" || (theme === "system" && systemTheme === "dark")
+
+  // Handle switch change
+  const handleThemeChange = (checked: boolean) => {
+    // Get current effective theme (resolving system)
+    const currentEffectiveTheme = theme === "system" ? systemTheme : theme
+
+    // Toggle between light and dark, but store in sessionStorage
+    const newTheme = checked ? "dark" : "light"
+
+    // Only update if it's different from the current effective theme
+    if (newTheme !== currentEffectiveTheme) {
+      setTheme(newTheme)
+
+      // Store in sessionStorage only if user explicitly changed it
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("theme", newTheme)
+      }
+    }
+  }
+
+  // On mount, check sessionStorage for theme preference
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedTheme = sessionStorage.getItem("theme")
+      if (storedTheme && (storedTheme === "light" || storedTheme === "dark")) {
+        setTheme(storedTheme)
+      } else {
+        // Default to system if no session preference
+        setTheme("system")
+      }
+    }
+  }, [setTheme])
+
+  // Prevent hydration mismatch
+  if (!mounted) {
+    return <Switch id="theme-toggle" disabled thumbContent={<Sun className="size-3" />} />
+  }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-          <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
-          <span className="sr-only">Toggle theme</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>Light</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>Dark</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>System</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Switch
+      id="theme-toggle"
+      checked={isDarkMode}
+      onCheckedChange={handleThemeChange}
+      thumbContent={isDarkMode ? <Moon className="size-3" /> : <Sun className="size-3" />}
+    />
   )
 }

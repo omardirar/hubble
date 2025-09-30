@@ -7,7 +7,10 @@
  *
  * Modules:
  * - getOrgId: Organization ID retrieval utilities
+ * - jwt-utils: JWT token utilities for claim extraction
+ * - clerk-schema: Clerk schema environment detection utilities
  */
 
 export * from "./getOrgId" // Organization ID utilities
 export * from "./jwt-utils" // JWT token utilities for claim extraction
+export * from "./clerk-schema" // Clerk schema utilities

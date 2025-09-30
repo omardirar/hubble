@@ -16,7 +16,6 @@ export * from "@hubble/logger"
 
 // Re-export client-safe utilities for backward compatibility
 export * from "./client"
-export * from "./clerk-schema"
 
 // Server-only modules are available under "@hubble/server"
 // Connect utilities are available under "@hubble/connect"
