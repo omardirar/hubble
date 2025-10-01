@@ -119,7 +119,8 @@ export default function ChatPage() {
     }
 
     loadMessages()
-  }, [currentConversationId, activeConversationId, chat])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentConversationId, activeConversationId])
 
   // Send queued message after activeConversationId updates
   React.useEffect(() => {
@@ -134,7 +135,8 @@ export default function ChatPage() {
         isCreatingConversationRef.current = false
       }, 0)
     }
-  }, [activeConversationId, chat])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeConversationId])
 
   const handleSubmit = React.useCallback(
     async (e: React.FormEvent) => {
@@ -177,7 +179,8 @@ export default function ChatPage() {
         setInput("")
       }
     },
-    [input, activeConversationId, chat, loadConversations, selectConv],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [input, activeConversationId, loadConversations, selectConv],
   )
 
   const handleSelectConversation = React.useCallback(
@@ -194,7 +197,8 @@ export default function ChatPage() {
     isCreatingConversationRef.current = false
     queuedMessageRef.current = null
     await startNew()
-  }, [startNew, chat])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startNew])
 
   const handleArchive = React.useCallback(
     async (id: string) => {

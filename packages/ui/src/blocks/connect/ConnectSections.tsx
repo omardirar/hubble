@@ -1,4 +1,4 @@
-import { cn } from "@hubble/utils"
+import { cn } from "@hubble/core"
 import { YourConnectionsSection } from "./YourConnectionsSection"
 import { AvailableConnectionsSection } from "./AvailableConnectionsSection"
 

@@ -1,4 +1,4 @@
-import { cn } from "@hubble/utils"
+import { cn } from "@hubble/core"
 
 interface ConnectContentProps {
   children: React.ReactNode

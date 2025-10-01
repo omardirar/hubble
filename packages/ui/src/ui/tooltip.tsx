@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import * as TooltipPrimitive from "@radix-ui/react-tooltip"
-import { cn } from "@hubble/utils"
+import { cn } from "@hubble/core"
 
 function TooltipProvider({
   delayDuration = 0,

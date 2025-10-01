@@ -1,4 +1,4 @@
-import { cn } from "@hubble/utils"
+import { cn } from "@hubble/core"
 import { Loader2 } from "lucide-react"
 
 interface SpinnerProps {

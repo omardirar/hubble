@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import * as RadixAvatar from "@radix-ui/react-avatar"
-import { cn } from "@hubble/utils"
+import { cn } from "@hubble/core"
 
 function Avatar({ className, ...props }: React.ComponentProps<typeof RadixAvatar.Root>) {
   return (

@@ -1,6 +1,5 @@
 export * from "./useIsMobile"
 export * from "./useHydrated"
-export * from "./useChatList"
 export * from "./useSupabase"
 export * from "./useConnect"
 export * from "./queries/use-connect-overview"

@@ -6,10 +6,9 @@
  */
 
 // Re-export all logging functionality
-export * from "./structured-logger"
-export * from "./specialized-loggers"
-export * from "./middleware-logger"
-export * from "./config"
+export * from "./core"
+export * from "./specialized"
+export * from "./middleware"
 
 // Legacy logger for backward compatibility
 type LogLevel = "debug" | "info" | "warn" | "error"

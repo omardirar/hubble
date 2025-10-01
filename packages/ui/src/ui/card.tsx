@@ -1,5 +1,5 @@
 import * as React from "react"
-import { cn } from "@hubble/utils"
+import { cn } from "@hubble/core"
 
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (

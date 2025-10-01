@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { cn } from "@hubble/utils"
+import { cn } from "@hubble/core"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (

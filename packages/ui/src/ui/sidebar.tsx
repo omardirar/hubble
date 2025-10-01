@@ -6,7 +6,7 @@ import { cva, VariantProps } from "class-variance-authority"
 import { PanelLeftIcon } from "lucide-react"
 
 import { useIsMobile } from "../hooks/useIsMobile"
-import { cn } from "@hubble/utils"
+import { cn } from "@hubble/core"
 import { Button } from "./button"
 import { Input } from "./input"
 import { Separator } from "./separator"

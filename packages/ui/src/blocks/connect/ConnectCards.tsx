@@ -1,4 +1,4 @@
-import { cn } from "@hubble/utils"
+import { cn } from "@hubble/core"
 import { Button } from "@hubble/ui"
 import { connectCardIcons } from "@hubble/ui"
 

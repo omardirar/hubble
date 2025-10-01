@@ -1,5 +1,5 @@
 import * as React from "react"
-import { cn } from "@hubble/utils"
+import { cn } from "@hubble/core"
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<"textarea">>(
   function Textarea({ className, ...props }, ref) {
