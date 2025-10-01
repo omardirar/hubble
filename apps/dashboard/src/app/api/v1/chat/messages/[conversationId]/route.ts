@@ -50,6 +50,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           id: message.id,
           role: message.role,
           text: message.content.text,
+          metadata: message.metadata,
           created_at: message.created_at,
         }))
 
@@ -124,6 +125,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           id: existing.id,
           role: existing.role,
           text: existing.content.text,
+          metadata: existing.metadata,
           created_at: existing.created_at,
         }
 
@@ -147,6 +149,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           id: message.id,
           role: message.role,
           text: message.content.text,
+          metadata: message.metadata,
           created_at: message.created_at,
         }
 

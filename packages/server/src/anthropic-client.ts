@@ -78,10 +78,19 @@ export function extractTextFromResponse(response: AnthropicResponse): string {
 /**
  * Send a simple chat message to Anthropic and get the text response
  */
-export async function chatWithAnthropic(prompt: string, requestLogger: Logger): Promise<string> {
+export async function chatWithAnthropic(
+  prompt: string,
+  requestLogger: Logger,
+  conversationHistory: AnthropicMessage[] = [],
+): Promise<string> {
+  const messages: AnthropicMessage[] =
+    conversationHistory.length > 0
+      ? conversationHistory
+      : [{ role: "user" as const, content: prompt }]
+
   const response = await sendToAnthropic(
     {
-      messages: [{ role: "user", content: prompt }],
+      messages,
     },
     requestLogger,
   )

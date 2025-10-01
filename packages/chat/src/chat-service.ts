@@ -19,37 +19,39 @@ export class ChatService {
    * Send a message to the chat API and get AI response
    *
    * @param text - The message text to send
+   * @param conversationHistory - Previous messages for context
    * @returns Promise<string> - The AI response
    */
-  static async sendMessage(text: string): Promise<string> {
-    try {
-      // Validate input
-      const validatedRequest = validateChatRequest({ text })
+  static async sendMessage(text: string, conversationHistory: ChatMessage[] = []): Promise<string> {
+    // Validate input
+    const validatedRequest = validateChatRequest({ text })
 
-      const res = await apiFetch("/api/v1/chat", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(validatedRequest),
-      })
+    const res = await apiFetch("/api/v1/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...validatedRequest,
+        history: conversationHistory.map((m) => ({
+          role: m.role,
+          text: m.text,
+        })),
+      }),
+    })
 
-      if (!res.ok) {
-        const errorText = await res.text().catch(() => "Unknown error")
-        throw new Error(`Chat API error: ${res.status} - ${errorText}`)
-      }
-
-      const data = (await res.json().catch(() => ({}))) as { reply?: string }
-      const validatedResponse = validateChatResponse({ reply: data.reply ?? "" })
-
-      return validatedResponse.reply
-    } catch (error) {
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "Unknown error")
       logger.error("chat.send_message_failed", {
-        error: error instanceof Error ? error.message : String(error),
+        status: res.status,
+        errorText,
         textLength: text.length,
       })
-
-      // Return a user-friendly error message
-      return "Sorry, I couldn't process your message. Please try again."
+      throw new Error(`Failed to get AI response: ${errorText}`)
     }
+
+    const data = (await res.json().catch(() => ({}))) as { reply?: string }
+    const validatedResponse = validateChatResponse({ reply: data.reply ?? "" })
+
+    return validatedResponse.reply
   }
 
   /**
@@ -222,6 +224,55 @@ export class ChatService {
         error: error instanceof Error ? error.message : String(error),
         conversationId,
         title,
+      })
+      throw error
+    }
+  }
+
+  /**
+   * Rename a conversation (alias for updateConversationTitle)
+   *
+   * @param conversationId - The conversation ID
+   * @param title - The new title
+   * @returns Promise<void>
+   */
+  static async renameConversation(conversationId: string, title: string): Promise<void> {
+    return this.updateConversationTitle(conversationId, title)
+  }
+
+  /**
+   * Auto-generate and update conversation title based on first message
+   *
+   * @param conversationId - The conversation ID
+   * @param firstMessage - The first user message
+   * @returns Promise<string> - The generated title
+   */
+  static async autoGenerateTitle(conversationId: string, firstMessage: string): Promise<string> {
+    try {
+      // Generate title using AI
+      const response = await apiFetch("/api/v1/chat/generate-title", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: firstMessage }),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "Unknown error")
+        throw new Error(`Failed to generate title: ${response.status} - ${errorText}`)
+      }
+
+      const { title } = (await response.json()) as { title: string }
+
+      // Update conversation with generated title
+      await this.updateConversationTitle(conversationId, title)
+
+      logger.info("chat.title_auto_generated", { conversationId, title })
+
+      return title
+    } catch (error) {
+      logger.error("chat.auto_generate_title_failed", {
+        error: error instanceof Error ? error.message : String(error),
+        conversationId,
       })
       throw error
     }

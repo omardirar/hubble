@@ -17,6 +17,7 @@ export type ChatMessage = {
   id: string // Unique message identifier
   role: "user" | "assistant" // Message role/sender type
   text: string // Message content
+  metadata?: Record<string, unknown> // Optional message metadata
   created_at?: string // Optional creation timestamp
 }
 

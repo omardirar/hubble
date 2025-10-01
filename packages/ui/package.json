@@ -60,6 +60,7 @@
     "@hubble/tsconfig": "workspace:*",
     "@radix-ui/react-collapsible": "^1.1.0",
     "@radix-ui/react-slot": "^1.2.3",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/react-syntax-highlighter": "^15.5.13",
@@ -67,6 +68,8 @@
     "typescript": "^5.5.0"
   },
   "dependencies": {
+    "@assistant-ui/react": "^0.11.23",
+    "@assistant-ui/react-markdown": "^0.11.0",
     "@clerk/nextjs": "^6.31.10",
     "@clerk/themes": "^2.4.18",
     "@hubble/chat": "workspace:*",

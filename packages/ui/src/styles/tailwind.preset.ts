@@ -104,6 +104,7 @@ const preset: any = {
     },
   },
   plugins: [
+    require("@tailwindcss/typography"),
     // Inject base design tokens (light/dark) via CSS variables
     plugin(function ({ addBase }) {
       addBase({

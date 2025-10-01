@@ -1,42 +1,60 @@
-import { Avatar, AvatarFallback, AvatarImage } from "../../ui"
+"use client"
+
+/**
+ * Message Component
+ * Styled to match assistant-ui message design
+ */
+
 import { cn } from "@hubble/utils"
-import type { ComponentProps, HTMLAttributes } from "react"
+import * as React from "react"
+import type { HTMLAttributes } from "react"
+import { Response } from "./response"
 
-type Role = "user" | "assistant"
+type Role = "user" | "assistant" | "system"
 
-export type MessageProps = HTMLAttributes<HTMLDivElement> & { from: Role }
-export const Message = ({ className, from, ...props }: MessageProps) => (
-  <div
-    className={cn(
-      "group flex w-full items-end gap-2 py-4",
-      from === "user" ? "is-user justify-end" : "is-assistant justify-start",
-      "[&>div]:max-w-[80%]",
-      className,
-    )}
-    {...props}
-  />
-)
+export type MessageProps = HTMLAttributes<HTMLDivElement> & {
+  from: Role
+  content?: string
+}
 
+export const Message = ({ className, from, content, children, ...props }: MessageProps) => {
+  const hasContent = content !== undefined && content !== ""
+  const hasChildren = React.Children.count(children) > 0
+
+  if (from === "user") {
+    return (
+      <div className={cn("mb-4", className)} {...props}>
+        <div className="flex justify-end">
+          <div className="bg-primary text-primary-foreground max-w-[80%] rounded-lg px-2 py-2">
+            {hasContent ? <p className="whitespace-pre-wrap text-sm">{content}</p> : children}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Assistant message
+  return (
+    <div className={cn("mb-4", className)} {...props}>
+      <div className="flex justify-start">
+        <div className="max-w-[80%] rounded-lg px-4 py-2">
+          {hasContent ? (
+            <Response className="prose-sm">{content}</Response>
+          ) : hasChildren ? (
+            children
+          ) : (
+            <Response className="prose-sm">{""}</Response>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Legacy props for backward compatibility
 export type MessageContentProps = HTMLAttributes<HTMLDivElement>
 export const MessageContent = ({ children, className, ...props }: MessageContentProps) => (
-  <div
-    className={cn(
-      "text-foreground flex flex-col gap-2 overflow-hidden rounded-lg p-2 text-sm",
-      "group-[.is-user]:bg-primary group-[.is-user]:text-primary-foreground",
-      "group-[.is-assistant]:bg-secondary group-[.is-assistant]:text-foreground",
-      "is-user:dark",
-      className,
-    )}
-    {...props}
-  >
+  <div className={cn("flex flex-col gap-2 overflow-hidden", className)} {...props}>
     {children}
   </div>
-)
-
-export type MessageAvatarProps = ComponentProps<typeof Avatar> & { src: string; name?: string }
-export const MessageAvatar = ({ src, name, className, ...props }: MessageAvatarProps) => (
-  <Avatar className={cn("ring-border size-8 ring-1", className)} {...props}>
-    <AvatarImage alt="" className="mt-0 mb-0" src={src} />
-    <AvatarFallback>{name?.slice(0, 2) || "ME"}</AvatarFallback>
-  </Avatar>
 )

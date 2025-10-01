@@ -1,155 +1,107 @@
 "use client"
 
-import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui"
-import TextareaAutosize from "react-textarea-autosize"
+/**
+ * Prompt Input Component
+ * Styled to match AI SDK design patterns
+ */
+
+import { Send, StopCircle } from "lucide-react"
 import { cn } from "@hubble/utils"
-import type { ComponentProps, HTMLAttributes, KeyboardEventHandler } from "react"
-import { Children } from "react"
+import type { ComponentProps, HTMLAttributes, FormEvent, KeyboardEvent } from "react"
+import { Button } from "../../ui/button"
+import TextareaAutosize from "react-textarea-autosize"
 
-type ChatStatus = "ready" | "submitted" | "streaming" | "error"
+export type PromptInputProps = HTMLAttributes<HTMLFormElement> & {
+  input: string
+  isLoading?: boolean
+  onInputChange: (value: string) => void
+  onSubmit: (e: FormEvent) => void
+}
 
-export type PromptInputProps = HTMLAttributes<HTMLFormElement>
-export const PromptInput = ({ className, ...props }: PromptInputProps) => (
-  <form
-    className={cn(
-      "bg-background w/full divide-y overflow-hidden rounded-xl border shadow-sm",
-      className,
-    )}
-    {...props}
-  />
-)
+export const PromptInput = ({
+  className,
+  input,
+  isLoading,
+  onInputChange,
+  onSubmit,
+  ...props
+}: PromptInputProps) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      if (input.trim() && !isLoading) {
+        onSubmit(e as any)
+      }
+    }
+  }
 
-export type PromptInputTextareaProps = ComponentProps<typeof TextareaAutosize> & {
+  return (
+    <div className="border-t">
+      <form onSubmit={onSubmit} className={cn("mx-auto max-w-4xl p-4", className)} {...props}>
+        <div className="relative flex items-center overflow-hidden rounded-xl border bg-background shadow-sm">
+          <TextareaAutosize
+            value={input}
+            onChange={(e) => onInputChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask me anything..."
+            className="min-h-12 w-full resize-none bg-transparent px-2 py-3 pr-16 text-sm outline-none placeholder:text-muted-foreground focus:ring-0"
+            disabled={isLoading}
+            autoFocus
+            minRows={1}
+            maxRows={10}
+          />
+          <Button
+            type="submit"
+            size="icon"
+            disabled={isLoading || !input.trim()}
+            className="absolute bottom-2 right-2 h-8 w-8 rounded-lg cursor-pointer disabled:cursor-not-allowed"
+            variant={isLoading ? "secondary" : "default"}
+          >
+            {isLoading ? <StopCircle className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// Legacy components for backward compatibility
+export type PromptInputTextareaProps = ComponentProps<"input"> & {
   minRows?: number
   maxRows?: number
 }
+
 export const PromptInputTextarea = ({
-  onChange,
   className,
   placeholder = "What would you like to know?",
-  minRows = 2,
-  maxRows = 8,
   ...props
-}: PromptInputTextareaProps) => {
-  const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
-    if (e.key === "Enter") {
-      if (e.nativeEvent.isComposing) return
-      if (e.shiftKey) return
-      e.preventDefault()
-      const form = e.currentTarget.form
-      form?.requestSubmit()
-    }
-  }
-  return (
-    <TextareaAutosize
-      className={cn(
-        "w-full resize-none rounded-none border-none p-3 shadow-none ring-0 outline-none",
-        "field-sizing-content bg-transparent dark:bg-transparent",
-        "focus-visible:ring-0",
-        className,
-      )}
-      minRows={minRows}
-      maxRows={maxRows}
-      name="message"
-      onChange={(e) => onChange?.(e)}
-      onKeyDown={handleKeyDown}
-      placeholder={placeholder}
-      {...props}
-    />
-  )
-}
+}: PromptInputTextareaProps) => (
+  <input
+    type="text"
+    className={cn(
+      "placeholder:text-muted-foreground flex-1 resize-none bg-transparent px-4 py-3 text-sm outline-none",
+      className,
+    )}
+    placeholder={placeholder}
+    {...props}
+  />
+)
 
 export type PromptInputToolbarProps = HTMLAttributes<HTMLDivElement>
 export const PromptInputToolbar = ({ className, ...props }: PromptInputToolbarProps) => (
-  <div className={cn("flex items-center justify-between p-1", className)} {...props} />
+  <div className={cn("flex items-center justify-between", className)} {...props} />
 )
 
-export type PromptInputToolsProps = HTMLAttributes<HTMLDivElement>
-export const PromptInputTools = ({ className, ...props }: PromptInputToolsProps) => (
-  <div
-    className={cn("flex items-center gap-1", "[&_button:first-child]:rounded-bl-xl", className)}
-    {...props}
-  />
-)
-
-export type PromptInputButtonProps = ComponentProps<typeof Button>
-export const PromptInputButton = ({
-  variant = "ghost",
-  className,
-  size,
-  ...props
-}: PromptInputButtonProps) => {
-  const newSize = (size ?? Children.count(props.children) > 1) ? "default" : "icon"
-  return (
-    <Button
-      className={cn(
-        "shrink-0 gap-1.5 rounded-lg",
-        variant === "ghost" && "text-muted-foreground",
-        newSize === "default" && "px-3",
-        className,
-      )}
-      size={newSize}
-      type="button"
-      variant={variant}
-      {...props}
-    />
-  )
-}
-
-export type PromptInputSubmitProps = ComponentProps<typeof Button> & { status?: ChatStatus }
-export const PromptInputSubmit = ({
-  className,
-  variant = "default",
-  size = "icon",
-  status,
-  children,
-  ...props
-}: PromptInputSubmitProps) => {
-  return (
-    <Button
-      className={cn("gap-1.5 rounded-lg", className)}
-      size={size}
-      type="submit"
-      variant={variant}
-      {...props}
-    >
-      {children}
-    </Button>
-  )
-}
-
-export type PromptInputModelSelectProps = ComponentProps<typeof Select>
-export const PromptInputModelSelect = (props: PromptInputModelSelectProps) => <Select {...props} />
-
-export type PromptInputModelSelectTriggerProps = ComponentProps<typeof SelectTrigger>
-export const PromptInputModelSelectTrigger = ({
-  className,
-  ...props
-}: PromptInputModelSelectTriggerProps) => (
-  <SelectTrigger
+export type PromptInputSubmitProps = ComponentProps<"button">
+export const PromptInputSubmit = ({ className, children, ...props }: PromptInputSubmitProps) => (
+  <button
+    type="submit"
     className={cn(
-      "text-muted-foreground border-none bg-transparent font-medium shadow-none transition-colors",
-      'hover:bg-accent hover:text-foreground [&[aria-expanded="true"]]:bg-accent [&[aria-expanded="true"]]:text-foreground',
+      "text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed",
       className,
     )}
     {...props}
-  />
+  >
+    {children || <Send className="h-5 w-5" />}
+  </button>
 )
-
-export type PromptInputModelSelectContentProps = ComponentProps<typeof SelectContent>
-export const PromptInputModelSelectContent = ({
-  className,
-  ...props
-}: PromptInputModelSelectContentProps) => <SelectContent className={cn(className)} {...props} />
-
-export type PromptInputModelSelectItemProps = ComponentProps<typeof SelectItem>
-export const PromptInputModelSelectItem = ({
-  className,
-  ...props
-}: PromptInputModelSelectItemProps) => <SelectItem className={cn(className)} {...props} />
-
-export type PromptInputModelSelectValueProps = ComponentProps<typeof SelectValue>
-export const PromptInputModelSelectValue = ({
-  className,
-  ...props
-}: PromptInputModelSelectValueProps) => <SelectValue className={cn(className)} {...props} />

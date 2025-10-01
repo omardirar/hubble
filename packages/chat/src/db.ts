@@ -37,6 +37,7 @@ export interface Message {
   tool_name?: string
   tool_call_id?: string
   error?: string
+  metadata?: Record<string, unknown>
   idempotency_key?: string
   created_at: string
   updated_at: string
@@ -131,7 +132,7 @@ export async function getMessages(
   const { data, error } = await supabase
     .from("messages")
     .select(
-      "id, conversation_id, content, role, author_user_id, model, tool_name, tool_call_id, error, idempotency_key, created_at, updated_at",
+      "id, conversation_id, content, role, author_user_id, model, tool_name, tool_call_id, error, metadata, idempotency_key, created_at, updated_at",
     )
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true })
@@ -156,6 +157,7 @@ export async function createMessage(
   orgId: string,
   ownerUserId: string,
   requestLogger: Logger,
+  metadata?: Record<string, unknown>,
 ): Promise<Message> {
   const { data, error } = await supabase
     .from("messages")
@@ -165,10 +167,11 @@ export async function createMessage(
       owner_user_id: ownerUserId,
       content: { text },
       role,
+      metadata: metadata || {},
       idempotency_key: idempotencyKey,
     })
     .select(
-      "id, conversation_id, content, role, author_user_id, model, tool_name, tool_call_id, error, idempotency_key, created_at, updated_at",
+      "id, conversation_id, content, role, author_user_id, model, tool_name, tool_call_id, error, metadata, idempotency_key, created_at, updated_at",
     )
     .single()
 

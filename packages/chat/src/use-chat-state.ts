@@ -40,9 +40,8 @@ export interface ChatState {
   input: string
   setInput: (input: string) => void
 
-  // Sidebar refresh key for forcing re-renders
-  sidebarRefreshKey: number
-  refreshSidebar: () => void
+  // Refresh action
+  refreshSidebar: () => Promise<void>
 }
 
 /**
@@ -81,7 +80,6 @@ export function useChatState(initialConversationId?: string | null): ChatState &
   const [isSidebarLoading, setIsSidebarLoading] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [input, setInput] = useState("")
-  const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0)
 
   // Refs for cleanup
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -153,11 +151,25 @@ export function useChatState(initialConversationId?: string | null): ChatState &
     [],
   )
 
+  const refreshSidebar = useCallback(async () => {
+    try {
+      const conversations = await ChatService.loadConversations()
+      setConversations(conversations)
+    } catch (error) {
+      // Error already logged in ChatService
+      logger.error("chat.refresh_sidebar_failed", {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }, [])
+
   const sendMessage = useCallback(async () => {
     const trimmedInput = input.trim()
     if (!trimmedInput || isSending) return
 
     setIsSending(true)
+    const userMessageId = `user-${Date.now()}`
+    const assistantMessageId = `assistant-${Date.now()}`
 
     try {
       // Ensure we have a conversation
@@ -165,49 +177,73 @@ export function useChatState(initialConversationId?: string | null): ChatState &
       if (!targetConversationId) {
         targetConversationId = await createConversation()
         if (!targetConversationId) {
+          setIsSending(false)
           return
         }
       }
 
       // Add user message optimistically
       const userMessage: ChatMessage = {
-        id: `user-${Date.now()}`,
+        id: userMessageId,
         role: "user",
         text: trimmedInput,
       }
       setMessages((prev) => [...prev, userMessage])
       setInput("")
 
-      // Save user message
-      await ChatService.saveMessage(targetConversationId, {
-        role: "user",
-        text: trimmedInput,
-      })
+      try {
+        // Save user message
+        const savedUserMessage = await ChatService.saveMessage(targetConversationId, {
+          role: "user",
+          text: trimmedInput,
+        })
 
-      // Get AI response
-      const aiResponse = await ChatService.sendMessage(trimmedInput)
+        // Update with real ID from database
+        setMessages((prev) =>
+          prev.map((m) => (m.id === userMessageId ? { ...m, id: savedUserMessage.id } : m)),
+        )
 
-      // Add AI response
-      const assistantMessage: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
-        text: aiResponse,
+        // Get AI response with conversation context
+        const conversationHistory = [...messages, { ...userMessage, id: savedUserMessage.id }]
+        const aiResponse = await ChatService.sendMessage(trimmedInput, conversationHistory)
+
+        // Add AI response optimistically
+        const assistantMessage: ChatMessage = {
+          id: assistantMessageId,
+          role: "assistant",
+          text: aiResponse,
+        }
+        setMessages((prev) => [...prev, assistantMessage])
+
+        // Save AI response
+        const savedAssistantMessage = await ChatService.saveMessage(targetConversationId, {
+          role: "assistant",
+          text: aiResponse,
+        })
+
+        // Update with real ID from database
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMessageId ? { ...m, id: savedAssistantMessage.id } : m,
+          ),
+        )
+
+        // Refresh sidebar to update conversation order
+        await refreshSidebar()
+
+        logger.info("chat.message_sent_successfully", {
+          conversationId: targetConversationId,
+          messageLength: trimmedInput.length,
+        })
+      } catch (error) {
+        // Roll back optimistic updates on error
+        setMessages((prev) =>
+          prev.filter((m) => m.id !== userMessageId && m.id !== assistantMessageId),
+        )
+        setInput(trimmedInput) // Restore input
+
+        throw error // Re-throw to outer catch
       }
-      setMessages((prev) => [...prev, assistantMessage])
-
-      // Save AI response
-      await ChatService.saveMessage(targetConversationId, {
-        role: "assistant",
-        text: aiResponse,
-      })
-
-      // Refresh sidebar
-      refreshSidebar()
-
-      logger.info("chat.message_sent_successfully", {
-        conversationId: targetConversationId,
-        messageLength: trimmedInput.length,
-      })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to send message"
       toast.error(errorMessage)
@@ -218,7 +254,7 @@ export function useChatState(initialConversationId?: string | null): ChatState &
     } finally {
       setIsSending(false)
     }
-  }, [input, isSending, currentConversationId, createConversation])
+  }, [input, isSending, currentConversationId, createConversation, refreshSidebar])
 
   const selectConversation = useCallback(
     (id: string | null) => {
@@ -281,10 +317,6 @@ export function useChatState(initialConversationId?: string | null): ChatState &
     setInput("")
   }, [])
 
-  const refreshSidebar = useCallback(() => {
-    setSidebarRefreshKey((prev) => prev + 1)
-  }, [])
-
   // Effects
   useEffect(() => {
     // Load conversations on mount
@@ -321,7 +353,6 @@ export function useChatState(initialConversationId?: string | null): ChatState &
     setIsSending,
     input,
     setInput,
-    sidebarRefreshKey,
     refreshSidebar,
 
     // Actions

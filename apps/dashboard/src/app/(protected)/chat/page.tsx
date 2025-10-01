@@ -2,121 +2,253 @@
 
 /**
  * Chat Page Component
- *
- * Main chat interface providing a conversational AI experience with
- * message history, conversation management, and real-time interactions.
- *
- * Features:
- * - Real-time chat with AI assistant
- * - Conversation history and management
- * - Message persistence and loading
- * - Optimistic UI updates
- * - Error handling and user feedback
+ * Uses AI SDK v5 with custom UI components styled like assistant-ui
+ * Follows best practices from https://github.com/vercel/ai-chatbot
  */
 
 import * as React from "react"
-import { ChatConversation } from "@hubble/ui/blocks"
-import {
-  PromptInput,
-  PromptInputTextarea,
-  PromptInputToolbar,
-  PromptInputTools,
-  PromptInputSubmit,
-} from "@hubble/ui/blocks"
-import { ChatSidebar } from "@hubble/ui/blocks"
+import { ThreadList } from "@hubble/ui/blocks"
+import { Conversation, Message, PromptInput } from "@hubble/ui"
+import { useChat } from "@ai-sdk/react"
+import { DefaultChatTransport, type UIMessage } from "ai"
+import { ChatService, useChatSidebar } from "@hubble/chat"
+import { toast } from "sonner"
 import { Separator } from "@hubble/ui"
-import { useChatList } from "@hubble/ui"
-import { useChatState } from "@hubble/chat"
 
 export default function ChatPage() {
-  // Get local chat sessions for fallback
-  const { sessions } = useChatList()
+  const [activeConversationId, setActiveConversationId] = React.useState<string | null>(null)
+  const [input, setInput] = React.useState("")
+  const queuedMessageRef = React.useRef<string | null>(null)
+  const isCreatingConversationRef = React.useRef(false)
 
-  // Use custom chat state management hook
   const {
-    // State
-    messages,
     conversations,
     currentConversationId,
-    isSidebarLoading,
-    isSending,
-    input,
-    setInput,
-
-    // Actions
-    sendMessage,
-    selectConversation,
-    renameConversation,
+    selectConversation: selectConv,
+    startNewChat: startNew,
     archiveConversation,
-    startNewChat,
-  } = useChatState()
+    loadConversations,
+  } = useChatSidebar()
 
-  /**
-   * Handle form submission for sending messages
-   */
+  const transport = React.useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/v1/chat",
+        async prepareSendMessagesRequest({ messages }) {
+          return {
+            body: {
+              messages,
+              conversationId: activeConversationId,
+            },
+          }
+        },
+      }),
+    [activeConversationId],
+  )
+
+  const chat = useChat({
+    id: activeConversationId || undefined,
+    transport,
+    onError: (error) => {
+      console.error("Chat error:", error)
+      toast.error("Failed to send message")
+    },
+    async onFinish({ messages }) {
+      // Reload conversations to update sidebar
+      await loadConversations()
+
+      // Auto-generate title for new conversations
+      if (activeConversationId) {
+        const currentConversations = await ChatService.loadConversations()
+        const conversation = currentConversations.find((c) => c.id === activeConversationId)
+
+        if (conversation?.title === "New Chat") {
+          const firstUserMessage = messages.find((m) => m.role === "user")
+
+          if (firstUserMessage) {
+            const messageText = firstUserMessage.parts
+              .filter((p) => p.type === "text")
+              .map((p) => p.text)
+              .join("")
+
+            ChatService.autoGenerateTitle(activeConversationId, messageText)
+              .then(async () => {
+                await loadConversations()
+              })
+              .catch((error) => {
+                console.error("Failed to auto-generate title:", error)
+              })
+          }
+        }
+      }
+    },
+  })
+
+  // Load messages when conversation changes
+  React.useEffect(() => {
+    const loadMessages = async () => {
+      if (!currentConversationId) {
+        setActiveConversationId(null)
+        chat.setMessages([])
+        setInput("")
+        return
+      }
+
+      // Don't reload if we just created this conversation and have queued a message
+      // This prevents clearing the optimistic user message
+      if (currentConversationId === activeConversationId && queuedMessageRef.current) {
+        return
+      }
+
+      setActiveConversationId(currentConversationId)
+
+      try {
+        const msgs = await ChatService.loadMessages(currentConversationId)
+        const uiMessages: UIMessage[] = msgs.map((m) => ({
+          id: m.id,
+          role: m.role as "user" | "assistant" | "system",
+          parts: [{ type: "text" as const, text: m.text }],
+          metadata: m.metadata,
+        }))
+
+        chat.setMessages(uiMessages)
+        setInput("")
+      } catch (_error) {
+        toast.error("Failed to load messages")
+      }
+    }
+
+    loadMessages()
+  }, [currentConversationId, activeConversationId, chat])
+
+  // Send queued message after activeConversationId updates
+  React.useEffect(() => {
+    if (activeConversationId && queuedMessageRef.current) {
+      const messageToSend = queuedMessageRef.current
+      queuedMessageRef.current = null
+
+      // Use setTimeout to ensure transport has updated
+      setTimeout(() => {
+        chat.sendMessage({ text: messageToSend })
+        // Reset the creating flag after message is sent
+        isCreatingConversationRef.current = false
+      }, 0)
+    }
+  }, [activeConversationId, chat])
+
   const handleSubmit = React.useCallback(
-    (e: React.FormEvent<HTMLFormElement>) => {
+    async (e: React.FormEvent) => {
       e.preventDefault()
-      sendMessage()
+      if (!input.trim()) return
+
+      const currentInput = input
+
+      // Create conversation if this is a new chat
+      if (!activeConversationId) {
+        // Prevent multiple conversation creations from rapid Enter presses
+        if (isCreatingConversationRef.current) {
+          return
+        }
+
+        isCreatingConversationRef.current = true
+
+        try {
+          const newConv = await ChatService.createConversation("New Chat")
+
+          // Update sidebar immediately
+          await loadConversations()
+          await selectConv(newConv.id)
+
+          // Set the active conversation ID which will trigger transport update
+          setActiveConversationId(newConv.id)
+
+          // Store the message to send after state updates
+          // Use a ref to queue the message
+          queuedMessageRef.current = currentInput
+          setInput("")
+        } catch (_error) {
+          isCreatingConversationRef.current = false
+          toast.error("Failed to create conversation")
+          return
+        }
+      } else {
+        // Send message for existing conversation
+        chat.sendMessage({ text: currentInput })
+        setInput("")
+      }
     },
-    [sendMessage],
+    [input, activeConversationId, chat, loadConversations, selectConv],
   )
 
-  /**
-   * Handle input change with debouncing for better performance
-   */
-  const handleInputChange = React.useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      setInput(e.currentTarget.value)
+  const handleSelectConversation = React.useCallback(
+    async (id: string) => {
+      await selectConv(id)
     },
-    [setInput],
+    [selectConv],
   )
 
-  // Use server conversations if available, otherwise fall back to local sessions
-  const sidebarItems = conversations.length > 0 ? conversations : sessions
+  const handleStartNewChat = React.useCallback(async () => {
+    setActiveConversationId(null)
+    setInput("")
+    chat.setMessages([])
+    isCreatingConversationRef.current = false
+    queuedMessageRef.current = null
+    await startNew()
+  }, [startNew, chat])
+
+  const handleArchive = React.useCallback(
+    async (id: string) => {
+      await archiveConversation(id)
+    },
+    [archiveConversation],
+  )
+
+  const threadItems = React.useMemo(
+    () =>
+      conversations.map((conv) => ({
+        id: conv.id,
+        title: conv.title,
+        isActive: conv.id === currentConversationId,
+      })),
+    [conversations, currentConversationId],
+  )
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 gap-0 pt-0 pr-0">
-      {/* Chat Sidebar */}
-      <ChatSidebar
-        side="left"
+    <div className="flex h-full min-h-0 min-w-0 gap-0">
+      <ThreadList
+        items={threadItems}
         activeId={currentConversationId}
-        isLoading={isSidebarLoading}
-        items={sidebarItems}
-        onSelectChat={selectConversation}
-        onNewChat={startNewChat}
-        onRename={renameConversation}
-        onArchive={archiveConversation}
+        onNewThread={handleStartNewChat}
+        onSelectThread={handleSelectConversation}
+        onArchiveThread={handleArchive}
       />
 
-      {/* Separator */}
       <Separator orientation="vertical" />
 
-      {/* Main Chat Area */}
-      <div className="flex flex-1 flex-col">
-        {/* Message Display */}
-        <ChatConversation messages={messages} isTyping={isSending} />
+      <div className="flex flex-1 flex-col min-h-0">
+        <Conversation welcome={{ message: "Hello! How can I help you today?" }}>
+          {chat.messages.map((message) => {
+            const textContent = message.parts
+              .filter((p) => p.type === "text")
+              .map((p) => p.text)
+              .join("")
 
-        {/* Message Input */}
-        <div className="p-3">
-          <PromptInput className="" onSubmit={handleSubmit}>
-            <PromptInputTextarea
-              value={input}
-              onChange={handleInputChange}
-              placeholder="Say something..."
-              minRows={2}
-              maxRows={10}
-              autoFocus
-            />
-            <PromptInputToolbar>
-              <PromptInputTools />
-              <PromptInputSubmit
-                status={isSending ? "streaming" : "ready"}
-                disabled={isSending || !input.trim()}
+            return (
+              <Message
+                key={message.id}
+                from={message.role as "user" | "assistant"}
+                content={textContent}
               />
-            </PromptInputToolbar>
-          </PromptInput>
-        </div>
+            )
+          })}
+        </Conversation>
+
+        <PromptInput
+          input={input}
+          isLoading={chat.status === "streaming" || chat.status === "submitted"}
+          onInputChange={setInput}
+          onSubmit={handleSubmit}
+        />
       </div>
     </div>
   )

@@ -339,6 +339,7 @@ CREATE TABLE IF NOT EXISTS public.messages (
   tool_name        text,
   tool_call_id     text,
   error            text,
+  metadata         jsonb DEFAULT '{}'::jsonb,
   idempotency_key  text,
   created_at       timestamptz NOT NULL DEFAULT now(),
   updated_at       timestamptz NOT NULL DEFAULT now()

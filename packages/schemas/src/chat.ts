@@ -113,6 +113,7 @@ export const MessageSchema = z.object({
   tool_name: z.string().nullable(),
   tool_call_id: z.string().nullable(),
   error: z.string().nullable(),
+  metadata: z.record(z.unknown()).optional(),
   idempotency_key: z.string().nullable(),
   created_at: z.string(),
   updated_at: z.string(),
@@ -126,6 +127,7 @@ export const ApiMessageSchema = z.object({
   id: z.string().uuid(),
   role: MessageRoleSchema,
   text: z.string(),
+  metadata: z.record(z.unknown()).optional(),
   created_at: z.string(),
 })
 export type ApiMessage = z.infer<typeof ApiMessageSchema>
