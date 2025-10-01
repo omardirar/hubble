@@ -1,7 +1,5 @@
 # MotherDuck MCP Server (Local Package)
 
-This directory contains the local source for the MotherDuck MCP server, packaged for deployment with the Fly.io container.
-
 - Console script: `mcp-server-motherduck`
 - Module: `motherduck.mcp_server`
 
