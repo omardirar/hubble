@@ -17,9 +17,11 @@
   "license": "MIT",
   "sideEffects": false,
   "devDependencies": {
-    "typescript": "^5.5.0",
+    "@hubble/eslint-config": "workspace:*",
     "@hubble/tsconfig": "workspace:*",
-    "@hubble/eslint-config": "workspace:*"
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "typescript": "^5.5.0"
   },
   "peerDependencies": {
     "next": ">=15.0.0",

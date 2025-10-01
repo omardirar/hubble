@@ -8,12 +8,26 @@
 
 import * as React from "react"
 import { ThreadList } from "@hubble/ui/blocks"
-import { Conversation, Message, PromptInput } from "@hubble/ui"
+import {
+  Conversation,
+  Message,
+  PromptInput,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  Button,
+  Input,
+  Label,
+} from "@hubble/ui"
 import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport, type UIMessage } from "ai"
 import { ChatService, useChatSidebar } from "@hubble/chat"
 import { toast } from "sonner"
 import { Separator } from "@hubble/ui"
+import { browserLoggers } from "@hubble/logger"
 
 export default function ChatPage() {
   const [activeConversationId, setActiveConversationId] = React.useState<string | null>(null)
@@ -21,11 +35,17 @@ export default function ChatPage() {
   const queuedMessageRef = React.useRef<string | null>(null)
   const isCreatingConversationRef = React.useRef(false)
 
+  // Rename dialog state
+  const [renameDialogOpen, setRenameDialogOpen] = React.useState(false)
+  const [renamingConversationId, setRenamingConversationId] = React.useState<string | null>(null)
+  const [renameTitle, setRenameTitle] = React.useState("")
+
   const {
     conversations,
     currentConversationId,
     selectConversation: selectConv,
     startNewChat: startNew,
+    renameConversation,
     archiveConversation,
     loadConversations,
   } = useChatSidebar()
@@ -50,7 +70,8 @@ export default function ChatPage() {
     id: activeConversationId || undefined,
     transport,
     onError: (error) => {
-      console.error("Chat error:", error)
+      const logger = browserLoggers.chat(activeConversationId || undefined)
+      logger.error("Chat error occurred", { error: error.message }, error as Error)
       toast.error("Failed to send message")
     },
     async onFinish({ messages }) {
@@ -76,7 +97,10 @@ export default function ChatPage() {
                 await loadConversations()
               })
               .catch((error) => {
-                console.error("Failed to auto-generate title:", error)
+                const logger = browserLoggers.chat(activeConversationId)
+                logger.warn("Failed to auto-generate title", {
+                  error: error instanceof Error ? error.message : String(error),
+                })
               })
           }
         }
@@ -200,6 +224,35 @@ export default function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startNew])
 
+  const handleRenameConversation = React.useCallback(
+    (id: string) => {
+      const conversation = conversations.find((c) => c.id === id)
+      if (!conversation) return
+
+      setRenamingConversationId(id)
+      setRenameTitle(conversation.title)
+      setRenameDialogOpen(true)
+    },
+    [conversations],
+  )
+
+  const handleRenameSubmit = React.useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault()
+      if (!renamingConversationId || !renameTitle.trim()) return
+
+      const conversation = conversations.find((c) => c.id === renamingConversationId)
+      if (conversation && renameTitle.trim() !== conversation.title) {
+        await renameConversation(renamingConversationId, renameTitle.trim())
+      }
+
+      setRenameDialogOpen(false)
+      setRenamingConversationId(null)
+      setRenameTitle("")
+    },
+    [renamingConversationId, renameTitle, conversations, renameConversation],
+  )
+
   const handleArchive = React.useCallback(
     async (id: string) => {
       await archiveConversation(id)
@@ -218,42 +271,75 @@ export default function ChatPage() {
   )
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 gap-0">
-      <ThreadList
-        items={threadItems}
-        activeId={currentConversationId}
-        onNewThread={handleStartNewChat}
-        onSelectThread={handleSelectConversation}
-        onArchiveThread={handleArchive}
-      />
-
-      <Separator orientation="vertical" />
-
-      <div className="flex flex-1 flex-col min-h-0">
-        <Conversation welcome={{ message: "Hello! How can I help you today?" }}>
-          {chat.messages.map((message) => {
-            const textContent = message.parts
-              .filter((p) => p.type === "text")
-              .map((p) => p.text)
-              .join("")
-
-            return (
-              <Message
-                key={message.id}
-                from={message.role as "user" | "assistant"}
-                content={textContent}
-              />
-            )
-          })}
-        </Conversation>
-
-        <PromptInput
-          input={input}
-          isLoading={chat.status === "streaming" || chat.status === "submitted"}
-          onInputChange={setInput}
-          onSubmit={handleSubmit}
+    <>
+      <div className="flex h-full min-h-0 min-w-0 gap-0">
+        <ThreadList
+          items={threadItems}
+          activeId={currentConversationId}
+          onNewThread={handleStartNewChat}
+          onSelectThread={handleSelectConversation}
+          onRenameThread={handleRenameConversation}
+          onArchiveThread={handleArchive}
         />
+
+        <Separator orientation="vertical" />
+
+        <div className="flex flex-1 flex-col min-h-0">
+          <Conversation welcome={{ message: "Hello! How can I help you today?" }}>
+            {chat.messages.map((message) => {
+              const textContent = message.parts
+                .filter((p) => p.type === "text")
+                .map((p) => p.text)
+                .join("")
+
+              return (
+                <Message
+                  key={message.id}
+                  from={message.role as "user" | "assistant"}
+                  content={textContent}
+                />
+              )
+            })}
+          </Conversation>
+
+          <PromptInput
+            input={input}
+            isLoading={chat.status === "streaming" || chat.status === "submitted"}
+            onInputChange={setInput}
+            onSubmit={handleSubmit}
+          />
+        </div>
       </div>
-    </div>
+
+      {/* Rename Dialog */}
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Conversation</DialogTitle>
+            <DialogDescription>Enter a new title for this conversation.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleRenameSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  value={renameTitle}
+                  onChange={(e) => setRenameTitle(e.target.value)}
+                  placeholder="Conversation title"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setRenameDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Rename</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

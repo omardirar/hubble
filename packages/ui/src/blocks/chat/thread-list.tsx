@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { MoreVertical, Archive, Plus } from "lucide-react"
+import { MoreVertical, Archive, Plus, Pencil } from "lucide-react"
 import { cn } from "../../utils/utils"
 import {
   DropdownMenu,
@@ -22,6 +22,7 @@ export interface ThreadListProps {
   activeId?: string | null
   onNewThread?: () => void
   onSelectThread?: (id: string) => void
+  onRenameThread?: (id: string) => void
   onArchiveThread?: (id: string) => void
 }
 
@@ -31,8 +32,11 @@ export function ThreadList({
   activeId,
   onNewThread,
   onSelectThread,
+  onRenameThread,
   onArchiveThread,
 }: ThreadListProps) {
+  const [openDropdownId, setOpenDropdownId] = React.useState<string | null>(null)
+
   return (
     <div className={cn("flex h-full w-64 flex-col min-h-0 border-r bg-background", className)}>
       {/* Header */}
@@ -50,38 +54,62 @@ export function ThreadList({
       {/* Thread List */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <div className="space-y-1 p-2">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className={cn(
-                "group flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent cursor-pointer",
-                activeId === item.id && "bg-accent",
-              )}
-            >
-              <button
-                onClick={() => onSelectThread?.(item.id)}
-                className="flex-1 truncate text-left cursor-pointer"
-              >
-                {item.title}
-              </button>
+          {items.map((item) => {
+            const isDropdownOpen = openDropdownId === item.id
 
-              {onArchiveThread && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="opacity-0 transition-opacity group-hover:opacity-100 cursor-pointer">
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onArchiveThread(item.id)}>
-                      <Archive className="mr-2 h-4 w-4" />
-                      Archive
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-          ))}
+            return (
+              <div
+                key={item.id}
+                className={cn(
+                  "group flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent cursor-pointer",
+                  activeId === item.id && "bg-accent",
+                  isDropdownOpen && "bg-accent",
+                )}
+              >
+                <button
+                  onClick={() => onSelectThread?.(item.id)}
+                  className="flex-1 truncate text-left cursor-pointer"
+                >
+                  {item.title}
+                </button>
+
+                {(onRenameThread || onArchiveThread) && (
+                  <DropdownMenu onOpenChange={(open) => setOpenDropdownId(open ? item.id : null)}>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className={cn(
+                          "opacity-0 transition-opacity group-hover:opacity-100 cursor-pointer",
+                          isDropdownOpen && "opacity-100",
+                        )}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      {onRenameThread && (
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={() => onRenameThread(item.id)}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Rename
+                        </DropdownMenuItem>
+                      )}
+                      {onArchiveThread && (
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={() => onArchiveThread(item.id)}
+                        >
+                          <Archive className="mr-2 h-4 w-4" />
+                          Archive
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>

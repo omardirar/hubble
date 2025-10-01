@@ -5,6 +5,12 @@
  * with performance metrics and error handling.
  */
 
+// TODO: Add OpenTelemetry automatic instrumentation for Next.js middleware
+//   Context: Integrate @opentelemetry/instrumentation-http to auto-capture request/response traces with baggage propagation.
+//   labels: area/middleware, feature/tracing, type/enhancement
+//   assignees: omzification
+//   milestone: 0.1.0
+
 import { NextRequest, NextResponse } from "next/server"
 import { createStructuredLogger, LogContext } from "../core/structured-logger"
 import { apiLogger } from "../specialized/specialized-loggers"

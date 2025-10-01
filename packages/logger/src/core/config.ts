@@ -5,6 +5,12 @@
  * with environment-based settings and log level management.
  */
 
+// TODO: Integrate OpenTelemetry for distributed tracing
+//   Context: Add OpenTelemetry SDK to capture traces, metrics, and logs with correlation across services for full observability.
+//   labels: area/observability, feature/telemetry, type/enhancement
+//   assignees: omzification
+//   milestone: 0.1.0
+
 /**
  * Log levels in order of severity
  */

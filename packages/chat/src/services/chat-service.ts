@@ -5,6 +5,12 @@
  * managing conversations, and handling chat state.
  */
 
+// TODO: Add Sonner toast notifications for chat service errors
+//   Context: Replace generic error throwing with user-friendly toast notifications for common chat errors (network, auth, validation).
+//   labels: area/chat, feature/notifications, type/enhancement
+//   assignees: omzification
+//   milestone: 0.0.2
+
 import { apiFetch, generateId } from "@hubble/core"
 import { logger } from "@hubble/logger"
 import { validateChatRequest, validateChatResponse } from "@hubble/schemas/chat"

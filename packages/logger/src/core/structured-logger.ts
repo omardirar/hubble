@@ -15,6 +15,49 @@ export interface LogContext {
 }
 
 /**
+ * Sensitive fields that should be redacted from logs
+ */
+const SENSITIVE_FIELDS = [
+  "password",
+  "token",
+  "apiKey",
+  "api_key",
+  "secret",
+  "authorization",
+  "cookie",
+  "sessionId",
+  "session_id",
+  "creditCard",
+  "credit_card",
+  "ssn",
+  "email", // Optionally redact emails in production
+  "phone",
+  "address",
+]
+
+/**
+ * Redact sensitive information from log context
+ */
+export function sanitizeLogContext(context: LogContext): LogContext {
+  const sanitized: LogContext = {}
+
+  for (const [key, value] of Object.entries(context)) {
+    const lowerKey = key.toLowerCase()
+    const isSensitive = SENSITIVE_FIELDS.some((field) => lowerKey.includes(field.toLowerCase()))
+
+    if (isSensitive) {
+      sanitized[key] = "[REDACTED]"
+    } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      sanitized[key] = sanitizeLogContext(value as LogContext)
+    } else {
+      sanitized[key] = value
+    }
+  }
+
+  return sanitized
+}
+
+/**
  * Logger interface with enhanced functionality
  */
 export interface StructuredLogger {
@@ -35,20 +78,24 @@ export interface StructuredLogger {
  * Create a structured logger with enhanced context management
  */
 export function createStructuredLogger(baseContext: LogContext = {}): StructuredLogger {
-  const context = { ...baseContext }
+  const context = sanitizeLogContext({ ...baseContext })
 
   const log = {
     debug: (message: string, additionalContext?: LogContext) => {
-      logger.debug(message, { ...context, ...additionalContext })
+      const sanitized = additionalContext ? sanitizeLogContext(additionalContext) : {}
+      logger.debug(message, { ...context, ...sanitized })
     },
     info: (message: string, additionalContext?: LogContext) => {
-      logger.info(message, { ...context, ...additionalContext })
+      const sanitized = additionalContext ? sanitizeLogContext(additionalContext) : {}
+      logger.info(message, { ...context, ...sanitized })
     },
     warn: (message: string, additionalContext?: LogContext) => {
-      logger.warn(message, { ...context, ...additionalContext })
+      const sanitized = additionalContext ? sanitizeLogContext(additionalContext) : {}
+      logger.warn(message, { ...context, ...sanitized })
     },
     error: (message: string, additionalContext?: LogContext, error?: Error) => {
-      logger.error(message, { ...context, ...additionalContext }, error)
+      const sanitized = additionalContext ? sanitizeLogContext(additionalContext) : {}
+      logger.error(message, { ...context, ...sanitized }, error)
     },
 
     child: (newContext: LogContext) => {

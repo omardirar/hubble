@@ -190,7 +190,8 @@ export function performanceLoggingExample() {
   // ... do work ...
   const duration = timer.end({ statusCode: 200 })
 
-  console.log(`Request completed in ${duration}ms`)
+  // Use structured logger instead of console.log
+  structuredLogger.info("Request completed", { duration, unit: "ms" })
 }
 
 /**
@@ -246,11 +247,13 @@ export function middlewareLoggingExample() {
 
   // Individual middleware examples
   // Note: These are for demonstration - actual usage would be in API routes
-  console.log("Middleware examples available:", {
-    withComprehensiveLogging: "All-in-one middleware",
-    withRequestLogging: "Request/response logging",
-    withPerformanceMonitoring: "Performance metrics",
-    withSecurityLogging: "Security event detection",
+  structuredLogger.info("Middleware examples available", {
+    available: {
+      withComprehensiveLogging: "All-in-one middleware",
+      withRequestLogging: "Request/response logging",
+      withPerformanceMonitoring: "Performance metrics",
+      withSecurityLogging: "Security event detection",
+    },
   })
 }
 
@@ -260,12 +263,16 @@ export function middlewareLoggingExample() {
 export function configurationExample() {
   // Get current configuration
   const config = getLoggingConfig()
-  console.log("Log level:", config.level)
-  console.log("Enable console:", config.enableConsole)
+  structuredLogger.info("Current logging configuration", {
+    level: config.level,
+    enableConsole: config.enableConsole,
+  })
 
   // Get environment-specific configuration
   const envConfig = LOGGING_PRESETS.production
-  console.log("Production log level:", envConfig.level)
+  structuredLogger.info("Production logging configuration", {
+    level: envConfig.level,
+  })
 
   // Custom logger with specific context
   const customLogger = createStructuredLogger({

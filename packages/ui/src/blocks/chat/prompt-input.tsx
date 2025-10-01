@@ -41,7 +41,7 @@ export const PromptInput = ({
         <div className="relative flex items-center overflow-hidden rounded-xl border bg-background shadow-sm">
           <TextareaAutosize
             value={input}
-            onChange={(e) => onInputChange(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ask me anything..."
             className="min-h-12 w-full resize-none bg-transparent px-2 py-3 pr-16 text-sm outline-none placeholder:text-muted-foreground focus:ring-0"

@@ -29,6 +29,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       if (body.title !== undefined) {
         updates.title = body.title
       }
+      if (body.archived !== undefined) {
+        // Handle boolean archived field
+        if (body.archived) {
+          updates.archived_at = new Date().toISOString()
+          updates.status = "archived"
+        } else {
+          updates.archived_at = null
+          updates.status = "active"
+        }
+      }
       if (body.archived_at !== undefined) {
         updates.archived_at = body.archived_at
       }

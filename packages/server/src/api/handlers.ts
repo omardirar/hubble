@@ -5,6 +5,12 @@
  * to ensure consistency, reduce duplication, and follow best practices.
  */
 
+// TODO: Add OpenTelemetry context propagation for API handlers
+//   Context: Propagate OpenTelemetry trace context through API handlers to correlate logs and traces across frontend-backend boundaries.
+//   labels: area/api, feature/tracing, type/enhancement
+//   assignees: omzification
+//   milestone: 0.1.0
+
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { createBrowserClient } from "@hubble/db"
