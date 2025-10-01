@@ -79,6 +79,7 @@ export async function POST(req: Request) {
       const result = streamText({
         model: anthropic(model || "claude-3-5-sonnet-20241022"),
         messages: modelMessages,
+        system: "You are Hubble, an AI copilot for marketing teams.",
         temperature: 0.7,
         async onFinish({ text, usage, finishReason }) {
           try {
