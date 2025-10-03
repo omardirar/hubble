@@ -2,9 +2,19 @@ import os
 import re
 from typing import Any
 
+
+def _resolve_log_level(default: str = "INFO") -> str:
+    env_level = os.getenv("MOTHERDUCK_LOG_LEVEL") or os.getenv("LOG_LEVEL")
+    if not env_level:
+        return default
+    return env_level.upper()
+
+
 SERVER_VERSION = "0.6.3"
 
 SERVER_LOCALHOST = "127.0.0.1"
+
+DEFAULT_LOG_LEVEL = _resolve_log_level()
 
 UVICORN_LOGGING_CONFIG: dict[str, Any] = {
     "version": 1,
@@ -26,10 +36,10 @@ UVICORN_LOGGING_CONFIG: dict[str, Any] = {
     "loggers": {
         "uvicorn": {
             "handlers": ["default"],
-            "level": "INFO",
+            "level": DEFAULT_LOG_LEVEL,
             "propagate": False,
         },
-        "uvicorn.error": {"level": "INFO"},
+        "uvicorn.error": {"level": DEFAULT_LOG_LEVEL},
     },
 }
 

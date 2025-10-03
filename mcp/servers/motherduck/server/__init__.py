@@ -1,9 +1,11 @@
 import logging
+import os
 
 import anyio
 import click
 
 from .configs import (
+    DEFAULT_LOG_LEVEL,
     SERVER_LOCALHOST,
     SERVER_VERSION,
     UVICORN_LOGGING_CONFIG,
@@ -14,9 +16,25 @@ from .server import build_application
 __version__ = SERVER_VERSION
 
 logger = logging.getLogger("mcp_server_motherduck")
-logging.basicConfig(
-    level=logging.INFO, format="[motherduck] %(levelname)s - %(message)s"
-)
+
+
+def _configure_root_logger() -> None:
+    level_name = os.getenv("MOTHERDUCK_LOG_LEVEL") or os.getenv("LOG_LEVEL")
+    if level_name:
+        level = getattr(logging, level_name.upper(), logging.INFO)
+    else:
+        level = getattr(logging, DEFAULT_LOG_LEVEL, logging.INFO)
+
+    logging.basicConfig(
+        level=level,
+        format="[motherduck] %(levelname)s - %(message)s",
+    )
+    logging.getLogger().setLevel(level)
+    logging.getLogger("uvicorn").setLevel(level)
+    logging.getLogger("uvicorn.error").setLevel(level)
+
+
+_configure_root_logger()
 
 
 @click.command()

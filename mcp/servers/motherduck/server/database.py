@@ -1,9 +1,13 @@
 import logging
-from typing import Optional
+import time
+from typing import TYPE_CHECKING, Optional
 from urllib.parse import parse_qsl, urlencode
 
 import duckdb
 from tabulate import tabulate
+
+if TYPE_CHECKING:  # pragma: no cover - import only needed for typing
+    import pyarrow as pa
 
 from .auth import MotherDuckAuthContext
 from .configs import SERVER_VERSION, resolve_motherduck_token
@@ -20,7 +24,9 @@ class DatabaseClient:
         motherduck_token: str | None = None,
         saas_mode: bool = False,
     ) -> None:
-        self._default_connection = db_path if db_path and db_path.startswith("md:") else None
+        self._default_connection = (
+            db_path if db_path and db_path.startswith("md:") else None
+        )
         self._default_token = motherduck_token
         self._saas_mode = saas_mode
 
@@ -34,11 +40,14 @@ class DatabaseClient:
         )
 
     @staticmethod
-    def _format_results(cursor: duckdb.DuckDBPyConnection) -> str:
+    def _format_results(cursor: duckdb.DuckDBPyConnection) -> tuple[str, int]:
         if cursor.description is None:
-            return "Query executed successfully."
+            return "Query executed successfully.", 0
+
+        rows = cursor.fetchall()
         headers = [f"{col[0]}\n{col[1]}" for col in cursor.description]
-        return tabulate(cursor.fetchall(), headers=headers, tablefmt="pretty")
+        formatted = tabulate(rows, headers=headers, tablefmt="pretty")
+        return formatted, len(rows)
 
     def _build_remote_dsn(self, credentials: MotherDuckAuthContext) -> str:
         base, _, query_string = credentials.connection_uri.partition("?")
@@ -63,15 +72,60 @@ class DatabaseClient:
             raise ValueError("MotherDuck credentials were not provided")
 
         dsn = self._build_remote_dsn(creds)
-        logger.info("Executing query against MotherDuck target %s", creds.display_target)
+        logger.info(
+            "Executing query against MotherDuck target %s", creds.display_target
+        )
         conn = duckdb.connect(
             dsn,
             config={"custom_user_agent": f"mcp-server-motherduck/{SERVER_VERSION}"},
             read_only=True,
         )
         try:
+            start = time.perf_counter()
             cursor = conn.execute(query)
-            return self._format_results(cursor)
+            formatted, row_count = self._format_results(cursor)
+            duration_ms = (time.perf_counter() - start) * 1000
+
+            metadata_lines = [f"Rows: {row_count}", f"Duration: {duration_ms:.2f} ms"]
+            if formatted:
+                return "\n\n".join([formatted, "\n".join(metadata_lines)])
+            return "\n".join(metadata_lines)
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def fetch_arrow_table(
+        self,
+        query: str,
+        credentials: Optional[MotherDuckAuthContext] = None,
+    ) -> tuple["pa.Table", float]:
+        creds = credentials or self._default_credentials()
+        if creds is None:
+            raise ValueError("MotherDuck credentials were not provided")
+
+        dsn = self._build_remote_dsn(creds)
+        logger.info(
+            "Fetching Arrow table for query against MotherDuck target %s",
+            creds.display_target,
+        )
+
+        conn = duckdb.connect(
+            dsn,
+            config={"custom_user_agent": f"mcp-server-motherduck/{SERVER_VERSION}"},
+            read_only=True,
+        )
+        try:
+            import pyarrow as pa  # Local import to avoid mandatory dependency at import time
+
+            start = time.perf_counter()
+            cursor = conn.execute(query)
+            table = cursor.fetch_arrow_table()
+            duration_ms = (time.perf_counter() - start) * 1000
+            if not isinstance(table, pa.Table):
+                raise TypeError("DuckDB did not return a pyarrow.Table result")
+            return table, duration_ms
         finally:
             try:
                 conn.close()
