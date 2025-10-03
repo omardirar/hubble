@@ -1,35 +1,32 @@
 import logging
-from pydantic import AnyUrl
-from typing import Literal
+
+import anyio
 import mcp.types as types
 from mcp.server import NotificationOptions, Server
 from mcp.server.models import InitializationOptions
+from pydantic import AnyUrl
+
+from .auth import AuthError, MotherDuckAuthContext, verify_and_extract
 from .configs import SERVER_VERSION
+from .context import get_current_headers
 from .database import DatabaseClient
 from .prompt import PROMPT_TEMPLATE
-from .context import get_current_headers
-from .auth import verify_and_extract, AuthError
-
 
 logger = logging.getLogger("mcp_server_motherduck")
 
 
 def build_application(
-    db_path: str,
+    db_path: str | None,
     motherduck_token: str | None = None,
-    home_dir: str | None = None,
     saas_mode: bool = False,
-    read_only: bool = False,
-    transport: str = "stdio",
+    transport: str = "stream",
 ):
     logger.info("Starting MotherDuck MCP Server")
     server = Server("mcp-server-motherduck")
     db_client = DatabaseClient(
         db_path=db_path,
         motherduck_token=motherduck_token,
-        home_dir=home_dir,
         saas_mode=saas_mode,
-        read_only=read_only,
     )
 
     logger.info("Registering handlers")
@@ -64,7 +61,7 @@ def build_application(
         return [
             types.Prompt(
                 name="duckdb-motherduck-initial-prompt",
-                description="A prompt to initialize a connection to duckdb or motherduck and start working with it",
+                description="Kickstart an analysis session against MotherDuck",
             )
         ]
 
@@ -83,7 +80,7 @@ def build_application(
             raise ValueError(f"Unknown prompt: {name}")
 
         return types.GetPromptResult(
-            description="Initial prompt for interacting with DuckDB/MotherDuck",
+            description="Initial prompt for interacting with MotherDuck",
             messages=[
                 types.PromptMessage(
                     role="user",
@@ -102,7 +99,7 @@ def build_application(
         return [
             types.Tool(
                 name="query",
-                description="Use this to execute a query on the MotherDuck or DuckDB database",
+                description="Execute a SQL query against the caller's MotherDuck database",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -133,30 +130,25 @@ def build_application(
                     ]
                 sql = str(arguments.get("query", ""))
 
-                # Apply auth only for HTTP/SSE transports (not stdio)
+                credentials: MotherDuckAuthContext | None = None
                 if transport in ("sse", "stream"):
                     headers = get_current_headers()
                     try:
-                        motherduck_token, dbname = verify_and_extract(headers)
+                        credentials = verify_and_extract(headers)
                     except AuthError as e:
                         raise ValueError(f"Unauthorized: {e}")
 
-                    # Execute per-request, short-lived connection to the specified MotherDuck DB
-                    try:
-                        tool_response = db_client.query_motherduck_db(
-                            database_name=dbname,
-                            query=sql,
-                            saas_mode=saas_mode,
-                            motherduck_token=motherduck_token,
-                        )
-                    except Exception as e:
-                        logger.error(f"Error executing query on db '{dbname}': {e}")
-                        raise ValueError("Query failed")
+                try:
+                    tool_response = await anyio.to_thread.run_sync(
+                        db_client.query,
+                        sql,
+                        credentials,
+                        cancellable=True,
+                    )
+                except Exception as e:  # noqa: BLE001
+                    logger.error("Error executing query: %s", e)
+                    raise ValueError("Query failed")
 
-                    return [types.TextContent(type="text", text=str(tool_response))]
-
-                # stdio mode: do not enforce per-request auth; run directly
-                tool_response = db_client.query(sql)
                 return [types.TextContent(type="text", text=str(tool_response))]
 
             return [types.TextContent(type="text", text=f"Unsupported tool: {name}")]

@@ -1,165 +1,77 @@
-import os
-import duckdb
-from typing import Literal, Optional
-import io
-from contextlib import redirect_stdout
-from tabulate import tabulate
 import logging
+from typing import Optional
+from urllib.parse import parse_qsl, urlencode
+
+import duckdb
+from tabulate import tabulate
+
+from .auth import MotherDuckAuthContext
 from .configs import SERVER_VERSION, resolve_motherduck_token
 
 logger = logging.getLogger("mcp_server_motherduck")
 
 
 class DatabaseClient:
+    """Executes MotherDuck queries using short-lived DuckDB connections."""
+
     def __init__(
         self,
         db_path: str | None = None,
         motherduck_token: str | None = None,
-        home_dir: str | None = None,
         saas_mode: bool = False,
-        read_only: bool = False,
-    ):
-        self._read_only = read_only
-        self.db_path, self.db_type = self._resolve_db_path_type(
-            db_path, motherduck_token, saas_mode
-        )
-        logger.info(f"Database client initialized in `{self.db_type}` mode")
+    ) -> None:
+        self._default_connection = db_path if db_path and db_path.startswith("md:") else None
+        self._default_token = motherduck_token
+        self._saas_mode = saas_mode
 
-        # Set the home directory for DuckDB
-        if home_dir:
-            os.environ["HOME"] = home_dir
-
-        self.conn = self._initialize_connection()
-
-    def _initialize_connection(self) -> Optional[duckdb.DuckDBPyConnection]:
-        """Initialize connection to the MotherDuck or DuckDB database"""
-
-        logger.info(f"🔌 Connecting to {self.db_type} database")
-
-        if self.db_type == "duckdb" and self._read_only:
-            # check that we can connect, issue a `select 1` and then close + return None
-            try:
-                conn = duckdb.connect(
-                    self.db_path,
-                    config={
-                        "custom_user_agent": f"mcp-server-motherduck/{SERVER_VERSION}"
-                    },
-                    read_only=self._read_only,
-                )
-                conn.execute("SELECT 1")
-                conn.close()
-                return None
-            except Exception as e:
-                logger.error(f"❌ Read-only check failed: {e}")
-                raise
-
-        conn = duckdb.connect(
-            self.db_path,
-            config={"custom_user_agent": f"mcp-server-motherduck/{SERVER_VERSION}"},
-            read_only=self._read_only,
+    def _default_credentials(self) -> Optional[MotherDuckAuthContext]:
+        if not self._default_connection:
+            return None
+        token = self._default_token or resolve_motherduck_token()
+        return MotherDuckAuthContext(
+            service_secret=token,
+            connection_uri=self._default_connection,
         )
 
-        logger.info(f"✅ Successfully connected to {self.db_type} database")
+    @staticmethod
+    def _format_results(cursor: duckdb.DuckDBPyConnection) -> str:
+        if cursor.description is None:
+            return "Query executed successfully."
+        headers = [f"{col[0]}\n{col[1]}" for col in cursor.description]
+        return tabulate(cursor.fetchall(), headers=headers, tablefmt="pretty")
 
-        return conn
+    def _build_remote_dsn(self, credentials: MotherDuckAuthContext) -> str:
+        base, _, query_string = credentials.connection_uri.partition("?")
+        if not base.startswith("md:"):
+            raise ValueError("Unsupported MotherDuck connection string")
 
-    def _resolve_db_path_type(
-        self, db_path: str, motherduck_token: str | None = None, saas_mode: bool = False
-    ) -> tuple[str, Literal["duckdb", "motherduck"]]:
-        """Resolve and validate the database path"""
-        # Handle MotherDuck paths
-        if db_path.startswith("md:"):
-            if motherduck_token:
-                logger.info("Using MotherDuck token to connect to database `md:`")
-                if saas_mode:
-                    logger.info("Connecting to MotherDuck in SaaS mode")
-                    return (
-                        f"{db_path}?motherduck_token={motherduck_token}&saas_mode=true",
-                        "motherduck",
-                    )
-                else:
-                    return (
-                        f"{db_path}?motherduck_token={motherduck_token}",
-                        "motherduck",
-                    )
-            elif os.getenv("motherduck_token"):
-                logger.info(
-                    "Using MotherDuck token from env to connect to database `md:`"
-                )
-                return (
-                    f"{db_path}?motherduck_token={os.getenv('motherduck_token')}",
-                    "motherduck",
-                )
-            else:
-                raise ValueError(
-                    "Please set the `motherduck_token` as an environment variable or pass it as an argument with `--motherduck-token` when using `md:` as db_path."
-                )
+        params = dict(parse_qsl(query_string, keep_blank_values=True))
+        params["motherduck_token"] = credentials.service_secret
+        if self._saas_mode:
+            params.setdefault("saas_mode", "true")
 
-        if db_path == ":memory:":
-            return db_path, "duckdb"
+        encoded = urlencode(params)
+        return f"{base}?{encoded}" if encoded else base
 
-        return db_path, "duckdb"
-
-    def _execute(self, query: str) -> str:
-        if self.conn is None:
-            # open short lived readonly connection, run query, close connection, return result
-            conn = duckdb.connect(
-                self.db_path,
-                config={"custom_user_agent": f"mcp-server-motherduck/{SERVER_VERSION}"},
-                read_only=self._read_only,
-            )
-            q = conn.execute(query)
-        else:
-            q = self.conn.execute(query)
-
-        out = tabulate(
-            q.fetchall(),
-            headers=[d[0] + "\n" + d[1] for d in q.description],
-            tablefmt="pretty",
-        )
-
-        if self.conn is None:
-            conn.close()
-
-        return out
-
-    def query(self, query: str) -> str:
-        try:
-            return self._execute(query)
-
-        except Exception as e:
-            raise ValueError(f"❌ Error executing query: {e}")
-
-    def query_motherduck_db(
+    def query(
         self,
-        database_name: str,
         query: str,
-        saas_mode: bool = False,
-        motherduck_token: str | None = None,
+        credentials: Optional[MotherDuckAuthContext] = None,
     ) -> str:
-        """Open a short-lived connection to md:<database_name>, run query, close connection."""
-        token = motherduck_token or resolve_motherduck_token()
-        # Normalize supported forms: plain name (tenant_db) or org/name; strip any md: prefix
-        db_norm = database_name
-        if db_norm.startswith("md:"):
-            db_norm = db_norm[3:]
-        db_path = f"md:{db_norm}?motherduck_token={token}"
-        if saas_mode:
-            db_path += "&saas_mode=true"
+        creds = credentials or self._default_credentials()
+        if creds is None:
+            raise ValueError("MotherDuck credentials were not provided")
 
+        dsn = self._build_remote_dsn(creds)
+        logger.info("Executing query against MotherDuck target %s", creds.display_target)
         conn = duckdb.connect(
-            db_path,
+            dsn,
             config={"custom_user_agent": f"mcp-server-motherduck/{SERVER_VERSION}"},
             read_only=True,
         )
         try:
-            q = conn.execute(query)
-            out = tabulate(
-                q.fetchall(),
-                headers=[d[0] + "\n" + d[1] for d in q.description],
-                tablefmt="pretty",
-            )
-            return out
+            cursor = conn.execute(query)
+            return self._format_results(cursor)
         finally:
             try:
                 conn.close()

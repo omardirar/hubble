@@ -1,0 +1,33 @@
+# MCP reverse proxy via Caddy
+# - /health -> 200 OK
+# - /motherduck* -> proxy to 127.0.0.1:9001 (HTTP streamable)
+# Listens on environment-provided PORT (default 8080 for App Runner)
+#
+# Adding more MCP servers:
+# 1) Start the new server on a different port in start.sh (e.g., 9002)
+# 2) Add another route below (e.g., /other) using the same HTTP transport:
+#    handle_path /other* {
+#      reverse_proxy 127.0.0.1:9002 {
+#        flush_interval -1
+#        transport http {
+#          dial_timeout 10s
+#        }
+#      }
+#    }
+
+:{$PORT:8080} {
+  encode zstd gzip
+
+  # Health check
+  respond /health 200
+
+  # Route MotherDuck MCP under /motherduck
+  handle_path /motherduck* {
+    reverse_proxy 127.0.0.1:9001 {
+      flush_interval -1
+      transport http {
+        dial_timeout 10s
+      }
+    }
+  }
+}

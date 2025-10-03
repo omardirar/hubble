@@ -2,12 +2,19 @@
   "files": [],
   "references": [
     { "path": "./packages/eslint-config" },
-    { "path": "./packages/env" },
     { "path": "./packages/utils" },
     { "path": "./packages/ui" },
     { "path": "./packages/db" },
     { "path": "./packages/auth" },
-    { "path": "./packages/api-contracts" },
+    { "path": "./packages/schemas" },
+    { "path": "./packages/config" },
+    { "path": "./packages/infrastructure" },
+    { "path": "./packages/logger" },
+    { "path": "./packages/types" },
+    { "path": "./packages/core" },
+    { "path": "./packages/connect" },
+    { "path": "./packages/chat" },
+    { "path": "./packages/server" },
     { "path": "./apps/dashboard" }
   ]
 }

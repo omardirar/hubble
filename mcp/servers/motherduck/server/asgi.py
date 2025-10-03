@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Callable, Awaitable
-from starlette.types import Scope, Receive, Send
+from typing import Awaitable, Callable
 
-from .context import set_current_headers_from_scope
+from starlette.types import Receive, Scope, Send
+
+from .context import reset_current_headers, set_current_headers_from_scope
 
 
 class HeaderCaptureApp:
@@ -13,6 +14,10 @@ class HeaderCaptureApp:
         self._app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        token = None
         if scope.get("type") in ("http", "websocket"):
-            set_current_headers_from_scope(scope)
-        await self._app(scope, receive, send)
+            token = set_current_headers_from_scope(scope)
+        try:
+            await self._app(scope, receive, send)
+        finally:
+            reset_current_headers(token)

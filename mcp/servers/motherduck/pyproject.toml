@@ -1,7 +1,7 @@
 [project]
 name = "mcp-server-motherduck"
 version = "0.6.3"
-description = "A MCP server for MotherDuck and local DuckDB"
+description = "An always-on MCP server for MotherDuck"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -27,7 +27,16 @@ packages = ["motherduck"]
 dev = [
   "pytest>=7.4",
   "pytest-asyncio>=0.23",
+  "ruff>=0.9.1",
 ]
 
 [project.scripts]
 mcp-server-motherduck = "motherduck.server:main"
+
+[tool.ruff]
+target-version = "py310"
+src = ["."]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]

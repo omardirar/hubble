@@ -21,6 +21,32 @@
       "inputs": ["$TURBO_DEFAULT$"],
       "outputs": []
     },
+    "format": {
+      "dependsOn": ["^format"],
+      "cache": false,
+      "inputs": [
+        "**/*",
+        "!**/.next/**",
+        "!**/node_modules/**",
+        "!**/dist/**",
+        "!**/build/**",
+        "!**/coverage/**"
+      ],
+      "outputs": []
+    },
+    "format:check": {
+      "dependsOn": ["^format:check"],
+      "cache": false,
+      "inputs": [
+        "**/*",
+        "!**/.next/**",
+        "!**/node_modules/**",
+        "!**/dist/**",
+        "!**/build/**",
+        "!**/coverage/**"
+      ],
+      "outputs": []
+    },
     "test": {
       "dependsOn": ["^test"],
       "inputs": ["$TURBO_DEFAULT$"],

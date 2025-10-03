@@ -1,19 +1,21 @@
 # MotherDuck MCP Server (Local Package)
 
+This directory contains the local source for the MotherDuck MCP server, packaged as part of the container image that runs on AWS App Runner (or any other OCI-compatible runtime).
+
 - Console script: `mcp-server-motherduck`
-- Module: `motherduck.mcp_server`
+- Module: `motherduck.server`
 
 For usage and deployment, see the root repository README.
 
 ## HTTP/SSE Auth & Scoping
 
-When running with `--transport stream` or `--transport sse`, the server expects:
+When running with `--transport stream` or `--transport sse`, each request must include:
 
-- `Authorization: Bearer <motherduck_token>` on every request
-- `X-Db-Name` to choose the target database within the org
-- Per‑request connection to `md:<db>` using the supplied token
-- Optional `DEFAULT_LIMIT` environment variable (default 500) for downstream consumers
+- `X-MotherDuck-Service-Secret` (or `X-MD-Service-Secret`) containing the tenant's MotherDuck service account secret
+- `X-MotherDuck-Connection` (or `X-MD-Connection`) with the target connection URI (e.g. `md:md_org_330a2TFzTlTTtUj0uDHfWb6kOJ5`)
 
-`MOTHERDUCK_TOKEN` is only required when no token is provided per request (e.g., stdio transport).
+The server opens a short-lived DuckDB connection per request using those values. Secrets are not persisted beyond the request lifecycle.
 
-Stdio transport does not enforce per‑request auth and uses process-level credentials, so it is not recommended for production scoping.
+`MOTHERDUCK_TOKEN` is only required when using `stdio` transport, where all queries run with process-level credentials.
+
+The MCP server is optimized for always-on HTTP transports; prefer `stream` for production deployments.

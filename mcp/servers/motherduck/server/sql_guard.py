@@ -2,6 +2,7 @@ from __future__ import annotations
 
 # Guard removed for SaaS mode; file retained to avoid import errors if referenced.
 
+
 class SqlGuardError(Exception):
     pass
 

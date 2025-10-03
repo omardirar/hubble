@@ -1,3 +1,5 @@
+import os
+import re
 from typing import Any
 
 SERVER_VERSION = "0.6.3"
@@ -34,9 +36,6 @@ UVICORN_LOGGING_CONFIG: dict[str, Any] = {
 #
 # HTTP/SSE auth + scoping configuration
 #
-
-import os
-import re
 
 
 ENV_MOTHERDUCK_TOKEN_KEYS: list[str] = [
@@ -85,11 +84,26 @@ def get_default_limit() -> int:
 # - md:orgslug/tenant_db
 DB_NAME_ALLOWLIST_REGEX = re.compile(r"^(?:md:)?[A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)?$")
 
+# Connection string allowlist for MotherDuck DSNs supplied via headers
+MOTHERDUCK_CONNECTION_REGEX = re.compile(
+    r"^md:[A-Za-z0-9_./-]+(?:\?[A-Za-z0-9_=&.-]*)?$"
+)
+
+MOTHERDUCK_SERVICE_SECRET_HEADERS: tuple[str, ...] = (
+    "x-motherduck-service-secret",
+    "x-md-service-secret",
+)
+
+MOTHERDUCK_CONNECTION_HEADERS: tuple[str, ...] = (
+    "x-motherduck-connection",
+    "x-md-connection",
+)
+
 
 def validate_http_env_or_raise(transport: str) -> None:
     """Placeholder for HTTP/SSE-specific environment validation."""
     if transport not in ("sse", "stream"):
         return
 
-    # HTTP clients now provide MotherDuck tokens per request via Authorization header.
+    # HTTP clients provide MotherDuck credentials per request via custom headers.
     # No mandatory server-side environment variables to validate.

@@ -9,9 +9,12 @@
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
     "test": "turbo test",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "commit": "cz"
+    "format": "turbo format",
+    "format:check": "turbo format:check",
+    "commit": "cz",
+    "docker:build": "pnpm --filter @hubble/motherduck docker:build",
+    "mcp:dev:motherduck": "cd mcp/servers/motherduck && uv run python -m server --transport stream --port 9001 --saas-mode",
+    "mcp:inspector:motherduck": "npx @modelcontextprotocol/inspector --port 6274 --config ./mcp/servers/inspector-config.json --server motherduck"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",

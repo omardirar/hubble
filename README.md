@@ -51,6 +51,9 @@ hubble/
 ├── apps/
 │   └── dashboard/              # Next.js 15 web application
 │
+├── mcp/
+│   └── servers/                # MCP servers container for AWS App Runner
+│
 ├── packages/                   # Shared TypeScript packages
 │   ├── auth/                  # Authentication & org utilities
 │   ├── chat/                  # Chat logic & DB operations
@@ -75,6 +78,17 @@ hubble/
 ```
 
 ## 📦 Package Documentation
+
+### MCP Servers
+
+`@hubble/mcp-servers` packages the MotherDuck MCP server (and future MCP services) into a Docker image that targets AWS App Runner.
+
+- **Path**: `mcp/servers`
+- **Local build**: `pnpm --filter @hubble/mcp-servers docker:build`
+- **Python dev setup**: Install `uv` ([https://astral.sh/uv/](https://astral.sh/uv/)) and ensure `~/.local/bin` is on your `PATH`; run `uvx ruff --version`
+- **Python lint**: `pnpm python:lint` (delegates to `uvx ruff`)
+- **Python format**: `pnpm python:format` (delegates to `uvx ruff format`)
+- **Docs**: `mcp/servers/README.md` covers health checks, secrets, and deployment automation
 
 ### Core Packages
 

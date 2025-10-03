@@ -282,6 +282,15 @@ importers:
         specifier: ^1.6.1
         version: 1.6.1(@types/node@20.19.18)(jsdom@24.1.3)(lightningcss@1.30.1)
 
+  mcp/servers/motherduck:
+    devDependencies:
+      "@hubble/prettier-config":
+        specifier: workspace:^
+        version: link:../../../packages/prettier-config
+      prettier:
+        specifier: ^3.6.2
+        version: 3.6.2
+
   packages/auth:
     dependencies:
       "@clerk/nextjs":

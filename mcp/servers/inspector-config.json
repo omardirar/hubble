@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "motherduck": {
+      "type": "streamable-http",
+      "url": "http://127.0.0.1:9001/mcp",
+      "headers": {
+        "X-MotherDuck-Service-Secret": "$MOTHERDUCK_TOKEN",
+        "X-MotherDuck-Connection": "$MOTHERDUCK_CONNECTION"
+      }
+    }
+  }
+}

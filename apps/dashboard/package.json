@@ -8,7 +8,6 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=0 --ignore-pattern .next --ignore-pattern .turbo --ignore-pattern dist --ignore-pattern build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "dependencies": {

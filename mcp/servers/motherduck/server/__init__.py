@@ -1,16 +1,15 @@
-import anyio
 import logging
+
+import anyio
 import click
-import os
-from .server import build_application
+
 from .configs import (
-    SERVER_VERSION,
     SERVER_LOCALHOST,
+    SERVER_VERSION,
     UVICORN_LOGGING_CONFIG,
     validate_http_env_or_raise,
 )
-from starlette.routing import Route
-from starlette.applications import Starlette
+from .server import build_application
 
 __version__ = SERVER_VERSION
 
@@ -19,18 +18,19 @@ logging.basicConfig(
     level=logging.INFO, format="[motherduck] %(levelname)s - %(message)s"
 )
 
+
 @click.command()
-@click.option("--port", default=8000, help="Port to listen on for SSE")
+@click.option("--port", default=8000, help="Port to listen on for HTTP transports")
 @click.option(
     "--transport",
     type=click.Choice(["stdio", "sse", "stream"]),
-    default="stdio",
-    help="(Default: `stdio`) Transport type",
+    default="stream",
+    help="(Default: `stream`) Transport type",
 )
 @click.option(
-    "--db-path",
-    default="md:",
-    help="(Default: `md:`) Path to local DuckDB database file or MotherDuck database",
+    "--default-connection",
+    default=None,
+    help="Optional MotherDuck connection URI (e.g. md:tenant_db) used when stdio transport is selected",
 )
 @click.option(
     "--motherduck-token",
@@ -38,19 +38,9 @@ logging.basicConfig(
     help="(Default: env var `motherduck_token`) Access token to use for MotherDuck database connections",
 )
 @click.option(
-    "--home-dir",
-    default=None,
-    help="(Default: env var `HOME`) Home directory for DuckDB",
-)
-@click.option(
     "--saas-mode",
     is_flag=True,
     help="Flag for connecting to MotherDuck in SaaS mode",
-)
-@click.option(
-    "--read-only",
-    is_flag=True,
-    help="Flag for connecting to DuckDB in read-only mode. Only supported for local DuckDB databases. Also makes use of short lived connections so multiple MCP clients or other systems can remain active (though each operation must be done sequentially).",
 )
 @click.option(
     "--json-response",
@@ -61,24 +51,20 @@ logging.basicConfig(
 def main(
     port,
     transport,
-    db_path,
+    default_connection,
     motherduck_token,
-    home_dir,
     saas_mode,
-    read_only,
     json_response,
 ):
     """Main entry point for the package."""
 
     logger.info("🦆 MotherDuck MCP Server v" + SERVER_VERSION)
-    logger.info("Ready to execute SQL queries via DuckDB/MotherDuck")
+    logger.info("Ready to execute SQL queries against MotherDuck")
 
     app, init_opts = build_application(
-        db_path=db_path,
+        db_path=default_connection,
         motherduck_token=motherduck_token,
-        home_dir=home_dir,
         saas_mode=saas_mode,
-        read_only=read_only,
         transport=transport,
     )
 
@@ -87,6 +73,7 @@ def main(
         from starlette.applications import Starlette
         from starlette.responses import Response
         from starlette.routing import Mount, Route
+
         from .asgi import HeaderCaptureApp
 
         logger.info("MCP server initialized in \033[32msse\033[0m mode")
@@ -125,12 +112,14 @@ def main(
         )
 
     elif transport == "stream":
-        from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+        import contextlib
         from collections.abc import AsyncIterator
+
+        from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
         from starlette.applications import Starlette
         from starlette.routing import Mount
         from starlette.types import Receive, Scope, Send
-        import contextlib
+
         from .asgi import HeaderCaptureApp
 
         logger.info("MCP server initialized in \033[32mhttp-streamable\033[0m mode")
@@ -150,9 +139,7 @@ def main(
             scope: Scope, receive: Receive, send: Send
         ) -> None:
             # Capture headers into context before handling request
-            await HeaderCaptureApp(session_manager.handle_request)(
-                scope, receive, send
-            )
+            await HeaderCaptureApp(session_manager.handle_request)(scope, receive, send)
 
         @contextlib.asynccontextmanager
         async def lifespan(app: Starlette) -> AsyncIterator[None]:

@@ -1,3 +1,10 @@
+### Python Tooling Quickstart
+
+- Use `uvx ruff check mcp/servers/motherduck` to lint the vendored MCP server (also wired into pre-commit and `pnpm lint`).
+- Run tests with `uvx pytest -q` from the repo root.
+- Auto-format with `pnpm python:format` (or `uvx ruff format mcp/servers/motherduck`).
+- Install `uv` from [https://astral.sh/uv/](https://astral.sh/uv/) and add `~/.local/bin` to your `PATH`; `uvx` fetches packages on demand so no extra lockfiles are required.
+
 ### Inline TODOs → Issues
 
 Use this required format for inline TODOs/FIXMEs. The workflow will create issues for newly added items on the default branch, insert the created issue URL back into the comment, and auto-close when the TODO is removed.
@@ -41,3 +48,12 @@ Developer flow:
 1. Bump the root version (edit `package.json`) and commit with a message that includes `bump:` (you can use `pnpm commit` for gitmoji formatting).
 2. Push to the default branch.
 3. CI will generate/update `CHANGELOG.md`, tag the commit, and publish a Release.
+
+### MCP Servers Workflow
+
+- Package lives at `mcp/servers` (`@hubble/mcp-servers`) and is part of the pnpm workspace; repo-wide `pnpm lint|build|test` commands include its tasks.
+- Formatting uses the shared Prettier config—run `pnpm --filter @hubble/mcp-servers format` to apply fixes or rely on the pre-commit hook (`mcp-servers-lint`).
+- Python tooling: `uvx ruff check mcp/servers/motherduck` runs linting; pre-commit invokes the same command.
+- Container builds are verified in CI and locally with `pnpm --filter @hubble/mcp-servers docker:build` (targets Linux AMD64, matching AWS App Runner).
+- Linting shortcut: `pnpm python:lint` executes Ruff via uvx against the vendored MotherDuck server.
+- Python tooling stays inside Docker; if you need local dev against `motherduck/`, use `uv pip install --editable ./mcp/servers/motherduck` inside your environment.
