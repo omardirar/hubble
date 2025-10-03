@@ -94,6 +94,27 @@ Response: inserted message row. Retries with the same `idempotencyKey` are safe;
 - **Transcript** – Uses AI elements to render messages ascending by time.
 - **Composer** – Built from `PromptInput*` elements, supports Enter submit and Shift+Enter newline.
 
+## MCP Tooling
+
+When `POST /api/v1/chat` runs, it attempts to connect to the MotherDuck MCP server. The route pulls
+credentials per-tenant by calling `system.get_secret(org_id, 'md_sa_token')` and reading
+`md_db_name` from `connect.data_destinations`. Those values become the `Authorization` and
+`X-Db-Name` headers for the SSE transport at `https://mcp.hubble.systems/motherduck` in production
+(`http://127.0.0.1:9001/` in development).
+
+For local testing without Supabase access you can supply overrides via environment variables:
+
+```env
+MCP_MOTHERDUCK_URL=
+MCP_MOTHERDUCK_SERVICE_SECRET=
+MCP_MOTHERDUCK_CONNECTION=
+MCP_MOTHERDUCK_BEARER_TOKEN=
+MCP_MOTHERDUCK_DATABASE=
+```
+
+If neither Supabase secrets nor overrides are present, the chat flow skips MCP tool calls and
+logs the absence for observability.
+
 ## Errors and Observability
 
 - 401/403 responses surface a Sonner toast: "Check you're signed in and in the correct workspace."
