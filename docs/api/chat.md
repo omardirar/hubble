@@ -96,11 +96,13 @@ Response: inserted message row. Retries with the same `idempotencyKey` are safe;
 
 ## MCP Tooling
 
-When `POST /api/v1/chat` runs, it attempts to connect to the MotherDuck MCP server. The route pulls
-credentials per-tenant by calling `system.get_secret(org_id, 'md_sa_token')` and reading
-`md_db_name` from `connect.data_destinations`. Those values become the `Authorization` and
-`X-Db-Name` headers for the SSE transport at `https://mcp.hubble.systems/motherduck` in production
-(`http://127.0.0.1:9001/` in development).
+When `POST /api/v1/chat` runs, it connects to the MotherDuck MCP server with the official SDK’s
+`Client` + SSE transport. The route pulls credentials per-tenant by calling
+`system.get_secret(org_id, 'md_sa_token')` and reading `md_db_name` from `connect.data_destinations`.
+Those values become the `Authorization` and `X-Db-Name` headers for the SSE transport at
+`https://mcp.hubble.systems/motherduck` in production (`http://127.0.0.1:9001/` in development).
+Server-provided instructions (if any) are forwarded to the model as the `system` prompt so the chat
+flow mirrors the MCP contract.
 
 For local testing without Supabase access you can supply overrides via environment variables:
 

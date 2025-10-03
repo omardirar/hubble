@@ -6,16 +6,16 @@
  */
 
 import { anthropic } from "@ai-sdk/anthropic"
-import {
-  streamText,
-  convertToModelMessages,
-  experimental_createMCPClient,
-  type ToolSet,
-  type experimental_MCPClient,
-  type UIMessage,
-} from "ai"
+import { streamText, convertToModelMessages, type ToolSet, type UIMessage } from "ai"
 import { getAnthropicConfig, getMotherduckMcpConfig } from "@hubble/config"
-import { createApiHandler, getMessages, createMessage, updateConversation } from "@hubble/server"
+import {
+  connectMcp,
+  createApiHandler,
+  getMessages,
+  createMessage,
+  updateConversation,
+  type McpConnection,
+} from "@hubble/server"
 import { chatLogger } from "@hubble/logger"
 import { createServiceClient } from "@hubble/db"
 import { createHash } from "crypto"
@@ -99,8 +99,8 @@ export async function POST(req: Request) {
       const { model } = getAnthropicConfig()
       const motherduckConfig = getMotherduckMcpConfig()
 
-      let mcpClient: experimental_MCPClient | null = null
       let mcpTools: ToolSet | undefined
+      let mcpInstructions: string | undefined
       let hasMcpCredentials = false
 
       const mcpHeaders = { ...motherduckConfig.headers }
@@ -108,7 +108,6 @@ export async function POST(req: Request) {
       const supabaseSecrets = await fetchMotherduckSecrets(auth!.orgId, logger)
 
       if (supabaseSecrets.serviceSecret && supabaseSecrets.databaseName) {
-        // Prefer Supabase-originating credentials when available
         delete mcpHeaders["X-MotherDuck-Service-Secret"]
         delete mcpHeaders["X-MotherDuck-Connection"]
         mcpHeaders.Authorization = `Bearer ${supabaseSecrets.serviceSecret}`
@@ -123,42 +122,37 @@ export async function POST(req: Request) {
         hasMcpCredentials = true
       }
 
+      let mcpConnection: McpConnection | null = null
+
       const closeMcpClient = async () => {
-        if (!mcpClient) {
+        if (!mcpConnection) {
           return
         }
 
         try {
-          await mcpClient.close()
+          await mcpConnection.client.close()
         } catch (closeError) {
           logger.warn("mcp.client_close_failed", {
             conversationId,
             error: toError(closeError).message,
           })
         } finally {
-          mcpClient = null
+          mcpConnection = null
         }
       }
 
       if (hasMcpCredentials) {
         try {
-          mcpClient = await experimental_createMCPClient({
-            name: "hubble-chat-motherduck",
-            transport: {
-              type: "sse",
-              url: motherduckConfig.url,
-              headers: mcpHeaders,
-            },
-            onUncaughtError: (error) => {
-              chatLogger.chatError("mcp_uncaught_error", toError(error), {
-                conversationId,
-                userId: auth!.userId,
-                orgId: auth!.orgId,
-              })
-            },
+          mcpConnection = await connectMcp({
+            url: motherduckConfig.url,
+            headers: mcpHeaders,
+            logger,
+            clientName: "hubble-chat-motherduck",
+            clientVersion: "1.0.0",
           })
 
-          mcpTools = await mcpClient.tools()
+          mcpTools = mcpConnection.tools as ToolSet
+          mcpInstructions = mcpConnection.instructions
 
           logger.info("mcp.client_connected", {
             conversationId,
@@ -192,6 +186,7 @@ export async function POST(req: Request) {
         messages: modelMessages,
         temperature: 0.7,
         tools: mcpTools,
+        system: mcpInstructions || undefined,
         async onError(error) {
           await closeMcpClient()
           chatLogger.chatError("chat_stream_error", toError(error), {
