@@ -98,8 +98,6 @@ export async function POST(request: NextRequest) {
         dbName,
       })
 
-      // Home directory is already set via environment variables
-
       try {
         // Create the database
         await connection.run(`CREATE DATABASE IF NOT EXISTS ${safeDbName}`)
@@ -108,6 +106,35 @@ export async function POST(request: NextRequest) {
           dbName,
           safeName: safeDbName,
         })
+
+        // After ensuring the tenant database exists, clean up default assets.
+        try {
+          if (safeDbName !== "my_db") {
+            await connection.run(`DROP DATABASE IF EXISTS my_db`)
+            logger.info("motherduck.create_database.api.dropped_default_db", {
+              dbName,
+              droppedDatabase: "my_db",
+            })
+          }
+        } catch (dropError) {
+          logger.warn("motherduck.create_database.api.drop_default_db_failed", {
+            dbName,
+            error: dropError instanceof Error ? dropError.message : String(dropError),
+          })
+        }
+
+        try {
+          await connection.run(`DETACH sample_data`)
+          logger.info("motherduck.create_database.api.detached_sample_data", {
+            dbName,
+            detachedDatabase: "sample_data",
+          })
+        } catch (detachError) {
+          logger.info("motherduck.create_database.api.sample_data_not_detached", {
+            dbName,
+            message: detachError instanceof Error ? detachError.message : String(detachError),
+          })
+        }
 
         // Verify database was created by listing databases
         try {
