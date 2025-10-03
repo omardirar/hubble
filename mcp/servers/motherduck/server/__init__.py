@@ -172,14 +172,14 @@ def main(
                     )
 
         logger.info(
-            f"🦆 Connect to MotherDuck MCP Server at \033[1m\033[36mhttp://{SERVER_LOCALHOST}:{port}/mcp\033[0m"
+            f"🦆 Connect to MotherDuck MCP Server at \033[1m\033[36mhttp://{SERVER_LOCALHOST}:{port}/\033[0m"
         )
 
         # Create an ASGI application using the transport
         starlette_app = Starlette(
             debug=True,
             routes=[
-                Mount("/mcp", app=handle_streamable_http),
+                Mount("/", app=handle_streamable_http),
             ],
             lifespan=lifespan,
         )
