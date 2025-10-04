@@ -120,31 +120,31 @@ import { trace } from "@opentelemetry/api"
 import { createApiHandler } from "@hubble/server"
 
 export const POST = createApiHandler(
-  async (request, auth, logger) => {
-    const tracer = trace.getTracer("hubble-api")
+    async (request, auth, logger) => {
+        const tracer = trace.getTracer("hubble-api")
 
-    return await tracer.startActiveSpan("process-payment", async (span) => {
-      try {
-        span.setAttribute("user.id", auth.userId)
-        span.setAttribute("payment.amount", amount)
+        return await tracer.startActiveSpan("process-payment", async (span) => {
+            try {
+                span.setAttribute("user.id", auth.userId)
+                span.setAttribute("payment.amount", amount)
 
-        const result = await processPayment(amount)
-        span.setStatus({ code: SpanStatusCode.OK })
+                const result = await processPayment(amount)
+                span.setStatus({ code: SpanStatusCode.OK })
 
-        return NextResponse.json(result)
-      } catch (error) {
-        span.setStatus({
-          code: SpanStatusCode.ERROR,
-          message: error.message,
+                return NextResponse.json(result)
+            } catch (error) {
+                span.setStatus({
+                    code: SpanStatusCode.ERROR,
+                    message: error.message,
+                })
+                span.recordException(error)
+                throw error
+            } finally {
+                span.end()
+            }
         })
-        span.recordException(error)
-        throw error
-      } finally {
-        span.end()
-      }
-    })
-  },
-  { requireAuth: true },
+    },
+    { requireAuth: true },
 )
 ```
 
@@ -155,19 +155,19 @@ import { metrics } from "@opentelemetry/api"
 
 const meter = metrics.getMeter("hubble-chat")
 const messageCounter = meter.createCounter("chat.messages.sent", {
-  description: "Number of chat messages sent",
+    description: "Number of chat messages sent",
 })
 const responseLatency = meter.createHistogram("chat.ai.response.duration", {
-  description: "AI response latency in milliseconds",
-  unit: "ms",
+    description: "AI response latency in milliseconds",
+    unit: "ms",
 })
 
 // In chat service
 chatLogger.messageSent(conversationId, userId, messageLength)
 messageCounter.add(1, {
-  conversationId,
-  userId,
-  messageType: "user",
+    conversationId,
+    userId,
+    messageType: "user",
 })
 ```
 
@@ -180,13 +180,13 @@ import { ErrorBoundary } from "@hubble/logger"
 <ErrorBoundary
   componentName="ChatPanel"
   onError={(error) => {
-    toast.error("Chat unavailable", {
-      description: "We're having trouble loading your conversations. Please try again.",
-      action: {
-        label: "Retry",
-        onClick: () => window.location.reload(),
-      },
-    })
+  toast.error("Chat unavailable", {
+    description: "We're having trouble loading your conversations. Please try again.",
+    action: {
+      label: "Retry",
+      onClick: () => window.location.reload(),
+    },
+  })
   }}
 >
   <ChatPanel />

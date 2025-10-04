@@ -22,6 +22,8 @@ repos:
       - args:
           - -L
           - crate
+          - --ignore-words-list
+          - afterAll,beforeAll
         exclude: (?:^|/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$
         id: codespell
     repo: https://github.com/codespell-project/codespell
