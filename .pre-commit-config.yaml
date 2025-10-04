@@ -22,6 +22,8 @@ repos:
       - args:
           - -L
           - crate
+          - --ignore-words-list
+          - afterAll,beforeAll
         exclude: (?:^|/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$
         id: codespell
     repo: https://github.com/codespell-project/codespell
@@ -38,6 +40,12 @@ repos:
         exclude: ^pnpm-lock\.yaml$
     repo: https://github.com/adrienverge/yamllint
     rev: v1.37.1
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.1
+    hooks:
+      - id: ruff
+        stages:
+          - pre-commit
   - hooks:
       - files: \.(md|mdx)$
         id: markdownlint
@@ -101,6 +109,11 @@ repos:
           - scss
           - markdown
           - yaml
+      - entry: pnpm --filter @hubble/mcp-servers lint
+        id: mcp-servers-lint
+        language: system
+        name: MCP servers lint (Prettier check)
+        pass_filenames: false
       - entry: npx --yes turbo run lint --filter=...[HEAD] --cache-dir=.turbo
         id: turbo-lint
         language: system

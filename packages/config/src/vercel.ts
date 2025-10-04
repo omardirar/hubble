@@ -31,6 +31,12 @@ const serverEnvSchema = z.object({
   UPSTASH_REDIS_WS_TOKEN: z.string().optional(),
   // Internal API key for service-to-service communication
   INTERNAL_API_KEY: z.string().optional(),
+  // Optional MotherDuck MCP overrides for local testing or fallbacks
+  MCP_MOTHERDUCK_URL: z.string().url().optional(),
+  MCP_MOTHERDUCK_SERVICE_SECRET: z.string().optional(),
+  MCP_MOTHERDUCK_CONNECTION: z.string().optional(),
+  MCP_MOTHERDUCK_BEARER_TOKEN: z.string().optional(),
+  MCP_MOTHERDUCK_DATABASE: z.string().optional(),
 })
 
 // Public environment variables schema
@@ -189,6 +195,37 @@ export function getQStashConfig(): QStashConfig {
     currentSigningKey: env.QSTASH_CURRENT_SIGNING_KEY,
     nextSigningKey: env.QSTASH_NEXT_SIGNING_KEY,
   }
+}
+
+export interface MotherduckMcpConfig {
+  url: string
+  headers: Record<string, string>
+}
+
+export function getMotherduckMcpConfig(): MotherduckMcpConfig {
+  const env = getServerEnv()
+
+  const url =
+    env.MCP_MOTHERDUCK_URL ??
+    (process.env.NODE_ENV === "production"
+      ? "https://mcp.hubble.systems/motherduck"
+      : "http://127.0.0.1:9001/")
+
+  const headers: Record<string, string> = {
+    "anthropic-beta": "mcp-client-2025-04-04",
+  }
+
+  if (env.MCP_MOTHERDUCK_SERVICE_SECRET && env.MCP_MOTHERDUCK_CONNECTION) {
+    headers["X-MotherDuck-Service-Secret"] = env.MCP_MOTHERDUCK_SERVICE_SECRET
+    headers["X-MotherDuck-Connection"] = env.MCP_MOTHERDUCK_CONNECTION
+  }
+
+  if (env.MCP_MOTHERDUCK_BEARER_TOKEN && env.MCP_MOTHERDUCK_DATABASE) {
+    headers.Authorization = `Bearer ${env.MCP_MOTHERDUCK_BEARER_TOKEN}`
+    headers["X-Db-Name"] = env.MCP_MOTHERDUCK_DATABASE
+  }
+
+  return { url, headers }
 }
 
 /**

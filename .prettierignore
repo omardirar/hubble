@@ -6,3 +6,15 @@ coverage
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/venv/
+**/env/
+dist/
+*.min.js
+*.min.css
+**/*.d.ts
+.DS_Store
+*.log
+*.lock

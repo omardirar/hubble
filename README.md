@@ -1,47 +1,164 @@
 # Hubble
 
-An AI-powered Marketing Assistant with a full-stack Next.js 15 app, Clerk authentication, Supabase database, and shared TypeScript packages. Features a Chat interface and Connect provisioning system for per-tenant MotherDuck databases and Fivetran destinations, orchestrated via Upstash QStash and Redis.
+![Hubble - AI-powered Marketing Assistant](docs/assets/banner.png)
+
+> An AI-powered Marketing Assistant with a full-stack Next.js 15 application, featuring real-time chat capabilities and automated data pipeline provisioning for multi-tenant analytics.
+
+## 🚀 Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/omzification/hubble.git
+cd hubble
+
+# Install dependencies
+pnpm install
+
+# Set up environment variables
+cp .env.example .env.local
+
+# Start development server
+pnpm dev
+```
+
+Visit [http://localhost:3000](http://localhost:3000) to see the application.
 
 ## 📋 Table of Contents
 
+- [Overview](#-overview)
+- [Architecture](#-architecture)
+- [Features](#-features)
 - [Tech Stack](#-tech-stack)
 - [Project Structure](#-project-structure)
-- [Package Documentation](#-package-documentation)
-- [Requirements](#-requirements)
 - [Getting Started](#-getting-started)
-- [Environment Variables](#-environment-variables)
-- [Core Features](#-core-features)
-- [API Reference](#-api-reference)
+- [Environment Setup](#-environment-setup)
+- [API Documentation](#-api-documentation)
 - [Development](#-development)
-- [CI/CD & Deployment](#-cicd--deployment)
-- [Troubleshooting](#-troubleshooting)
+- [Deployment](#-deployment)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+## 🎯 Overview
+
+Hubble is a comprehensive AI-powered marketing assistant platform that provides:
+
+- **Intelligent Chat Interface**: Real-time AI conversations with context-aware responses
+- **Multi-tenant Data Pipeline**: Automated provisioning of MotherDuck databases and Fivetran destinations
+- **Organization Management**: Clerk-based authentication with JWT-based organization context
+- **Real-time Analytics**: Live data streaming and visualization capabilities
+- **Scalable Architecture**: Built on modern serverless technologies
+
+## 🏗 Architecture
+
+Hubble follows a modern microservices architecture with clear separation of concerns:
+
+```mermaid
+graph TB
+  subgraph "Frontend Layer"
+      A[Next.js 15 Dashboard]
+      B[React 19 Components]
+      C[Tailwind CSS]
+  end
+
+  subgraph "API Layer"
+      D[Next.js API Routes]
+      E[Server Actions]
+      F[Middleware]
+  end
+
+  subgraph "Business Logic"
+      G[Chat Service]
+      H[Connect Service]
+      I[Auth Service]
+  end
+
+  subgraph "Data Layer"
+      J[Supabase PostgreSQL]
+      K[MotherDuck Analytics]
+      L[Fivetran Pipelines]
+  end
+
+  subgraph "Infrastructure"
+      M[Upstash QStash]
+      N[Upstash Redis]
+      O[Vercel Runtime]
+  end
+
+  A --> D
+  B --> A
+  C --> B
+  D --> G
+  D --> H
+  D --> I
+  G --> J
+  H --> K
+  H --> L
+  I --> J
+  G --> M
+  H --> M
+  M --> N
+  D --> O
+```
+
+## ✨ Features
+
+### 💬 AI Chat System
+
+- **Multi-conversation Support**: Create and manage multiple chat sessions
+- **Real-time Updates**: Live message streaming with optimistic UI
+- **Message History**: Persistent conversation storage with RLS security
+- **Idempotent Operations**: Duplicate message prevention
+- **Archive Support**: Organize and manage conversation history
+
+### 🔌 Connect Data Pipeline
+
+- **Automated Provisioning**: One-click setup of data infrastructure
+- **MotherDuck Integration**: Per-tenant database creation and management
+- **Fivetran Connectors**: Automated data pipeline configuration
+- **Real-time Status**: Live provisioning progress with SSE streams
+- **Distributed Locking**: Prevents duplicate provisioning operations
+
+### 🏢 Organization Management
+
+- **Clerk Authentication**: Secure user and organization management
+- **JWT-based Context**: Organization-scoped operations
+- **Role-based Access**: Granular permission system
+- **Multi-tenant Architecture**: Isolated data per organization
+
+### 📊 Analytics & Monitoring
+
+- **Real-time Dashboards**: Live data visualization
+- **Performance Metrics**: Application and infrastructure monitoring
+- **Error Tracking**: Comprehensive error logging and alerting
+- **Audit Trails**: Complete operation history
 
 ## 🛠 Tech Stack
 
-### Frontend & Framework
+### Frontend
 
-- **Framework**: Next.js 15 App Router with Turbopack
+- **Framework**: Next.js 15 with App Router
 - **UI Library**: React 19
-- **Styling**: Tailwind CSS v4 with custom preset
-- **Components**: Radix UI primitives, shadcn/ui patterns
-- **State**: TanStack Query (React Query)
-- **Authentication**: Clerk with JWT-based org context
+- **Styling**: Tailwind CSS v4
+- **Components**: Radix UI primitives with shadcn/ui patterns
+- **State Management**: TanStack Query (React Query)
+- **Authentication**: Clerk with JWT tokens
 
-### Backend & Infrastructure
+### Backend
 
 - **Database**: Supabase (PostgreSQL with RLS)
-- **Queue**: Upstash QStash (HTTP-based background jobs)
-- **Cache/Locks**: Upstash Redis (REST + WebSocket)
-- **Data Platform**: MotherDuck (DuckDB), Fivetran
+- **Queue System**: Upstash QStash
+- **Cache & Locks**: Upstash Redis
+- **Data Platform**: MotherDuck (DuckDB) + Fivetran
 - **Runtime**: Vercel (Node.js 20.x)
 - **AI**: Anthropic Claude
 
-### Development Tools
+### Development
 
 - **Monorepo**: Turborepo + pnpm workspaces
 - **Language**: TypeScript 5.x (strict mode)
-- **Linting**: ESLint with shared configs
+- **Linting**: ESLint with shared configurations
 - **Formatting**: Prettier with Tailwind plugin
+- **Testing**: Vitest + Testing Library
 - **Commits**: Commitizen with gitmoji
 
 ## 📁 Project Structure
@@ -50,491 +167,285 @@ An AI-powered Marketing Assistant with a full-stack Next.js 15 app, Clerk authen
 hubble/
 ├── apps/
 │   └── dashboard/              # Next.js 15 web application
+│       ├── src/
+│       │   ├── app/           # App Router pages and API routes
+│       │   ├── middleware.ts  # Next.js middleware
+│       │   └── providers/     # React context providers
+│       └── package.json
+│
+├── mcp/
+│   └── servers/                # MCP servers for AWS App Runner
+│       ├── motherduck/        # MotherDuck MCP server
+│       ├── Dockerfile         # Container configuration
+│       └── Caddyfile          # Reverse proxy config
 │
 ├── packages/                   # Shared TypeScript packages
-│   ├── auth/                  # Authentication & org utilities
-│   ├── chat/                  # Chat logic & DB operations
-│   ├── config/                # Environment config & validation
+│   ├── auth/                  # Authentication & organization utilities
+│   ├── chat/                  # Chat logic & database operations
+│   ├── config/                # Environment configuration
 │   ├── connect/               # Connect provisioning system
-│   ├── core/                  # Core utilities & errors
+│   ├── core/                  # Core utilities & error handling
 │   ├── db/                    # Supabase client factories
 │   ├── infrastructure/        # QStash & Redis services
-│   ├── logger/                # Structured logging
+│   ├── logger/                # Structured logging system
 │   ├── schemas/               # Zod schemas & validation
 │   ├── server/                # Server-only utilities
 │   ├── types/                 # Shared TypeScript types
-│   ├── ui/                    # React components & Tailwind
-│   ├── utils/                 # General utilities
-│   ├── eslint-config/         # Shared ESLint config
-│   ├── prettier-config/       # Shared Prettier config
-│   └── tsconfig/              # Shared TS config
+│   ├── ui/                    # React components & Tailwind preset
+│   ├── eslint-config/         # Shared ESLint configuration
+│   ├── prettier-config/       # Shared Prettier configuration
+│   └── tsconfig/              # Shared TypeScript configuration
 │
-├── supabase/                  # Database migrations
-├── docs/                      # Documentation
-└── .github/workflows/         # CI/CD pipelines
+├── supabase/                  # Database migrations and schema
+│   ├── migrations/            # Database migration files
+│   ├── archive/               # Historical migration files
+│   └── cleanup.sql            # Database cleanup scripts
+│
+├── docs/                      # Comprehensive documentation
+│   ├── apps/                  # Application-specific docs
+│   ├── packages/              # Package documentation
+│   ├── mcp/                   # MCP server documentation
+│   └── supabase/              # Database documentation
+│
+├── .github/workflows/         # CI/CD pipelines
+├── package.json               # Root package configuration
+├── pnpm-workspace.yaml        # pnpm workspace configuration
+├── turbo.json                 # Turborepo configuration
+└── tsconfig.json              # Root TypeScript configuration
 ```
 
-## 📦 Package Documentation
+## 🚀 Getting Started
 
-### Core Packages
-
-#### `@hubble/auth`
-
-##### Authentication & organization management
-
-Exports:
-
-- `getOrgId(userId)` - Get org ID from Clerk data
-- `getUserAndOrgFromToken(token)` - Extract user/org from JWT
-- `getCurrentOrgId()` - Get current user's org (server-side)
-- `extractJWTClaims(token)` - Parse JWT claims
-- `getClerkSchemaName()` - Environment-specific Clerk schema
-- `getClerkTableName(table)` - Fully qualified table name
-
-#### `@hubble/chat`
-
-##### Chat feature logic & database operations
-
-Exports:
-
-- `getConversations(supabase, logger)` - Fetch conversations
-- `createConversation(supabase, data, logger)` - Create conversation
-- `getMessages(supabase, conversationId, logger)` - Fetch messages
-- `createMessage(supabase, data, logger)` - Create message (idempotent)
-- `verifyConversationAccess(...)` - Check access permissions
-- `useChatState(conversationId)` - React hook for chat state
-
-#### `@hubble/connect`
-
-##### MotherDuck + Fivetran provisioning
-
-Exports:
-
-- `processProvisionJob(payload)` - Execute provisioning workflow
-- `insertProvisionRun(...)` - Start provisioning
-- `updateProvisionRun(...)` - Update run status
-- `createProvisionStream(id)` - SSE stream factory
-- MotherDuck & Fivetran client utilities
-
-#### `@hubble/core`
-
-##### Core utilities & error handling
-
-Exports:
-
-- `cn(...inputs)` - Tailwind class merger
-- `generateId(prefix?)` - Generate unique IDs
-- Error classes: `AppError`, `DatabaseError`, `ValidationError`, etc.
-- `ApiErrorCodes` - Standardized error codes
-- `safeFetch(url, options)` - Fetch with error handling
-
-#### `@hubble/db`
-
-##### Supabase client factories
-
-Exports:
-
-- `createBrowserClient({ authToken })` - Client-side client (respects RLS)
-- `createServiceClient()` - Server-side service role (bypasses RLS)
-
-**Security:** Always use `createBrowserClient` for user operations!
-
-#### `@hubble/infrastructure`
-
-##### QStash & Redis services
-
-QStash:
-
-- `publishJson(options)` - Publish to queue
-- `withQStashVerification(handler)` - Signature verification
-
-Redis:
-
-- `acquireLock(key, ttlMs)` - Distributed lock
-- `releaseLock(lock)` - Release lock
-- `publishEvent(channel, payload)` - Pub/sub
-
-#### `@hubble/logger`
-
-##### Structured logging
-
-Exports:
-
-- `logger` - Global logger (Pino)
-- `logger.child(context)` - Child logger
-- `logger.info/warn/error(event, data)` - Log methods
-
-#### `@hubble/schemas`
-
-##### Zod schemas & validation
-
-Chat schemas, Connect schemas, validation helpers
-
-#### `@hubble/server`
-
-##### Server-only utilities
-
-Exports all server-side packages plus:
-
-- `createApiHandler(handler, options)` - API wrapper
-- `getAuthContext(options)` - Auth context
-- `sendToAnthropic(request, logger)` - Anthropic client
-- Database error handlers
-
-#### `@hubble/types`
-
-##### Shared TypeScript types
-
-Re-exports schemas plus utility types:
-
-- `Optional<T, K>`, `RequiredFields<T, K>`
-- `BaseEntity`, `Tenant`, `Connection`
-- `ApiResponse<T>`, `PaginatedResponse<T>`
-
-#### `@hubble/ui`
-
-##### React components & Tailwind preset
-
-Components: Button, Input, Card, Dialog, Sheet, Table, etc.
-
-Blocks: Chat UI, Clerk components, Connect wizards, AI elements
-
-Hooks: `useIsMobile()`, `useChatList()`, `useConnect()`, `useSupabase()`
-
-Tailwind preset: Import from `@hubble/ui/styles/tailwind.preset`
-
-#### `@hubble/utils`
-
-##### General utilities (client-safe)
-
-Re-exports core, chat, types, logger for client-side use
-
-#### `@hubble/config`
-
-##### Environment configuration
-
-Exports:
-
-- `getSupabaseConfig()` - Supabase credentials
-- `getClerkConfig()` - Clerk credentials
-- `getQStashConfig()`, `getRedisConfig()` - Upstash credentials
-- `getMotherDuckConfig()`, `getFivetranConfig()` - Data platform credentials
-- `getAnthropicConfig()` - AI credentials
-
-## 📋 Requirements
+### Prerequisites
 
 - **Node.js**: 20.10+ (< 25)
 - **pnpm**: 9.x+
 - **Supabase**: Project with secure secrets table
 - **Clerk**: Application with publishable/secret keys
 - **Upstash**: QStash + Redis accounts
-- **MotherDuck + Fivetran**: Credentials (for Connect)
+- **MotherDuck + Fivetran**: Credentials (for Connect feature)
 
-## 🚀 Getting Started
+### Installation
 
-### 1. Install Dependencies
+1. **Clone the repository**
+
+```bash
+git clone https://github.com/omzification/hubble.git
+cd hubble
+```
+
+2. **Install dependencies**
 
 ```bash
 pnpm install
 ```
 
-### 2. Environment Setup
-
-Create `.env.local` at the root:
+3. **Set up environment variables**
 
 ```bash
 cp .env.example .env.local
+# Edit .env.local with your credentials
 ```
 
-### 3. Start Development
+4. **Start development server**
 
 ```bash
 pnpm dev
 ```
 
-### 4. Open Application
+5. **Open the application**
+   Navigate to [http://localhost:3000](http://localhost:3000)
 
-Navigate to `http://localhost:3000`
+## 🔐 Environment Setup
 
-## 🔐 Environment Variables
+### Required Environment Variables
 
-### Supabase
+Create a `.env.local` file in the root directory with the following variables:
 
 ```env
+# Supabase Configuration
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-```
 
-### Clerk
-
-```env
+# Clerk Authentication
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
-```
 
-### Upstash QStash
-
-```env
+# Upstash QStash (Queue System)
 QSTASH_URL=https://qstash.upstash.io
 QSTASH_TOKEN=your-token
 QSTASH_CURRENT_SIGNING_KEY=your-key
 QSTASH_NEXT_SIGNING_KEY=your-next-key
-```
 
-### Upstash Redis
-
-```env
+# Upstash Redis (Cache & Locks)
 UPSTASH_REDIS_REST_URL=https://...upstash.io
 UPSTASH_REDIS_REST_TOKEN=your-token
 UPSTASH_REDIS_WS_URL=wss://...upstash.io
 UPSTASH_REDIS_WS_TOKEN=your-token
+
+# Data Platform (Optional - for Connect feature)
+MD_ADMIN_TOKEN=your-motherduck-token
+FIVETRAN_API_KEY=your-fivetran-key
+FIVETRAN_API_SECRET=your-fivetran-secret
+
+# AI Service (Optional)
+ANTHROPIC_API_KEY=your-anthropic-key
 ```
 
-### MotherDuck & Fivetran
+### Database Setup
 
-```env
-MD_ADMIN_TOKEN=your-token
-FIVETRAN_API_KEY=your-key
-FIVETRAN_API_SECRET=your-secret
+1. **Create Supabase project** at [supabase.com](https://supabase.com)
+2. **Run migrations**:
+
+```bash
+# Apply all migrations
+supabase db push
 ```
 
-### Anthropic (Optional)
+3. **Set up RLS policies** for multi-tenant security
+4. **Configure secrets table** for secure credential storage
 
-```env
-ANTHROPIC_API_KEY=your-key
-```
+## 📚 API Documentation
 
-## ✨ Core Features
+### Health & Status
 
-### 💬 Chat Feature
-
-AI-powered conversational interface with:
-
-- Multi-conversation support
-- Full message history
-- Idempotent messages (duplicate prevention)
-- Real-time updates with optimistic UI
-- Archive support
-- RLS security (org-scoped)
-
-**Database:**
-
-- `public.conversations` - Conversation metadata
-- `public.messages` - Message content
-
-**API:**
-
-- `GET /api/v1/chat/conversations` - List conversations
-- `POST /api/v1/chat/conversations` - Create conversation
-- `GET /api/v1/chat/messages/:id` - List messages
-- `POST /api/v1/chat/messages/:id` - Create message
-- `POST /api/v1/chat` - Send chat (AI reply)
-
-### 🔌 Connect Feature
-
-Multi-step tenant provisioning for MotherDuck + Fivetran:
-
-**Workflow:**
-
-1. Create MotherDuck service account
-2. Issue & store service account token
-3. Create per-tenant database (`md_<org_id>`)
-4. Create Fivetran destination
-5. Test destination health
-6. Persist metadata
-
-**API:**
-
-- `POST /api/connect/enable` - Start provisioning
-- `GET /api/connect/status?correlation_id=<id>` - Poll status
-- `GET /api/connect/stream?correlation_id=<id>` - SSE stream
-
-**Features:**
-
-- Idempotent with distributed locking
-- Real-time status via SSE
-- Timeline events with monotonic sequencing
-- Exponential backoff retry logic
-
-## 📚 API Reference
-
-### Health & Version
-
-- `GET /healthz` → `"ok"`
-- `GET /version` → Version info
+- `GET /healthz` - Health check endpoint
+- `GET /version` - Application version information
 
 ### Chat API
 
-- `GET /api/v1/chat/conversations` - List conversations
-- `POST /api/v1/chat/conversations` - Create conversation
+- `GET /api/v1/chat/conversations` - List user conversations
+- `POST /api/v1/chat/conversations` - Create new conversation
 - `PATCH /api/v1/chat/conversations/:id` - Update conversation
-- `GET /api/v1/chat/messages/:conversationId` - List messages
-- `POST /api/v1/chat/messages/:conversationId` - Create message
-- `POST /api/v1/chat` - AI chat reply
+- `GET /api/v1/chat/messages/:conversationId` - List conversation messages
+- `POST /api/v1/chat/messages/:conversationId` - Create new message
+- `POST /api/v1/chat` - Send AI chat request
 
 ### Connect API
 
-- `POST /api/connect/enable` - Start provisioning
-- `GET /api/connect/status` - Poll status
-- `GET /api/connect/stream` - SSE stream
+- `POST /api/connect/enable` - Start data pipeline provisioning
+- `GET /api/connect/status` - Check provisioning status
+- `GET /api/connect/stream` - Real-time provisioning updates (SSE)
 - `GET /api/connect/overview` - Connection overview
-- `GET /api/connect/connector-types` - Available connectors
+- `GET /api/connect/connector-types` - Available connector types
+
+For detailed API documentation, see [docs/api/](docs/api/).
 
 ## 💻 Development
 
-### Root Scripts
+### Available Scripts
 
 ```bash
-pnpm dev          # Start all apps
-pnpm build        # Build all packages
-pnpm typecheck    # TypeScript check
-pnpm lint         # ESLint check
-pnpm test         # Run tests
-pnpm commit       # Commitizen commit
-```
+# Development
+pnpm dev                    # Start all applications
+pnpm build                  # Build all packages
+pnpm typecheck             # TypeScript type checking
+pnpm lint                  # ESLint linting
+pnpm test                  # Run test suite
+pnpm format                # Format code with Prettier
 
-### Package Scripts
-
-```bash
-# Run specific package
+# Package-specific commands
 pnpm --filter @hubble/dashboard dev
 pnpm --filter @hubble/ui build
 pnpm --filter @hubble/auth typecheck
+
+# MCP Development
+pnpm mcp:dev:motherduck    # Start MotherDuck MCP server
+pnpm mcp:inspector:motherduck  # Start MCP inspector
 ```
 
 ### Code Quality
 
-**Linting:**
+The project enforces high code quality standards:
 
-```bash
-pnpm lint
-pnpm --filter @hubble/ui lint --fix
-```
-
-**Type Checking:**
-
-```bash
-pnpm typecheck
-pnpm --filter @hubble/auth typecheck
-```
-
-**Formatting:**
-
-```bash
-pnpm --filter @hubble/dashboard format
-pnpm --filter @hubble/dashboard format:check
-```
+- **TypeScript**: Strict mode with comprehensive type checking
+- **ESLint**: Shared configuration across all packages
+- **Prettier**: Consistent code formatting
+- **Husky**: Pre-commit hooks for quality checks
+- **Commitizen**: Standardized commit messages
 
 ### Commit Convention
 
-Use Commitizen with gitmoji:
+We use [gitmoji](https://gitmoji.dev/) for commit messages:
 
 ```bash
-pnpm commit
+pnpm commit  # Interactive commit with gitmoji
 ```
 
 Examples:
 
 - `✨ feat: add workspace switcher`
 - `🐛 fix: resolve auth token expiry`
-- `📝 docs: update API docs`
+- `📝 docs: update API documentation`
 - `♻️ refactor: simplify error handling`
+- `🧪 test: add unit tests for chat service`
 
-## 🧪 Testing
+## 🚀 Deployment
 
-```bash
-pnpm test                              # All tests
-pnpm --filter @hubble/dashboard test   # Specific package
-```
+### Vercel Deployment
 
-Framework: Vitest + Testing Library
+The application is configured for automatic deployment on Vercel:
 
-## 🚀 CI/CD & Deployment
+- **Production**: Deploys from `main` branch
+- **Preview**: Deploys from pull requests
+- **Configuration**: `apps/dashboard/vercel.json`
 
-### GitHub Actions
+### Environment Variables
 
-Workflow: `.github/workflows/ci.yml`
+Set the following environment variables in your Vercel project:
 
-Runs on push/PR:
+1. Go to Vercel Dashboard → Project Settings → Environment Variables
+2. Add all required variables from the [Environment Setup](#-environment-setup) section
+3. Ensure variables are available for Production, Preview, and Development
 
-1. Install dependencies
-2. Lint (`pnpm lint`)
-3. Type check (`pnpm typecheck`)
-4. Build (`pnpm build`)
-5. Test (`pnpm test`)
+### Database Migrations
 
-### Vercel
+Database migrations are automatically applied during deployment:
 
-- **Production**: `main` branch
-- **Preview**: Pull requests
-- Config: `apps/dashboard/vercel.json`
-
-Set environment variables in Vercel project settings.
-
-## 🔧 Troubleshooting
-
-### `401 Unauthorized`
-
-- ✅ Check Clerk cookies are attached
-- ✅ Re-login and sync cookies
-- ✅ Verify `CLERK_SECRET_KEY`
-- ✅ Check JWT has `org_id` claim
-
-### SSE Not Streaming
-
-- ✅ Set Redis WebSocket credentials
-- ✅ Use curl/Insomnia (not Postman)
-- ✅ Check Redis connection
-
-### Provisioning Stuck
-
-1. Check `/api/connect/status?correlation_id=<id>`
-2. Review timeline events
-3. Verify credentials (MotherDuck, Fivetran, Upstash)
-4. Check Supabase logs
-5. Review `core.provisioning_workflows` table
-
-### Build Errors
-
-- ✅ Run `pnpm typecheck`
-- ✅ `pnpm install`
-- ✅ Clear cache: `pnpm turbo clean`
-- ✅ Rebuild: `pnpm build`
-
-### Cannot Find Module
-
-- ✅ Build package: `pnpm --filter @hubble/<pkg> build`
-- ✅ Check `package.json` exports
-- ✅ Restart TS server
-- ✅ Clear `.next` cache
-
-## 📝 Additional Documentation
-
-- [Chat API Documentation](docs/api/chat.md)
-- [Chat Schema Analysis](docs/api/chat-schema-analysis.md)
-- [Clerk Schema Switching](docs/clerk-schema-switching.md)
-- [Setup Guide](docs/setup-clerk-supabase-native.md)
+1. **Supabase**: Migrations run via GitHub Actions
+2. **Schema Updates**: Applied through `supabase db push`
+3. **Data Migrations**: Handled by migration scripts
 
 ## 🤝 Contributing
 
-1. Create feature branch
-2. Make changes
-3. Run: `pnpm lint && pnpm typecheck`
-4. Commit: `pnpm commit`
-5. Create pull request
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-**PR Guidelines:**
+### Quick Start for Contributors
 
-- Clear description
-- Link issues
-- Screenshots for UI changes
-- Ensure CI passes
+1. **Fork the repository**
+2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
+3. **Make your changes**
+4. **Run quality checks**: `pnpm lint && pnpm typecheck && pnpm test`
+5. **Commit your changes**: `pnpm commit`
+6. **Push to your fork**: `git push origin feature/amazing-feature`
+7. **Create a Pull Request**
+
+### Development Guidelines
+
+- Follow the existing code style and patterns
+- Write tests for new features
+- Update documentation for API changes
+- Ensure all CI checks pass
+- Use conventional commit messages
 
 ## 📄 License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Next.js](https://nextjs.org/) - React framework
+- [Supabase](https://supabase.com/) - Backend as a Service
+- [Clerk](https://clerk.com/) - Authentication
+- [Upstash](https://upstash.com/) - Serverless Redis and QStash
+- [MotherDuck](https://motherduck.com/) - Analytics database
+- [Fivetran](https://fivetran.com/) - Data pipeline platform
+- [Vercel](https://vercel.com/) - Deployment platform
 
 ---
 
 Built with ❤️ by the Hubble team
+
+[![GitHub](https://img.shields.io/badge/GitHub-omzification/hubble-blue?style=flat-square&logo=github)](https://github.com/omzification/hubble)
+[![Website](https://img.shields.io/website?url=https://hubble.vercel.app&style=flat-square)](https://hubble.vercel.app)

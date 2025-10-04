@@ -34,6 +34,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       - name: Lint
         run: pnpm lint
 
@@ -42,6 +47,9 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Build MCP servers container
+        run: pnpm docker:build
 
       - name: Test
         run: pnpm test
