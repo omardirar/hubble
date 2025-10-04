@@ -2,16 +2,6 @@
 
 ![Hubble - AI-powered Marketing Assistant](docs/assets/banner.png)
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/omzification/hubble/ci.yml?branch=main&style=flat-square)](https://github.com/omzification/hubble/actions)
-[![License](https://img.shields.io/github/license/omzification/hubble?style=flat-square)](https://github.com/omzification/hubble/blob/main/LICENSE)
-[![Version](https://img.shields.io/github/v/release/omzification/hubble?style=flat-square)](https://github.com/omzification/hubble/releases)
-[![Contributors](https://img.shields.io/github/contributors/omzification/hubble?style=flat-square)](https://github.com/omzification/hubble/graphs/contributors)
-[![Open Issues](https://img.shields.io/github/issues/omzification/hubble?style=flat-square)](https://github.com/omzification/hubble/issues)
-[![Last Commit](https://img.shields.io/github/last-commit/omzification/hubble?style=flat-square)](https://github.com/omzification/hubble/commits/main)
-[![Code Size](https://img.shields.io/github/languages/code-size/omzification/hubble?style=flat-square)](https://github.com/omzification/hubble)
-[![Top Language](https://img.shields.io/github/languages/top/omzification/hubble?style=flat-square)](https://github.com/omzification/hubble)
-[![Activity](https://img.shields.io/github/commit-activity/m/omzification/hubble?style=flat-square)](https://github.com/omzification/hubble/graphs/commit-activity)
-
 > An AI-powered Marketing Assistant with a full-stack Next.js 15 application, featuring real-time chat capabilities and automated data pipeline provisioning for multi-tenant analytics.
 
 ## 🚀 Quick Start
