@@ -9,7 +9,7 @@
 //   Context: Integrate @opentelemetry/instrumentation-http to auto-capture request/response traces with baggage propagation.
 //   labels: area/middleware, feature/tracing, type/enhancement
 //   assignees: omzification
-//   milestone: 0.1.0
+//   milestone: 0.0.1
 
 import { NextRequest, NextResponse } from "next/server"
 import { createStructuredLogger, LogContext } from "../core/structured-logger"

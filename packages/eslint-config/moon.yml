@@ -1,0 +1,30 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: "typescript"
+layer: "configuration"
+stack: "infrastructure"
+tags:
+  - "shared"
+  - "config"
+
+workspace:
+  inheritedTasks:
+    exclude: ["lint", "typecheck", "format", "format-check"]
+
+fileGroups:
+  sources:
+    - "*.mjs"
+    - "*.d.ts"
+    - "*.json"
+
+tasks:
+  build:
+    command: "echo"
+    args:
+      - "No build needed for eslint-config package"
+    options:
+      cache: true
+      runInCI: true
+      mergeArgs: "replace"
+      mergeDeps: "replace"
+      mergeOutputs: "replace"

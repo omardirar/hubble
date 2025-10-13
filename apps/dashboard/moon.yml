@@ -1,0 +1,57 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: "typescript"
+layer: "application"
+stack: "frontend"
+tags:
+  - "frontend"
+
+dependsOn:
+  - "core"
+  - "logger"
+  - "db"
+  - "auth"
+  - "config"
+  - "schemas"
+  - "types"
+  - "ui"
+  - "server"
+  - "chat"
+  - "connect"
+
+fileGroups:
+  sources:
+    - "src/**/*"
+    - "public/**/*"
+  tests:
+    - "__tests__/**/*"
+    - "**/*.test.ts"
+    - "**/*.test.tsx"
+
+tasks:
+  dev:
+    command: "next"
+    args:
+      - "dev"
+    local: true
+    options:
+      cache: false
+      persistent: true
+      runInCI: false
+
+  build:
+    inputs:
+      - "next.config.*"
+      - "tailwind.config.*"
+      - "postcss.config.*"
+
+  start:
+    command: "next"
+    args:
+      - "start"
+    deps:
+      - { target: "~:build", args: [] }
+    local: true
+    options:
+      cache: false
+      runInCI: false

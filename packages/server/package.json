@@ -6,7 +6,9 @@
   "main": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint . --max-warnings=0"
+    "lint": "eslint . --max-warnings=0",
+    "console": "tsx src/cli/mcp-console.ts",
+    "build": "echo \"Source-only package, no build needed\""
   },
   "exports": {
     ".": {
@@ -17,6 +19,7 @@
   "license": "MIT",
   "sideEffects": false,
   "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.22",
     "@hubble/core": "workspace:*",
     "@hubble/db": "workspace:*",
     "@hubble/schemas": "workspace:*",
@@ -29,13 +32,16 @@
     "@modelcontextprotocol/sdk": "^1.19.1",
     "ai": "^5.0.59",
     "@clerk/nextjs": "^6.31.10",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
     "typescript": "^5.5.0",
     "@hubble/tsconfig": "workspace:*",
     "@hubble/eslint-config": "workspace:*",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "@types/dotenv": "^8.2.0",
+    "tsx": "^4.16.5"
   },
   "peerDependencies": {
     "next": ">=15.0.0",

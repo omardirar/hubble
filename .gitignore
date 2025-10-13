@@ -25,6 +25,7 @@ AGENTS.md
 **/.venv/
 **/venv/
 **/env/
+services/responses/
 
 # node / frontend artifacts
 **/node_modules
@@ -33,6 +34,10 @@ AGENTS.md
 **/dist/
 **/build/
 **/coverage/
+htmlcov/
+.coverage
+*.cover
+coverage.xml
 
 # misc
 .DS_Store
@@ -62,3 +67,7 @@ yarn-error.log*
 
 # Turborepo
 .turbo
+
+# moon
+.moon/cache
+.moon/docker

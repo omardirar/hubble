@@ -1,8 +1,5 @@
 packages:
   - apps/*
-  - servers/*
-  - mcp/*
-  - mcp/servers/*
   - packages/*
 
 ignoredBuiltDependencies:

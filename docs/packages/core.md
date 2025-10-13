@@ -46,14 +46,14 @@ Fetch wrapper with error handling and retry logic.
 import { safeFetch } from "@hubble/core"
 
 const response = await safeFetch("https://api.example.com/data", {
-    method: "GET",
-    headers: { Authorization: "Bearer token" },
+  method: "GET",
+  headers: { Authorization: "Bearer token" },
 })
 
 if (response.success) {
-    console.log(response.data)
+  console.log(response.data)
 } else {
-    console.error(response.error)
+  console.error(response.error)
 }
 ```
 
@@ -67,8 +67,8 @@ Base error class for application errors.
 import { AppError } from "@hubble/core"
 
 throw new AppError("Something went wrong", {
-    code: "CUSTOM_ERROR",
-    statusCode: 400,
+  code: "CUSTOM_ERROR",
+  statusCode: 400,
 })
 ```
 
@@ -80,8 +80,8 @@ Database operation errors.
 import { DatabaseError } from "@hubble/core"
 
 throw new DatabaseError("Failed to connect to database", {
-    operation: "connect",
-    table: "users",
+  operation: "connect",
+  table: "users",
 })
 ```
 
@@ -93,9 +93,9 @@ Data validation errors.
 import { ValidationError } from "@hubble/core"
 
 throw new ValidationError("Invalid input data", {
-    field: "email",
-    value: "invalid-email",
-    rule: "email_format",
+  field: "email",
+  value: "invalid-email",
+  rule: "email_format",
 })
 ```
 
@@ -107,8 +107,8 @@ Authentication and authorization errors.
 import { AuthenticationError } from "@hubble/core"
 
 throw new AuthenticationError("Invalid credentials", {
-    userId: "user_123",
-    action: "login",
+  userId: "user_123",
+  action: "login",
 })
 ```
 
@@ -120,9 +120,9 @@ Rate limiting errors.
 import { RateLimitError } from "@hubble/core"
 
 throw new RateLimitError("Rate limit exceeded", {
-    limit: 100,
-    window: "1m",
-    retryAfter: 60,
+  limit: 100,
+  window: "1m",
+  retryAfter: 60,
 })
 ```
 
@@ -155,10 +155,10 @@ Make specific keys optional in a type.
 import { Optional } from "@hubble/core"
 
 interface User {
-    id: string
-    name: string
-    email: string
-    createdAt: Date
+  id: string
+  name: string
+  email: string
+  createdAt: Date
 }
 
 type CreateUser = Optional<User, "id" | "createdAt">
@@ -173,9 +173,9 @@ Make specific keys required in a type.
 import { RequiredFields } from "@hubble/core"
 
 interface PartialUser {
-    id?: string
-    name?: string
-    email?: string
+  id?: string
+  name?: string
+  email?: string
 }
 
 type UserWithId = RequiredFields<PartialUser, "id">
@@ -190,8 +190,8 @@ Base interface for all database entities.
 import { BaseEntity } from "@hubble/core"
 
 interface User extends BaseEntity {
-    name: string
-    email: string
+  name: string
+  email: string
 }
 // { id: string; created_at: Date; updated_at: Date; name: string; email: string }
 ```
@@ -256,29 +256,29 @@ DEFAULT_PAGINATION.maxLimit // 100
 import { AppError, DatabaseError, ValidationError, ApiErrorCodes } from "@hubble/core"
 
 async function createUser(userData: CreateUserData) {
-    try {
-        // Validate input
-        if (!userData.email) {
-            throw new ValidationError("Email is required", {
-                field: "email",
-                code: ApiErrorCodes.VALIDATION_ERROR,
-            })
-        }
-
-        // Database operation
-        const user = await db.users.create(userData)
-        return user
-    } catch (error) {
-        if (error instanceof ValidationError) {
-            throw error // Re-throw validation errors
-        }
-
-        throw new DatabaseError("Failed to create user", {
-            operation: "create",
-            table: "users",
-            originalError: error,
-        })
+  try {
+    // Validate input
+    if (!userData.email) {
+      throw new ValidationError("Email is required", {
+        field: "email",
+        code: ApiErrorCodes.VALIDATION_ERROR,
+      })
     }
+
+    // Database operation
+    const user = await db.users.create(userData)
+    return user
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      throw error // Re-throw validation errors
+    }
+
+    throw new DatabaseError("Failed to create user", {
+      operation: "create",
+      table: "users",
+      originalError: error,
+    })
+  }
 }
 ```
 
@@ -288,22 +288,22 @@ async function createUser(userData: CreateUserData) {
 import { ApiResponse, AppError } from "@hubble/core"
 
 export function createApiResponse<T>(data: T, success: boolean = true): ApiResponse<T> {
-    return {
-        success,
-        data: success ? data : undefined,
-        error: success ? undefined : (data as any),
-    }
+  return {
+    success,
+    data: success ? data : undefined,
+    error: success ? undefined : (data as any),
+  }
 }
 
 export function createErrorResponse(error: AppError): ApiResponse<never> {
-    return {
-        success: false,
-        error: {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-        },
-    }
+  return {
+    success: false,
+    error: {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+    },
+  }
 }
 ```
 
@@ -314,9 +314,9 @@ import { cn, generateId, safeFetch } from "@hubble/core"
 
 // Class name merging
 const buttonClass = cn(
-    "px-4 py-2 rounded",
-    variant === "primary" && "bg-blue-500 text-white",
-    disabled && "opacity-50 cursor-not-allowed",
+  "px-4 py-2 rounded",
+  variant === "primary" && "bg-blue-500 text-white",
+  disabled && "opacity-50 cursor-not-allowed",
 )
 
 // ID generation
@@ -325,19 +325,19 @@ const messageId = generateId("msg")
 
 // Safe fetch with error handling
 const fetchUserData = async (userId: string) => {
-    const response = await safeFetch(`/api/users/${userId}`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
+  const response = await safeFetch(`/api/users/${userId}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  })
+
+  if (!response.success) {
+    throw new AppError("Failed to fetch user data", {
+      code: "FETCH_ERROR",
+      details: response.error,
     })
+  }
 
-    if (!response.success) {
-        throw new AppError("Failed to fetch user data", {
-            code: "FETCH_ERROR",
-            details: response.error,
-        })
-    }
-
-    return response.data
+  return response.data
 }
 ```
 
@@ -347,11 +347,11 @@ The package includes TypeScript definitions and should work with strict mode ena
 
 ```json
 {
-    "compilerOptions": {
-        "strict": true,
-        "noImplicitAny": true,
-        "strictNullChecks": true
-    }
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true
+  }
 }
 ```
 
@@ -363,13 +363,13 @@ The package includes TypeScript definitions and should work with strict mode ena
 import { AppError } from "@hubble/core"
 
 class CustomBusinessError extends AppError {
-    constructor(message: string, details?: any) {
-        super(message, {
-            code: "BUSINESS_ERROR",
-            statusCode: 400,
-            ...details,
-        })
-    }
+  constructor(message: string, details?: any) {
+    super(message, {
+      code: "BUSINESS_ERROR",
+      statusCode: 400,
+      ...details,
+    })
+  }
 }
 ```
 
@@ -409,36 +409,36 @@ import { describe, it, expect } from "vitest"
 import { cn, generateId, AppError } from "@hubble/core"
 
 describe("@hubble/core", () => {
-    describe("cn", () => {
-        it("should merge class names correctly", () => {
-            expect(cn("base", "additional")).toBe("base additional")
-            expect(cn("base", { active: true })).toBe("base active")
-            expect(cn("base", { active: false })).toBe("base")
-        })
+  describe("cn", () => {
+    it("should merge class names correctly", () => {
+      expect(cn("base", "additional")).toBe("base additional")
+      expect(cn("base", { active: true })).toBe("base active")
+      expect(cn("base", { active: false })).toBe("base")
+    })
+  })
+
+  describe("generateId", () => {
+    it("should generate unique IDs", () => {
+      const id1 = generateId()
+      const id2 = generateId()
+      expect(id1).not.toBe(id2)
+      expect(id1).toMatch(/^id_/)
     })
 
-    describe("generateId", () => {
-        it("should generate unique IDs", () => {
-            const id1 = generateId()
-            const id2 = generateId()
-            expect(id1).not.toBe(id2)
-            expect(id1).toMatch(/^id_/)
-        })
-
-        it("should include prefix when provided", () => {
-            const id = generateId("user")
-            expect(id).toMatch(/^user_/)
-        })
+    it("should include prefix when provided", () => {
+      const id = generateId("user")
+      expect(id).toMatch(/^user_/)
     })
+  })
 
-    describe("AppError", () => {
-        it("should create error with correct properties", () => {
-            const error = new AppError("Test error", { code: "TEST_ERROR" })
-            expect(error.message).toBe("Test error")
-            expect(error.code).toBe("TEST_ERROR")
-            expect(error.name).toBe("AppError")
-        })
+  describe("AppError", () => {
+    it("should create error with correct properties", () => {
+      const error = new AppError("Test error", { code: "TEST_ERROR" })
+      expect(error.message).toBe("Test error")
+      expect(error.code).toBe("TEST_ERROR")
+      expect(error.name).toBe("AppError")
     })
+  })
 })
 ```
 
@@ -475,6 +475,6 @@ When contributing to `@hubble/core`:
 
 ## Related Packages
 
-- [**@hubble/types**](../types/README.md) - Shared TypeScript types
-- [**@hubble/schemas**](../schemas/README.md) - Zod validation schemas
-- [**@hubble/logger**](../logger/README.md) - Structured logging
+- [**@hubble/types**](../types.md) - Shared TypeScript types
+- [**@hubble/schemas**](../schemas.md) - Zod validation schemas
+- [**@hubble/logger**](../logger.md) - Structured logging

@@ -6,7 +6,8 @@
   "main": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint . --max-warnings=0"
+    "lint": "eslint . --max-warnings=0",
+    "build": "echo \"Source-only package, no build needed\""
   },
   "exports": {
     ".": {

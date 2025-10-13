@@ -1,0 +1,83 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: "python"
+layer: "application"
+stack: "backend"
+
+tags:
+  - "agents"
+  - "python"
+
+dependsOn:
+  - "mcp"
+
+toolchain:
+  python:
+    version: "3.12.11"
+
+fileGroups:
+  sources:
+    - "src/**/*.py"
+    - "*.py"
+  tests:
+    - "tests/**/*.py"
+
+tasks:
+  build:
+    command: "docker"
+    args:
+      - "build"
+      - "-t"
+      - "mcp-agents"
+      - "."
+    inputs:
+      - "Dockerfile"
+      - "src/**/*.py"
+      - "*.py"
+    outputs:
+      - "mcp-agents-image.tar"
+    options:
+      cache: true
+      runInCI: true
+
+  dev:
+    command: "uvicorn"
+    args:
+      - "src.main:app"
+      - "--reload"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
+    inputs:
+      - "src/**/*.py"
+      - "*.py"
+    outputs:
+      - "**/*.pyc"
+      - "__pycache__/**"
+    options:
+      cache: false
+      persistent: true
+      runInCI: false
+    local: true
+
+  cli:
+    command: "bash"
+    args:
+      - "-c"
+      - "uv run cli"
+    inputs:
+      - "src/**/*.py"
+      - "*.py"
+      - "pyproject.toml"
+      - "/pyproject.toml" # Root workspace pyproject.toml
+    outputs:
+      - "**/*.pyc"
+      - "__pycache__/**"
+      - "responses/**/*.json" # CLI saves responses here
+    options:
+      cache: false
+      runInCI: false
+      interactive: true
+      runFromWorkspaceRoot: true
+    local: true

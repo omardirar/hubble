@@ -1,0 +1,28 @@
+{
+	admin off
+	auto_https off
+}
+
+:8080 {
+	# Health check for Fly.io
+	handle /health {
+		respond "OK" 200
+	}
+
+	# MotherDuck MCP server
+	handle /motherduck* {
+		uri strip_prefix /motherduck
+		reverse_proxy localhost:8001
+	}
+
+	# Dice Roll MCP server
+	handle /dice-roll* {
+		uri strip_prefix /dice-roll
+		reverse_proxy localhost:8002
+	}
+
+	# Fallback
+	handle {
+		respond "MCP Server Gateway" 200
+	}
+}

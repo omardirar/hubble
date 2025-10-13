@@ -5,7 +5,19 @@
     "declaration": true,
     "emitDeclarationOnly": true,
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "paths": {
+      "@hubble/eslint-config/*": ["../eslint-config/*"],
+      "@hubble/tsconfig/*": ["../tsconfig/*"]
+    }
   },
-  "include": ["src/**/*"]
+  "include": ["../eslint-config/**/*", "../tsconfig/**/*", "src/**/*"],
+  "references": [
+    {
+      "path": "../eslint-config"
+    },
+    {
+      "path": "../tsconfig"
+    }
+  ]
 }

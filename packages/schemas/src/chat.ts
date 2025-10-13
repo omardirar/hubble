@@ -23,6 +23,8 @@ export type MessageRole = z.infer<typeof MessageRoleSchema>
  */
 export const MessageContentSchema = z.object({
   text: z.string(),
+  parts: z.array(z.unknown()).optional(),
+  steps: z.array(z.unknown()).optional(),
 })
 export type MessageContent = z.infer<typeof MessageContentSchema>
 
@@ -35,7 +37,7 @@ export type MessageContent = z.infer<typeof MessageContentSchema>
  */
 export const ConversationSummarySchema = z.object({
   id: z.string().uuid(),
-  title: z.string().nullable(),
+  title: z.string(),
   updated_at: z.string(), // Supabase timestamps are ISO strings but not always RFC3339
   archived_at: z.string().nullable(),
 })
@@ -48,7 +50,7 @@ export const ConversationSchema = z.object({
   id: z.string().uuid(),
   org_id: z.string(),
   owner_user_id: z.string(),
-  title: z.string().nullable(),
+  title: z.string(),
   model: z.string().nullable(),
   system_prompt: z.string().nullable(),
   archived_at: z.string().nullable(),
@@ -127,6 +129,7 @@ export const ApiMessageSchema = z.object({
   id: z.string().uuid(),
   role: MessageRoleSchema,
   text: z.string(),
+  parts: z.array(z.unknown()).optional(),
   metadata: z.record(z.unknown()).optional(),
   created_at: z.string(),
 })

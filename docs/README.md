@@ -13,21 +13,22 @@ Welcome to the comprehensive documentation for the Hubble platform. This documen
 ### 🏗 System Architecture
 
 - [**Architecture Overview**](./architecture.md) - High-level system design
-- [**Database Schema**](./supabase/README.md) - Database structure and design
-- [**API Documentation**](./api/README.md) - Complete API reference
+- [**Server Architecture**](./packages/server-architecture.md) - Agent backend and API orchestration
+- [**Database Overview**](./supabase/overview.md) - Database structure and policies
 
 ### 📦 Package Documentation
 
-- [**Package Overview**](./packages/README.md) - Shared packages documentation
-- [**Core Package**](./packages/core/README.md) - Core utilities and error handling
-- [**Authentication Package**](./packages/auth/README.md) - Auth and organization management
-- [**Database Package**](./packages/db/README.md) - Database client factories
-- [**UI Package**](./packages/ui/README.md) - React components and design system
+- [**Package Overview**](./packages/overview.md) - Shared packages documentation
+- [**Core Package**](./packages/core.md) - Core utilities and error handling
+- [**Authentication Package**](./packages/auth.md) - Auth and organization management
+- [**Database Package**](./packages/db.md) - Database client factories
+- [**UI Package**](./packages/ui.md) - React components and design system
 
 ### 🖥 Application Documentation
 
-- [**Dashboard App**](./apps/dashboard/README.md) - Next.js 15 web application
-- [**MCP Servers**](./mcp/README.md) - Model Context Protocol servers
+- [**Dashboard Overview**](./apps/dashboard/overview.md) - Next.js 15 web application
+- [**Dashboard API**](./apps/dashboard/api.md) - App Router endpoints and contracts
+- [**MCP Integration**](../services/agents/docs/MCP_INTEGRATION.md) - Model Context Protocol servers
 
 ### 🧪 Testing & Quality
 
@@ -40,14 +41,14 @@ Welcome to the comprehensive documentation for the Hubble platform. This documen
 
 1. **Read the [Setup Guide](./setup.md)** to set up your development environment
 2. **Review the [Architecture Guide](./architecture.md)** to understand the system design
-3. **Explore the [Package Documentation](./packages/README.md)** to understand shared components
-4. **Check the [API Documentation](./api/README.md)** for API usage
+3. **Explore the [Package Documentation](./packages/overview.md)** to understand shared components
+4. **Check the [Dashboard API Reference](./apps/dashboard/api.md)** for API usage
 
 ### For Users
 
 1. **Read the [Usage Guide](./usage.md)** to learn how to use the platform
-2. **Explore the [Dashboard Documentation](./apps/dashboard/README.md)** for UI features
-3. **Check the [API Documentation](./api/README.md)** for programmatic access
+2. **Explore the [Dashboard Documentation](./apps/dashboard/overview.md)** for UI features
+3. **Check the [Dashboard API Reference](./apps/dashboard/api.md)** for programmatic access
 
 ### For Contributors
 

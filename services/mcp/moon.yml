@@ -1,0 +1,51 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: "unknown"
+layer: "configuration"
+stack: "infrastructure"
+
+tags:
+  - "mcp"
+  - "docker"
+  - "caddy"
+
+dependsOn:
+  - "motherduck"
+  - "dice-roll"
+
+fileGroups:
+  configs:
+    - "Dockerfile"
+    - "Caddyfile"
+    - "start.sh"
+  sources:
+    - "motherduck/src/**/*"
+    - "dice-roll/src/**/*"
+
+tasks:
+  build:
+    command: "docker"
+    args:
+      - "build"
+      - "-t"
+      - "hubble-mcp"
+      - "-f"
+      - "Dockerfile"
+      - "."
+    description: "Build MCP Docker image"
+    inputs:
+      - "Dockerfile"
+      - "Caddyfile"
+      - "start.sh"
+      - "pyproject.toml"
+      - "motherduck/src/**/*"
+      - "motherduck/pyproject.toml"
+      - "dice-roll/src/**/*"
+      - "dice-roll/pyproject.toml"
+      - "/pyproject.toml"
+      - "/uv.lock"
+    options:
+      cache: false
+      runInCI: true
+      mergeArgs: "replace"
+      mergeDeps: "replace"

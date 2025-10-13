@@ -1,20 +1,92 @@
 {
   "files": [],
   "references": [
-    { "path": "./packages/eslint-config" },
-    { "path": "./packages/utils" },
-    { "path": "./packages/ui" },
-    { "path": "./packages/db" },
-    { "path": "./packages/auth" },
-    { "path": "./packages/schemas" },
-    { "path": "./packages/config" },
-    { "path": "./packages/infrastructure" },
-    { "path": "./packages/logger" },
-    { "path": "./packages/types" },
-    { "path": "./packages/core" },
-    { "path": "./packages/connect" },
-    { "path": "./packages/chat" },
-    { "path": "./packages/server" },
-    { "path": "./apps/dashboard" }
+    {
+      "path": "./apps/dashboard"
+    },
+    {
+      "path": "./packages/auth"
+    },
+    {
+      "path": "./packages/chat"
+    },
+    {
+      "path": "./packages/config"
+    },
+    {
+      "path": "./packages/connect"
+    },
+    {
+      "path": "./packages/core"
+    },
+    {
+      "path": "./packages/db"
+    },
+    {
+      "path": "./packages/eslint-config"
+    },
+    {
+      "path": "./packages/infrastructure"
+    },
+    {
+      "path": "./packages/logger"
+    },
+    {
+      "path": "./packages/schemas"
+    },
+    {
+      "path": "./packages/server"
+    },
+    {
+      "path": "./packages/types"
+    },
+    {
+      "path": "./packages/ui"
+    },
+    {
+      "path": "apps/dashboard"
+    },
+    {
+      "path": "packages/auth"
+    },
+    {
+      "path": "packages/chat"
+    },
+    {
+      "path": "packages/config"
+    },
+    {
+      "path": "packages/connect"
+    },
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/db"
+    },
+    {
+      "path": "packages/eslint-config"
+    },
+    {
+      "path": "packages/infrastructure"
+    },
+    {
+      "path": "packages/logger"
+    },
+    {
+      "path": "packages/schemas"
+    },
+    {
+      "path": "packages/server"
+    },
+    {
+      "path": "packages/tsconfig"
+    },
+    {
+      "path": "packages/types"
+    },
+    {
+      "path": "packages/ui"
+    }
   ]
 }

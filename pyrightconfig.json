@@ -1,0 +1,43 @@
+{
+  "include": ["services", "packages"],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    ".git",
+    "**/.pytest_cache",
+    "**/.next",
+    "**/dist",
+    "**/build",
+    "**/.turbo",
+    "**/.venv"
+  ],
+  "reportMissingImports": "error",
+  "reportMissingTypeStubs": "warning",
+  "reportUnusedImport": "warning",
+  "reportUnusedClass": "warning",
+  "reportUnusedFunction": "warning",
+  "reportUnusedVariable": "warning",
+  "pythonVersion": "3.12",
+  "verboseOutput": false,
+  "venvPath": ".",
+  "venv": ".venv",
+  "executionEnvironments": [
+    {
+      "root": "services/agents/src",
+      "pythonVersion": "3.12"
+    },
+    {
+      "root": "tests/python",
+      "pythonVersion": "3.12",
+      "extraPaths": ["services/agents/src"]
+    },
+    {
+      "root": "services/mcp/dice-roll/src",
+      "pythonVersion": "3.12"
+    },
+    {
+      "root": "services/mcp/motherduck/src",
+      "pythonVersion": "3.12"
+    }
+  ]
+}

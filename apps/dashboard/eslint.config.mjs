@@ -9,8 +9,6 @@ const __dirname = dirname(__filename)
 const compat = new FlatCompat({ baseDirectory: __dirname })
 
 const config = [
-  ...base,
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     ignores: [
       "node_modules/**",
@@ -22,6 +20,10 @@ const config = [
       ".wrangler/**",
       "**/next-env.d.ts",
     ],
+  },
+  ...base,
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
     rules: {
       "@typescript-eslint/no-unused-vars": [
         "warn",

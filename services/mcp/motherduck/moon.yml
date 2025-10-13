@@ -1,0 +1,41 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: "python"
+layer: "application"
+stack: "backend"
+
+tags:
+  - "mcp"
+  - "python"
+
+toolchain:
+  python:
+    version: "3.12.11"
+
+workspace:
+  inheritedTasks:
+    exclude: ["build", "test"]
+
+fileGroups:
+  sources:
+    - "src/**/*.py"
+    - "*.py"
+
+tasks:
+  dev:
+    command: "bash"
+    args:
+      - "-c"
+      - "uv run mcp-server-motherduck --port 8001"
+    inputs:
+      - "src/**/*.py"
+      - "*.py"
+      - "pyproject.toml"
+      - "/pyproject.toml"
+      - "/uv.lock"
+    options:
+      cache: false
+      persistent: true
+      runInCI: false
+      runFromWorkspaceRoot: true
+    local: true

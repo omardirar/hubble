@@ -44,35 +44,79 @@ The MotherDuck MCP server provides AI models with access to MotherDuck analytics
 - Perform data analysis
 - Generate insights and reports
 
-**Location:** `mcp/servers/motherduck/`
+**Location:** `services/mcp/motherduck/`
+
+**Chat API Integration:**
+
+- Supports both AI SDK v5 `parts` format and legacy `content` format
+- Message shapes: `{ parts: [{ type: 'text', text: string }] }` or `{ content: string }`
+
+### Multi-Server Support
+
+Hubble supports connecting to multiple MCP servers simultaneously, enabling AI models to access diverse data sources and tools.
+
+**Features:**
+
+- **Tool Namespacing**: Tools are prefixed with server names (e.g., `motherduck_query_database`, `filesystem_read_file`)
+- **Connection Management**: Centralized connection lifecycle management
+- **Fault Tolerance**: Graceful handling of server failures
+- **Tool Aggregation**: Unified tool interface across all servers
+
+**Supported Servers:**
+
+- `motherduck` - MotherDuck analytics database
+- `filesystem` - Local file system access (optional)
+- `github` - GitHub repository access (optional)
+- `custom` - Custom MCP server (optional)
+
+**Usage:**
+
+```typescript
+// CLI with multiple servers
+pnpm console --servers=motherduck,filesystem
+
+// Dashboard automatically uses configured servers
+// Tools are namespaced: motherduck_query_database, filesystem_read_file
+```
+
+**Chat API Message Shapes:**
+
+The chat API supports both AI SDK v5 message formats:
+
+- **Parts format**: `parts: [{ type: 'text', text: string }, ...]` (preferred)
+- **Legacy format**: `content: string` (backward compatibility)
+
+The API automatically extracts text from parts or falls back to content for seamless integration.
+
+**Security Considerations:**
+
+- **Tool Allowlists**: Restrict which tools are available per organization
+- **Input Validation**: Per-tool input validation policies
+- **Result Size Limits**: Control token/row costs with size limits
+- **Secret Sanitization**: Prevent logging of sensitive data
 
 ## Project Structure
 
 ```text
-mcp/
-├── servers/                    # MCP server implementations
-│   ├── motherduck/            # MotherDuck MCP server
-│   │   ├── server/            # Server implementation
-│   │   │   ├── __init__.py    # Package initialization
-│   │   │   ├── main.py        # Main server entry point
-│   │   │   ├── database.py    # Database operations
-│   │   │   ├── query.py       # Query execution
-│   │   │   ├── schema.py      # Schema management
-│   │   │   ├── auth.py        # Authentication
-│   │   │   ├── config.py      # Configuration
-│   │   │   ├── errors.py      # Error handling
-│   │   │   ├── utils.py       # Utility functions
-│   │   │   └── types.py       # Type definitions
-│   │   ├── pyproject.toml     # Python project configuration
-│   │   ├── package.json       # Node.js package configuration
-│   │   ├── uv.lock            # Python dependency lock file
-│   │   └── README.md          # Server documentation
-│   ├── Dockerfile             # Container configuration
-│   ├── Caddyfile              # Reverse proxy configuration
-│   ├── inspector-config.json  # MCP Inspector configuration
-│   └── start.sh               # Server startup script
-├── mcp-dev.sh                 # Development script
-└── start-mcp-dev.sh           # Development startup script
+services/
+└── mcp/                       # MCP gateway
+    ├── motherduck/            # MotherDuck MCP server implementation
+    │   ├── src/
+    │   │   ├── __main__.py    # Entry point for uv/CLI
+    │   │   ├── server.py      # FastAPI server factory
+    │   │   ├── database.py    # MotherDuck query helpers
+    │   │   ├── context.py     # MCP context management
+    │   │   ├── configs.py     # Environment validation
+    │   │   ├── prompt.py      # System prompt templates
+    │   │   └── sql_guard.py   # Query safety filters
+    │   ├── pyproject.toml     # Python project configuration
+    │   ├── package.json       # Inspector/dev dependencies
+    │   └── README.md          # Server documentation
+    ├── dice-roll/             # Sample MCP server
+    ├── Dockerfile             # Multi-stage container
+    ├── Caddyfile              # Reverse proxy configuration
+    ├── fly.toml               # Fly.io deployment config
+    └── start.sh               # Local development launcher
 ```
 
 ## Development
@@ -89,20 +133,21 @@ mcp/
 1. **Install Python dependencies**
 
 ```bash
-cd mcp/servers/motherduck
+cd services/mcp/motherduck
 uv sync
 ```
 
 2. **Start development server**
 
 ```bash
-pnpm mcp:dev:motherduck
+cd services/mcp
+pnpm dev:motherduck
 ```
 
 3. **Start MCP Inspector**
 
 ```bash
-pnpm mcp:inspector:motherduck
+pnpm inspector:motherduck
 ```
 
 4. **Open Inspector**
@@ -112,15 +157,19 @@ pnpm mcp:inspector:motherduck
 
 ```bash
 # Development
-pnpm mcp:dev:motherduck        # Start MotherDuck MCP server
-pnpm mcp:inspector:motherduck  # Start MCP Inspector
+pnpm --filter @hubble/mcp dev:motherduck        # Start MotherDuck MCP server
+pnpm inspector:motherduck                      # Start MCP Inspector
+pnpm --filter @hubble/server console  # Launch the shared agent console
 
 # Python development
-cd mcp/servers/motherduck
-uv run python -m server --help  # Show server options
+cd services/mcp/motherduck
+uv sync                          # Install Python dependencies
+uv run python -m motherduck.src --help  # Show server options
 uv run ruff check               # Lint Python code
 uv run ruff format              # Format Python code
 ```
+
+The console uses the shared agent runtime from `@hubble/server`, so every terminal chat session exercises the same MCP state store, cancellation hooks, and tool telemetry that power the dashboard.
 
 ## Configuration
 
@@ -143,21 +192,7 @@ MCP_SERVER_VERSION=1.0.0
 
 ### Inspector Configuration
 
-The MCP Inspector is configured via `mcp/servers/inspector-config.json`:
-
-```json
-{
-    "servers": {
-        "motherduck": {
-            "command": "uv",
-            "args": ["run", "python", "-m", "server"],
-            "env": {
-                "LOG_LEVEL": "debug"
-            }
-        }
-    }
-}
-```
+Use the root script `pnpm inspector:motherduck` to launch the MCP Inspector against a local server. The command wraps `@modelcontextprotocol/inspector` and injects the correct URL/port (`http://localhost:8001`) so no additional JSON configuration file is required.
 
 ## Server Implementation
 
@@ -377,7 +412,7 @@ View server logs:
 docker logs hubble-mcp-servers
 
 # Development logs
-pnpm mcp:dev:motherduck 2>&1 | tee server.log
+cd services/mcp && pnpm dev:motherduck 2>&1 | tee server.log
 ```
 
 ## Testing
@@ -432,6 +467,6 @@ When contributing to MCP servers:
 ## Related Documentation
 
 - [MotherDuck Server Documentation](./servers/motherduck/README.md)
-- [API Documentation](../api/README.md)
-- [Database Schema](../supabase/README.md)
-- [Deployment Guide](../deployment/README.md)
+- [API Documentation](../apps/dashboard/api.md)
+- [Database Schema](../supabase/overview.md)
+- [Agent Backend Deployment](../deployment/agent-backend.md)

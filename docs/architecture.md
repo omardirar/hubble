@@ -130,38 +130,45 @@ graph TB
 
 ```typescript
 interface ChatService {
-    // Conversation management
-    createConversation(data: CreateConversationData): Promise<Conversation>
-    getConversations(filters: ConversationFilters): Promise<Conversation[]>
-    updateConversation(id: string, data: UpdateConversationData): Promise<Conversation>
+  // Conversation management
+  createConversation(data: CreateConversationData): Promise<Conversation>
+  getConversations(filters: ConversationFilters): Promise<Conversation[]>
+  updateConversation(id: string, data: UpdateConversationData): Promise<Conversation>
 
-    // Message handling
-    createMessage(conversationId: string, data: CreateMessageData): Promise<Message>
-    getMessages(conversationId: string, pagination: PaginationOptions): Promise<Message[]>
+  // Message handling
+  createMessage(conversationId: string, data: CreateMessageData): Promise<Message>
+  getMessages(conversationId: string, pagination: PaginationOptions): Promise<Message[]>
 
-    // AI integration
-    sendChatRequest(request: ChatRequest): Promise<ChatResponse>
-    generateTitle(conversationId: string): Promise<string>
+  // AI integration
+  sendChatRequest(request: ChatRequest): Promise<ChatResponse>
+  generateTitle(conversationId: string): Promise<string>
 }
 ```
+
+#### Agent Runtime & MCP Orchestration
+
+- **ChatAgentRuntime**: Central coordinator that converts UI messages into MCP-aware streaming calls, shares state across web and CLI clients, and normalizes cancellation/error flows.
+- **AgentStore/EventBus**: Immutable store propagates `agent/*` events (runs, tool calls, telemetry) to subscribers, enabling optimistic UI updates and structured logging without duplicating persistence logic.
+- **MCP Client Abstraction**: `McpClientConnection` registers capabilities, caches tool schemas, and exposes observer hooks so orchestrators can monitor progress tokens, resumption IDs, and tool output validation.
+- **Transport Stewardship**: Streamable HTTP transport supports session resumption, progress notifications, and explicit `notifications/cancelled` contracts to keep long-running tool chains responsive.
 
 #### Connect Service
 
 ```typescript
 interface ConnectService {
-    // Provisioning workflow
-    startProvisioning(orgId: string, connectors: ConnectorType[]): Promise<ProvisionRun>
-    getProvisionStatus(correlationId: string): Promise<ProvisionStatus>
-    getProvisionStream(correlationId: string): EventStream
+  // Provisioning workflow
+  startProvisioning(orgId: string, connectors: ConnectorType[]): Promise<ProvisionRun>
+  getProvisionStatus(correlationId: string): Promise<ProvisionStatus>
+  getProvisionStream(correlationId: string): EventStream
 
-    // Connection management
-    createConnection(
-        orgId: string,
-        type: ConnectorType,
-        credentials: Credentials,
-    ): Promise<Connection>
-    getConnections(orgId: string): Promise<Connection[]>
-    updateConnectionStatus(connectionId: string, status: ConnectionStatus): Promise<void>
+  // Connection management
+  createConnection(
+    orgId: string,
+    type: ConnectorType,
+    credentials: Credentials,
+  ): Promise<Connection>
+  getConnections(orgId: string): Promise<Connection[]>
+  updateConnectionStatus(connectionId: string, status: ConnectionStatus): Promise<void>
 }
 ```
 
@@ -510,7 +517,7 @@ graph TB
 
 ## Related Documentation
 
-- [API Documentation](./api/README.md)
-- [Database Schema](./supabase/README.md)
-- [Package Documentation](./packages/README.md)
-- [Deployment Guide](./deployment/README.md)
+- [API Documentation](./apps/dashboard/api.md)
+- [Database Schema](./supabase/overview.md)
+- [Package Documentation](./packages/overview.md)
+- [Agent Backend Deployment](./deployment/agent-backend.md)

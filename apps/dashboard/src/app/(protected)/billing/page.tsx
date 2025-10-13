@@ -4,9 +4,11 @@
  * Billing and subscription management interface.
  * Currently shows a placeholder message for future implementation.
  *
- * TODO: Implement billing features:
- * - Current subscription details
- * - Usage metrics and limits
+ * TODO: Implement billing features
+ *   Context: Current subscription details, usage metrics and limits
+ *   labels: area/web, feature/billing, type/enhancement
+ *   assignees: omzification
+ *   milestone: 0.0.1
  * - Invoice history and downloads
  * - Payment method management
  * - Plan upgrades/downgrades

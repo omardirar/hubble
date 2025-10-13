@@ -1,0 +1,73 @@
+$schema: "https://moonrepo.dev/schemas/tasks.json"
+
+taskOptions:
+  cache: true
+  runInCI: true
+  affectedFiles: true
+
+fileGroups:
+  root_configs:
+    - "/package.json"
+    - "/pnpm-lock.yaml"
+    - "/pnpm-workspace.yaml"
+    - "/tsconfig.json"
+    - "/pyproject.toml"
+    - "/uv.lock"
+  dotfiles:
+    - ".*rc"
+    - ".*rc.*"
+    - ".*ignore"
+    - ".editorconfig"
+    - ".prettier*"
+
+tasks:
+  build:
+    command: "echo"
+    args:
+      - "global build aggregator"
+    deps:
+      - { target: "^:build", args: [] }
+
+  lint:
+    command: "echo"
+    args:
+      - "global lint aggregator"
+    deps:
+      - { target: "^:lint", args: [] }
+
+  typecheck:
+    command: "echo"
+    args:
+      - "global typecheck aggregator"
+    deps:
+      - { target: "^:typecheck", args: [] }
+
+  test:
+    command: "echo"
+    args:
+      - "global test aggregator"
+    deps:
+      - { target: "^:test", args: [] }
+    options:
+      cache: true
+      runInCI: true
+
+  format:
+    command: "echo"
+    args:
+      - "global format aggregator"
+    deps:
+      - { target: "^:format", args: [] }
+    options:
+      cache: false
+      runInCI: false
+
+  format-check:
+    command: "echo"
+    args:
+      - "global format-check aggregator"
+    deps:
+      - { target: "^:format-check", args: [] }
+    options:
+      cache: false
+      runInCI: true

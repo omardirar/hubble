@@ -1,0 +1,113 @@
+$schema: "https://moonrepo.dev/schemas/tasks.json"
+
+implicitInputs:
+  - "pyproject.toml"
+  - "/pyproject.toml"
+  - "/uv.lock"
+
+fileGroups:
+  sources:
+    - "src/**/*.py"
+    - "*.py"
+
+tasks:
+  lint:
+    command: "uv"
+    args:
+      - "run"
+      - "ruff"
+      - "check"
+      - "."
+    inputs:
+      - "@group(sources)"
+      - "pyproject.toml"
+      - "/pyproject.toml"
+      - "/uv.lock"
+    outputs:
+      - ".ruff_cache/"
+    options:
+      cache: false
+      runInCI: true
+      allowFailure: true
+      runFromWorkspaceRoot: true
+
+  lint-fix:
+    command: "uv"
+    args:
+      - "run"
+      - "ruff"
+      - "check"
+      - "--fix"
+      - "."
+    inputs:
+      - "@group(sources)"
+      - "pyproject.toml"
+      - "/pyproject.toml"
+      - "/uv.lock"
+    outputs:
+      - ".ruff_cache/"
+    options:
+      cache: false
+      runInCI: false
+      allowFailure: true
+      runFromWorkspaceRoot: true
+
+  typecheck:
+    command: "uv"
+    args:
+      - "run"
+      - "mypy"
+      - "."
+    inputs:
+      - "@group(sources)"
+      - "pyproject.toml"
+      - "/pyproject.toml"
+      - "/uv.lock"
+    outputs:
+      - ".mypy_cache/"
+    options:
+      cache: false
+      runInCI: true
+      allowFailure: true
+      runFromWorkspaceRoot: true
+
+  format:
+    command: "uv"
+    args:
+      - "run"
+      - "ruff"
+      - "format"
+      - "."
+    inputs:
+      - "@group(sources)"
+      - "pyproject.toml"
+      - "/pyproject.toml"
+      - "/uv.lock"
+    outputs:
+      - ".ruff_cache/"
+    options:
+      cache: false
+      runInCI: false
+      allowFailure: true
+      runFromWorkspaceRoot: true
+
+  format-check:
+    command: "uv"
+    args:
+      - "run"
+      - "ruff"
+      - "format"
+      - "--check"
+      - "."
+    inputs:
+      - "@group(sources)"
+      - "pyproject.toml"
+      - "/pyproject.toml"
+      - "/uv.lock"
+    outputs:
+      - ".ruff_cache/"
+    options:
+      cache: false
+      runInCI: true
+      allowFailure: true
+      runFromWorkspaceRoot: true

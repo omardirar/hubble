@@ -54,8 +54,42 @@ node --version
 cp .env.example .env.local
 
 # Edit environment variables
-nano .env.local  # or use your preferred editor
 ```
+
+#### Environment File Loading
+
+**Important**: The dashboard app loads environment variables from its own directory (`apps/dashboard/.env.local`), while the CLI loads from the monorepo root. For consistent behavior:
+
+1. **Duplicate critical variables** in both locations:
+
+   ```bash
+   # Monorepo root (.env.local)
+   ANTHROPIC_API_KEY=your_key_here
+   SUPABASE_URL=your_url_here
+   # ... other variables
+
+   # Dashboard app (apps/dashboard/.env.local)
+   ANTHROPIC_API_KEY=your_key_here
+   SUPABASE_URL=your_url_here
+   # ... other variables
+   ```
+
+2. **Or use dotenv-cli** in your dev script (recommended):
+
+   ```json
+   {
+     "scripts": {
+       "dev": "dotenv -e ../../.env.local -- next dev --turbopack"
+     }
+   }
+   ```
+
+3. **Verify environment loading** by running the CLI - it will warn about missing critical variables:
+
+   ```bash
+   pnpm --filter @hubble/server console
+   nano .env.local # or use your preferred editor
+   ```
 
 ### 4. Start Development Server
 
@@ -156,10 +190,10 @@ ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies
 CREATE POLICY "conversations_org_isolation" ON public.conversations
-  FOR ALL USING (org_id = (auth.jwt() ->> 'org_id')::text);
+  FOR ALL USING (org_id = (SELECT public.jwt_claim('org_id')));
 
 CREATE POLICY "messages_org_isolation" ON public.messages
-  FOR ALL USING (org_id = (auth.jwt() ->> 'org_id')::text);
+  FOR ALL USING (org_id = (SELECT public.jwt_claim('org_id')));
 ```
 
 ### Authentication Setup
@@ -211,6 +245,63 @@ CREATE POLICY "messages_org_isolation" ON public.messages
 2. Create account and get API key
 3. Add key to `.env.local`
 
+### Multi-Server MCP Configuration
+
+Hubble supports connecting to multiple MCP servers simultaneously. Configure additional servers by setting environment variables.
+
+#### Available MCP Servers
+
+##### MotherDuck (Default)
+
+```env
+# Already configured above
+MCP_MOTHERDUCK_URL=https://mcp.hubble.systems/motherduck
+MCP_MOTHERDUCK_SERVICE_SECRET=your_service_secret
+MCP_MOTHERDUCK_CONNECTION=your_connection_string
+```
+
+##### Filesystem Server (Optional)
+
+```env
+MCP_FILESYSTEM_URL=http://localhost:9002
+MCP_FILESYSTEM_TOKEN=your_filesystem_token
+```
+
+##### GitHub Server (Optional)
+
+```env
+MCP_GITHUB_URL=http://localhost:9003
+MCP_GITHUB_TOKEN=your_github_token
+```
+
+##### Custom Server (Optional)
+
+```env
+MCP_CUSTOM_URL=http://localhost:9004
+MCP_CUSTOM_TOKEN=your_custom_token
+```
+
+#### CLI Usage
+
+```bash
+# Single server (default)
+pnpm console
+
+# Multiple servers
+pnpm console --servers=motherduck,filesystem
+pnpm console --servers=motherduck,github,custom
+
+# Available servers are auto-discovered from environment
+```
+
+#### Dashboard Integration
+
+The dashboard automatically uses configured servers. Tools are namespaced to prevent conflicts:
+
+- `motherduck_query_database` - Database queries
+- `filesystem_read_file` - File operations
+- `github_get_repository` - GitHub operations
+
 ## Development Workflow
 
 ### Available Scripts
@@ -225,6 +316,7 @@ pnpm typecheck             # TypeScript type checking
 pnpm lint                  # ESLint linting
 pnpm test                  # Run test suite
 pnpm format                # Format code with Prettier
+pnpm --filter @hubble/server console  # Launch the MCP chat preview console
 
 # Package Management
 pnpm install               # Install dependencies
@@ -250,13 +342,13 @@ pnpm --filter @hubble/db typecheck
 
 ```bash
 # Start MotherDuck MCP server
-pnpm mcp:dev:motherduck
+pnpm --filter @hubble/mcp dev:motherduck
 
 # Start MCP Inspector
-pnpm mcp:inspector:motherduck
+pnpm inspector:motherduck
 
 # Python development
-cd mcp/servers/motherduck
+cd services/mcp/motherduck
 uv run python -m server --help
 ```
 
@@ -266,12 +358,12 @@ uv run python -m server --help
 
 ```json
 {
-    "compilerOptions": {
-        "strict": true,
-        "noImplicitAny": true,
-        "strictNullChecks": true,
-        "exactOptionalPropertyTypes": true
-    }
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "exactOptionalPropertyTypes": true
+  }
 }
 ```
 
@@ -279,11 +371,11 @@ uv run python -m server --help
 
 ```json
 {
-    "extends": ["@hubble/eslint-config"],
-    "rules": {
-        "no-console": "warn",
-        "prefer-const": "error"
-    }
+  "extends": ["@hubble/eslint-config"],
+  "rules": {
+    "no-console": "warn",
+    "prefer-const": "error"
+  }
 }
 ```
 
@@ -291,11 +383,11 @@ uv run python -m server --help
 
 ```json
 {
-    "semi": true,
-    "trailingComma": "es5",
-    "singleQuote": true,
-    "printWidth": 80,
-    "tabWidth": 2
+  "semi": true,
+  "trailingComma": "es5",
+  "singleQuote": true,
+  "printWidth": 80,
+  "tabWidth": 2
 }
 ```
 
@@ -334,14 +426,14 @@ pnpm test:e2e
 import { defineConfig } from "vitest/config"
 
 export default defineConfig({
-    test: {
-        environment: "jsdom",
-        setupFiles: ["./src/test/setup.ts"],
-        coverage: {
-            reporter: ["text", "json", "html"],
-            exclude: ["node_modules/", "dist/"],
-        },
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+    coverage: {
+      reporter: ["text", "json", "html"],
+      exclude: ["node_modules/", "dist/"],
     },
+  },
 })
 ```
 
@@ -370,20 +462,20 @@ export default defineConfig({
 
 ```json
 {
-    "editor.formatOnSave": true,
-    "editor.codeActionsOnSave": {
-        "source.fixAll.eslint": true,
-        "source.organizeImports": true
-    },
-    "typescript.preferences.importModuleSpecifier": "relative",
-    "emmet.includeLanguages": {
-        "typescript": "html",
-        "typescriptreact": "html"
-    },
-    "tailwindCSS.includeLanguages": {
-        "typescript": "html",
-        "typescriptreact": "html"
-    }
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true,
+    "source.organizeImports": true
+  },
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "emmet.includeLanguages": {
+    "typescript": "html",
+    "typescriptreact": "html"
+  },
+  "tailwindCSS.includeLanguages": {
+    "typescript": "html",
+    "typescriptreact": "html"
+  }
 }
 ```
 
@@ -391,24 +483,24 @@ export default defineConfig({
 
 ```json
 {
-    "folders": [
-        {
-            "path": "."
-        }
-    ],
-    "settings": {
-        "typescript.preferences.includePackageJsonAutoImports": "auto",
-        "editor.tabSize": 2,
-        "editor.insertSpaces": true
-    },
-    "extensions": {
-        "recommendations": [
-            "ms-vscode.vscode-typescript-next",
-            "esbenp.prettier-vscode",
-            "bradlc.vscode-tailwindcss",
-            "ms-vscode.vscode-json"
-        ]
+  "folders": [
+    {
+      "path": "."
     }
+  ],
+  "settings": {
+    "typescript.preferences.includePackageJsonAutoImports": "auto",
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-vscode.vscode-typescript-next",
+      "esbenp.prettier-vscode",
+      "bradlc.vscode-tailwindcss",
+      "ms-vscode.vscode-json"
+    ]
+  }
 }
 ```
 
@@ -651,7 +743,7 @@ After completing the setup:
 ## Related Documentation
 
 - [Architecture Guide](./architecture.md)
-- [API Documentation](./api/README.md)
-- [Package Documentation](./packages/README.md)
-- [Database Schema](./supabase/README.md)
+- [API Documentation](./apps/dashboard/api.md)
+- [Package Documentation](./packages/overview.md)
+- [Database Schema](./supabase/overview.md)
 - [Contributing Guide](../CONTRIBUTING.md)

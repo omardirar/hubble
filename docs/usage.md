@@ -72,6 +72,7 @@ The main dashboard provides access to all platform features:
 - **Conversation Search**: Find specific conversations
 - **Conversation Sharing**: Share conversations with team members
 - **Conversation Archiving**: Organize conversation history
+- **Terminal Preview**: Use `pnpm --filter @hubble/server console` for a CLI-based chat preview that streams responses in real time
 
 ### Chat Best Practices
 
@@ -89,6 +90,14 @@ Good: "Analyze our Q4 marketing performance and identify the top 3 campaigns by 
 
 Better: "Analyze our Q4 2024 marketing performance for the e-commerce division. Focus on Facebook Ads and Google Ads campaigns with budgets over $10k. Identify the top 3 campaigns by ROI and provide specific recommendations for Q1 2025."
 ```
+
+### Command-Line Preview (Optional)
+
+- **Launch Console**: Run `pnpm --filter @hubble/server console`
+- **Send Messages**: Use `chat <message>` to talk to the agent
+- **Review History**: Run `history` to display the current transcript
+- **Reset Session**: Run `reset` before starting a new test conversation
+- **Tooling Parity**: The console shares the same MCP runtime as the dashboard, so tool usage, cancellation, and telemetry behave identically
 
 ## Connect Feature
 
@@ -189,30 +198,30 @@ LIMIT 10;
 
 ```typescript
 interface RolePermissions {
-    owner: {
-        billing: true
-        userManagement: true
-        dataAccess: "full"
-        featureAccess: "all"
-    }
-    admin: {
-        billing: false
-        userManagement: true
-        dataAccess: "full"
-        featureAccess: "all"
-    }
-    member: {
-        billing: false
-        userManagement: false
-        dataAccess: "organization"
-        featureAccess: "standard"
-    }
-    viewer: {
-        billing: false
-        userManagement: false
-        dataAccess: "read-only"
-        featureAccess: "read-only"
-    }
+  owner: {
+    billing: true
+    userManagement: true
+    dataAccess: "full"
+    featureAccess: "all"
+  }
+  admin: {
+    billing: false
+    userManagement: true
+    dataAccess: "full"
+    featureAccess: "all"
+  }
+  member: {
+    billing: false
+    userManagement: false
+    dataAccess: "organization"
+    featureAccess: "standard"
+  }
+  viewer: {
+    billing: false
+    userManagement: false
+    dataAccess: "read-only"
+    featureAccess: "read-only"
+  }
 }
 ```
 
@@ -287,10 +296,10 @@ const apiKey = await getUserApiKey()
 
 // Use in API requests
 const response = await fetch("/api/v1/chat/conversations", {
-    headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-    },
+  headers: {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+  },
 })
 ```
 
@@ -300,10 +309,10 @@ const response = await fetch("/api/v1/chat/conversations", {
 // For server-side applications
 const token = await getJWTToken()
 const response = await fetch("/api/v1/chat/conversations", {
-    headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-    },
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
 })
 ```
 
@@ -314,29 +323,29 @@ const response = await fetch("/api/v1/chat/conversations", {
 ```typescript
 // Create conversation
 const conversation = await fetch("/api/v1/chat/conversations", {
-    method: "POST",
-    headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-        title: "Marketing Strategy Discussion",
-        model: "claude-3-sonnet",
-    }),
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    title: "Marketing Strategy Discussion",
+    model: "claude-3-sonnet",
+  }),
 })
 
 // Send message
 const message = await fetch("/api/v1/chat", {
-    method: "POST",
-    headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-        conversation_id: conversation.id,
-        message: "Analyze our Q4 marketing performance",
-        model: "claude-3-sonnet",
-    }),
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    conversation_id: conversation.id,
+    message: "Analyze our Q4 marketing performance",
+    model: "claude-3-sonnet",
+  }),
 })
 ```
 
@@ -345,21 +354,21 @@ const message = await fetch("/api/v1/chat", {
 ```typescript
 // Start provisioning
 const provision = await fetch("/api/connect/enable", {
-    method: "POST",
-    headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-        connector_types: ["facebook_ads", "google_ads"],
-    }),
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    connector_types: ["facebook_ads", "google_ads"],
+  }),
 })
 
 // Check status
 const status = await fetch(`/api/connect/status?correlation_id=${provision.correlation_id}`, {
-    headers: {
-        Authorization: `Bearer ${token}`,
-    },
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
 })
 ```
 
@@ -380,17 +389,13 @@ const status = await fetch(`/api/connect/status?correlation_id=${provision.corre
 
 ```typescript
 interface WebhookEvent {
-    event:
-        | "conversation.created"
-        | "conversation.updated"
-        | "message.created"
-        | "provision.completed"
-    data: {
-        id: string
-        org_id: string
-        timestamp: string
-        // Event-specific data
-    }
+  event: "conversation.created" | "conversation.updated" | "message.created" | "provision.completed"
+  data: {
+    id: string
+    org_id: string
+    timestamp: string
+    // Event-specific data
+  }
 }
 ```
 
@@ -399,21 +404,21 @@ interface WebhookEvent {
 ```typescript
 // Express.js webhook handler
 app.post("/webhook", (req, res) => {
-    const { event, data } = req.body
+  const { event, data } = req.body
 
-    switch (event) {
-        case "conversation.created":
-            handleConversationCreated(data)
-            break
-        case "message.created":
-            handleMessageCreated(data)
-            break
-        case "provision.completed":
-            handleProvisionCompleted(data)
-            break
-    }
+  switch (event) {
+    case "conversation.created":
+      handleConversationCreated(data)
+      break
+    case "message.created":
+      handleMessageCreated(data)
+      break
+    case "provision.completed":
+      handleProvisionCompleted(data)
+      break
+  }
 
-    res.status(200).json({ received: true })
+  res.status(200).json({ received: true })
 })
 ```
 
@@ -425,14 +430,14 @@ app.post("/webhook", (req, res) => {
 import { HubbleClient } from "@hubble/sdk"
 
 const client = new HubbleClient({
-    apiKey: "your-api-key",
-    baseUrl: "https://hubble.vercel.app",
+  apiKey: "your-api-key",
+  baseUrl: "https://hubble.vercel.app",
 })
 
 // Chat operations
 const conversations = await client.chat.conversations.list()
 const conversation = await client.chat.conversations.create({
-    title: "New Conversation",
+  title: "New Conversation",
 })
 
 // Connect operations
@@ -597,6 +602,6 @@ overview = client.connect.overview()
 
 - [Setup Guide](./setup.md)
 - [Architecture Guide](./architecture.md)
-- [API Documentation](./api/README.md)
-- [Package Documentation](./packages/README.md)
-- [Database Schema](./supabase/README.md)
+- [API Documentation](./apps/dashboard/api.md)
+- [Package Documentation](./packages/overview.md)
+- [Database Schema](./supabase/overview.md)

@@ -1,0 +1,100 @@
+$schema: "https://moonrepo.dev/schemas/tasks.json"
+
+implicitInputs:
+  - "tsconfig.json"
+  - "/tsconfig.json"
+
+fileGroups:
+  sources:
+    - "src/**/*"
+    - "public/**/*"
+
+tasks:
+  lint:
+    command: "pnpm"
+    args:
+      - "eslint"
+      - "."
+      - "--max-warnings=0"
+    inputs:
+      - "@group(sources)"
+      - ".eslintrc.*"
+      - "/eslint.config.*"
+      - "@group(root_configs)"
+    options:
+      cache: false
+      runInCI: true
+      allowFailure: true
+      affectedFiles: true
+
+  typecheck:
+    command: "pnpm"
+    args:
+      - "exec"
+      - "tsc"
+      - "--noEmit"
+    inputs:
+      - "@group(sources)"
+      - "tsconfig.json"
+      - "/tsconfig.json"
+      - "@group(root_configs)"
+    options:
+      cache: false
+      runInCI: true
+      allowFailure: true
+      affectedFiles: false
+
+  format:
+    command: "pnpm"
+    args:
+      - "exec"
+      - "prettier"
+      - "--write"
+      - "."
+    inputs:
+      - "@group(sources)"
+      - "package.json"
+      - "/package.json"
+      - "@group(root_configs)"
+    options:
+      cache: false
+      runInCI: false
+      allowFailure: true
+
+  format-check:
+    command: "pnpm"
+    args:
+      - "exec"
+      - "prettier"
+      - "--check"
+      - "."
+    inputs:
+      - "@group(sources)"
+      - "package.json"
+      - "/package.json"
+      - "@group(root_configs)"
+    options:
+      cache: false
+      runInCI: true
+      allowFailure: true
+
+  build:
+    command: "pnpm"
+    args:
+      - "run"
+      - "build"
+    inputs:
+      - "@group(sources)"
+      - "package.json"
+      - "/package.json"
+      - "@group(root_configs)"
+    outputs:
+      - "dist/**"
+      - "build/**"
+      - "lib/**"
+      - ".next/**"
+      - "!.next/cache/**"
+    options:
+      cache: true
+      runInCI: true
+      allowFailure: false

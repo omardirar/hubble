@@ -10,36 +10,35 @@ The Hubble platform is built using a monorepo architecture with shared packages 
 
 ### Core Packages
 
-- [**@hubble/core**](./core/README.md) - Core utilities, error handling, and common functions
-- [**@hubble/types**](./types/README.md) - Shared TypeScript types and interfaces
-- [**@hubble/schemas**](./schemas/README.md) - Zod schemas for validation
+- [**@hubble/core**](./core.md) - Core utilities, error handling, and common functions
+- [**@hubble/types**](./types.md) - Shared TypeScript types and interfaces
+- [**@hubble/schemas**](./schemas.md) - Zod schemas for validation
 
 ### Authentication & Authorization
 
-- [**@hubble/auth**](./auth/README.md) - Authentication and organization management
+- [**@hubble/auth**](./auth.md) - Authentication and organization management
 
 ### Data & Database
 
-- [**@hubble/db**](./db/README.md) - Supabase client factories and database utilities
-- [**@hubble/chat**](./chat/README.md) - Chat functionality and database operations
-- [**@hubble/connect**](./connect/README.md) - Data pipeline provisioning system
+- [**@hubble/db**](./db.md) - Supabase client factories and database utilities
+- [**@hubble/chat**](./chat.md) - Chat functionality and database operations
+- [**@hubble/connect**](./connect.md) - Data pipeline provisioning system
 
 ### Infrastructure
 
-- [**@hubble/infrastructure**](./infrastructure/README.md) - QStash and Redis services
-- [**@hubble/server**](./server/README.md) - Server-only utilities and API helpers
+- [**@hubble/infrastructure**](./infrastructure.md) - QStash and Redis services
+- [**@hubble/server**](./server.md) - Server-only utilities and API helpers
+- [**@hubble/logger**](./logger.md) - Structured logging and observability
 
 ### UI & Components
 
-- [**@hubble/ui**](./ui/README.md) - React components and Tailwind preset
+- [**@hubble/ui**](./ui.md) - React components and Tailwind preset
 
-### Configuration & Tools
+### Reference Architecture
 
-- [**@hubble/config**](./config/README.md) - Environment configuration and validation
-- [**@hubble/logger**](./logger/README.md) - Structured logging system
-- [**@hubble/eslint-config**](./eslint-config/README.md) - Shared ESLint configuration
-- [**@hubble/prettier-config**](./prettier-config/README.md) - Shared Prettier configuration
-- [**@hubble/tsconfig**](./tsconfig/README.md) - Shared TypeScript configuration
+- [**Server Architecture Deep Dive**](./server-architecture.md) - Event streaming and agent orchestration
+- [**Chat Architecture**](./chat-architecture.md) - Conversation lifecycle and streaming UX
+- [**Event Bus Evaluation**](./event-bus-evaluation.md) - Trade-offs for queueing and messaging
 
 ## Package Development
 
@@ -110,14 +109,14 @@ Each package should include these standard scripts:
 
 ```json
 {
-    "scripts": {
-        "build": "tsc",
-        "dev": "tsc --watch",
-        "typecheck": "tsc --noEmit",
-        "lint": "eslint . --max-warnings=0",
-        "test": "vitest",
-        "clean": "rm -rf dist"
-    }
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest",
+    "clean": "rm -rf dist"
+  }
 }
 ```
 
@@ -128,11 +127,11 @@ All packages should include comprehensive tests:
 ```typescript
 // Example test structure
 describe("PackageName", () => {
-    describe("functionName", () => {
-        it("should work correctly", () => {
-            // Test implementation
-        })
+  describe("functionName", () => {
+    it("should work correctly", () => {
+      // Test implementation
     })
+  })
 })
 ```
 
@@ -347,6 +346,6 @@ When contributing to packages:
 ## Related Documentation
 
 - [Root README](../../README.md)
-- [Dashboard Documentation](../apps/dashboard/README.md)
-- [API Documentation](../api/README.md)
-- [Database Schema](../supabase/README.md)
+- [Dashboard Documentation](../apps/dashboard/overview.md)
+- [API Documentation](../apps/dashboard/api.md)
+- [Database Schema](../supabase/overview.md)

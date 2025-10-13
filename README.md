@@ -50,7 +50,7 @@ Hubble is a comprehensive AI-powered marketing assistant platform that provides:
 
 ## 🏗 Architecture
 
-Hubble follows a modern microservices architecture with clear separation of concerns:
+Hubble uses a modern agentic architecture powered by Pydantic AI:
 
 ```mermaid
 graph TB
@@ -66,39 +66,51 @@ graph TB
       F[Middleware]
   end
 
-  subgraph "Business Logic"
-      G[Chat Service]
-      H[Connect Service]
-      I[Auth Service]
+  subgraph "Agent Backend (Fly.io)"
+      G[Pydantic AI Orchestrator]
+      H[MotherDuck Agent]
+      I[Reviewer Agent]
+      J[FastAPI + SSE]
+  end
+
+  subgraph "MCP Server (Fly.io)"
+      K[MotherDuck MCP Server]
+      L[Database Queries]
   end
 
   subgraph "Data Layer"
-      J[Supabase PostgreSQL]
-      K[MotherDuck Analytics]
-      L[Fivetran Pipelines]
+      M[Supabase PostgreSQL]
+      N[MotherDuck Analytics]
+      O[Fivetran Pipelines]
   end
 
   subgraph "Infrastructure"
-      M[Upstash QStash]
-      N[Upstash Redis]
-      O[Vercel Runtime]
+      P[Upstash QStash]
+      Q[Upstash Redis]
+      R[Vercel Runtime]
   end
 
   A --> D
   B --> A
   C --> B
   D --> G
-  D --> H
-  D --> I
-  G --> J
+  G --> H
+  G --> I
   H --> K
-  H --> L
-  I --> J
-  G --> M
-  H --> M
-  M --> N
-  D --> O
+  K --> L
+  L --> N
+  D --> M
+  G --> P
+  P --> Q
+  D --> R
 ```
+
+### Key Components
+
+- **Dashboard**: Next.js on Vercel for UI and persistence
+- **Agent Backend**: Pydantic AI agents on Fly.io for intelligent chat
+- **MCP Server**: MotherDuck MCP server on Fly.io for data access
+- **Security**: Service-to-service authentication with HMAC tokens
 
 ## ✨ Features
 
@@ -109,6 +121,15 @@ graph TB
 - **Message History**: Persistent conversation storage with RLS security
 - **Idempotent Operations**: Duplicate message prevention
 - **Archive Support**: Organize and manage conversation history
+- **Shared Agent Runtime**: MCP-aware orchestration layer that manages tool handshakes, resumable sessions, and structured telemetry across chat surfaces
+
+### 🤖 Pydantic AI Agents
+
+- **Orchestrator Agent**: Routes queries to appropriate specialist agents using ReAct pattern
+- **MotherDuck Agent**: Executes SQL queries and formats results for business users
+- **Reviewer Agent**: Validates answers and suggests follow-up questions
+- **Real-time Streaming**: Server-Sent Events (SSE) for live agent step visualization
+- **Enhanced UI**: Agent step rendering with reasoning transparency
 
 ### 🔌 Connect Data Pipeline
 
@@ -149,8 +170,8 @@ graph TB
 - **Queue System**: Upstash QStash
 - **Cache & Locks**: Upstash Redis
 - **Data Platform**: MotherDuck (DuckDB) + Fivetran
-- **Runtime**: Vercel (Node.js 20.x)
-- **AI**: Anthropic Claude
+- **Runtime**: Vercel (Node.js 20.x) + Fly.io (Python 3.11)
+- **AI**: Anthropic Claude with Pydantic AI agents
 
 ### Development
 
@@ -173,10 +194,12 @@ hubble/
 │       │   └── providers/     # React context providers
 │       └── package.json
 │
-├── mcp/
-│   └── servers/                # MCP servers for AWS App Runner
+├── services/                   # Backend services
+│   ├── agents/                # Pydantic AI agents (Fly.io)
+│   └── mcp/                   # Multi-MCP gateway (Fly.io)
 │       ├── motherduck/        # MotherDuck MCP server
-│       ├── Dockerfile         # Container configuration
+│       ├── dice-roll/         # Dice Roll MCP server
+│       ├── Dockerfile         # Multi-stage container
 │       └── Caddyfile          # Reverse proxy config
 │
 ├── packages/                   # Shared TypeScript packages
@@ -220,10 +243,21 @@ hubble/
 
 - **Node.js**: 20.10+ (< 25)
 - **pnpm**: 9.x+
+- **uv**: Latest (for Python services)
 - **Supabase**: Project with secure secrets table
 - **Clerk**: Application with publishable/secret keys
 - **Upstash**: QStash + Redis accounts
 - **MotherDuck + Fivetran**: Credentials (for Connect feature)
+
+### Install UV
+
+```bash
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
 
 ### Installation
 
@@ -330,9 +364,24 @@ supabase db push
 - `GET /api/connect/overview` - Connection overview
 - `GET /api/connect/connector-types` - Available connector types
 
-For detailed API documentation, see [docs/api/](docs/api/).
+For detailed API documentation, see `docs/apps/dashboard/api.md` (dashboard endpoints) and `docs/packages/server.md` (server utilities and agent interfaces).
 
 ## 💻 Development
+
+### Local Development
+
+```bash
+# Install dependencies (JS + Python)
+pnpm install
+turbo sync  # Syncs Python deps via uv
+
+# Start all services
+pnpm dev
+
+# Or start specific services
+pnpm dev:mcp      # All MCP servers
+pnpm dev:agents   # Agent backend
+```
 
 ### Available Scripts
 
@@ -350,10 +399,33 @@ pnpm --filter @hubble/dashboard dev
 pnpm --filter @hubble/ui build
 pnpm --filter @hubble/auth typecheck
 
-# MCP Development
-pnpm mcp:dev:motherduck    # Start MotherDuck MCP server
-pnpm mcp:inspector:motherduck  # Start MCP inspector
+# Agent Development
+pnpm dev:agents           # Start agent backend
+pnpm cli:agents           # Interactive CLI with Anthropic Extended Thinking
+pnpm dev:mcp              # Start all MCP servers
+pnpm dev                  # Start all services
+
+# MCP Inspector
+pnpm inspector:motherduck  # Test MotherDuck MCP
+pnpm inspector:dice        # Test Dice Roll MCP
+
+# Testing & Quality
+pnpm test:agents          # Test agent backend
+pnpm lint:agents          # Lint agent backend
+pnpm typecheck:agents     # Type-check agent backend
+
+# Deployment
+# Deployment happens automatically via GitHub Actions
+# Monitor at: https://github.com/omzification/hubble/actions
 ```
+
+### Benefits
+
+- **Fast Python installs**: `uv` is 10-100x faster than pip
+- **No venv needed**: `uv run` handles isolation automatically
+- **Unified tasks**: `turbo` orchestrates all TypeScript and Python tasks
+- **Parallel execution**: Tasks run in parallel when possible
+- **Smart caching**: Turbo caches task results across the monorepo
 
 ### Code Quality
 
@@ -383,9 +455,19 @@ Examples:
 
 ## 🚀 Deployment
 
+### Automatic Deployment
+
+Deployment to Fly.io happens automatically via GitHub Actions when you push to `main`:
+
+- **MCP Gateway**: Triggers on changes to `services/mcp/**`
+- **Agent Backend**: Triggers on changes to `services/agents/**`
+- **Dashboard**: Deploys to Vercel on changes to `apps/dashboard/**`
+
+Monitor deployments at: <https://github.com/omzification/hubble/actions>
+
 ### Vercel Deployment
 
-The application is configured for automatic deployment on Vercel:
+The dashboard is configured for automatic deployment on Vercel:
 
 - **Production**: Deploys from `main` branch
 - **Preview**: Deploys from pull requests
@@ -431,7 +513,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+All Rights Reserved - Copyright © 2025 omzification. See the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
@@ -448,4 +530,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Built with ❤️ by the Hubble team
 
 [![GitHub](https://img.shields.io/badge/GitHub-omzification/hubble-blue?style=flat-square&logo=github)](https://github.com/omzification/hubble)
-[![Website](https://img.shields.io/website?url=https://hubble.vercel.app&style=flat-square)](https://hubble.vercel.app)
+[![Website](https://img.shields.io/website?url=https://hubble.vercel.app&style=flat-square)](https://app.hubble.systems)

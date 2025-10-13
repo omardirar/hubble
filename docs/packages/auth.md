@@ -95,20 +95,20 @@ import { getOrgId, getCurrentOrgId } from "@hubble/auth"
 
 // Client-side: Get org ID for a specific user
 async function getUserOrganization(userId: string) {
-    const orgId = await getOrgId(userId)
-    if (!orgId) {
-        throw new Error("User not associated with any organization")
-    }
-    return orgId
+  const orgId = await getOrgId(userId)
+  if (!orgId) {
+    throw new Error("User not associated with any organization")
+  }
+  return orgId
 }
 
 // Server-side: Get current user's org ID
 async function getCurrentUserOrg() {
-    const orgId = await getCurrentOrgId()
-    if (!orgId) {
-        throw new Error("User not authenticated")
-    }
-    return orgId
+  const orgId = await getCurrentOrgId()
+  if (!orgId) {
+    throw new Error("User not authenticated")
+  }
+  return orgId
 }
 ```
 
@@ -119,28 +119,28 @@ import { getUserAndOrgFromToken, extractJWTClaims } from "@hubble/auth"
 
 // Extract user and org from JWT
 async function handleApiRequest(authHeader: string) {
-    const token = authHeader.replace("Bearer ", "")
+  const token = authHeader.replace("Bearer ", "")
 
-    try {
-        const { userId, orgId, user, org } = await getUserAndOrgFromToken(token)
+  try {
+    const { userId, orgId, user, org } = await getUserAndOrgFromToken(token)
 
-        // Use user and org data for request processing
-        return { userId, orgId, user, org }
-    } catch (error) {
-        throw new Error("Invalid authentication token")
-    }
+    // Use user and org data for request processing
+    return { userId, orgId, user, org }
+  } catch (error) {
+    throw new Error("Invalid authentication token")
+  }
 }
 
 // Parse JWT claims
 function validateToken(token: string) {
-    const claims = extractJWTClaims(token)
+  const claims = extractJWTClaims(token)
 
-    // Check if token has required claims
-    if (!claims.sub || !claims.org_id) {
-        throw new Error("Invalid token claims")
-    }
+  // Check if token has required claims
+  if (!claims.sub || !claims.org_id) {
+    throw new Error("Invalid token claims")
+  }
 
-    return claims
+  return claims
 }
 ```
 
@@ -151,24 +151,24 @@ import { getOrgId, getClerkTableName } from "@hubble/auth"
 
 // Database operations with org context
 async function getOrganizationData(userId: string) {
-    const orgId = await getOrgId(userId)
-    if (!orgId) {
-        throw new Error("User not in organization")
-    }
+  const orgId = await getOrgId(userId)
+  if (!orgId) {
+    throw new Error("User not in organization")
+  }
 
-    // Query with org context
-    const { data } = await supabase.from("organizations").select("*").eq("org_id", orgId).single()
+  // Query with org context
+  const { data } = await supabase.from("organizations").select("*").eq("org_id", orgId).single()
 
-    return data
+  return data
 }
 
 // Clerk schema operations
 async function getClerkUsers() {
-    const usersTable = getClerkTableName("users")
+  const usersTable = getClerkTableName("users")
 
-    const { data } = await supabase.from(usersTable).select("*").limit(100)
+  const { data } = await supabase.from(usersTable).select("*").limit(100)
 
-    return data
+  return data
 }
 ```
 
@@ -179,26 +179,23 @@ import { getUserAndOrgFromToken } from "@hubble/auth"
 import { NextRequest } from "next/server"
 
 export async function GET(request: NextRequest) {
-    try {
-        // Extract token from Authorization header
-        const authHeader = request.headers.get("authorization")
-        if (!authHeader?.startsWith("Bearer ")) {
-            return Response.json(
-                { error: "Missing or invalid authorization header" },
-                { status: 401 },
-            )
-        }
-
-        const token = authHeader.replace("Bearer ", "")
-        const { userId, orgId } = await getUserAndOrgFromToken(token)
-
-        // Process request with user and org context
-        const data = await processRequest(userId, orgId)
-
-        return Response.json({ success: true, data })
-    } catch (error) {
-        return Response.json({ error: "Authentication failed" }, { status: 401 })
+  try {
+    // Extract token from Authorization header
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader?.startsWith("Bearer ")) {
+      return Response.json({ error: "Missing or invalid authorization header" }, { status: 401 })
     }
+
+    const token = authHeader.replace("Bearer ", "")
+    const { userId, orgId } = await getUserAndOrgFromToken(token)
+
+    // Process request with user and org context
+    const data = await processRequest(userId, orgId)
+
+    return Response.json({ success: true, data })
+  } catch (error) {
+    return Response.json({ error: "Authentication failed" }, { status: 401 })
+  }
 }
 ```
 
@@ -209,29 +206,29 @@ import { getCurrentOrgId } from "@hubble/auth"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function middleware(request: NextRequest) {
-    // Check if route requires authentication
-    if (request.nextUrl.pathname.startsWith("/api/protected")) {
-        try {
-            const orgId = await getCurrentOrgId()
-            if (!orgId) {
-                return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-            }
+  // Check if route requires authentication
+  if (request.nextUrl.pathname.startsWith("/api/protected")) {
+    try {
+      const orgId = await getCurrentOrgId()
+      if (!orgId) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      }
 
-            // Add org context to request headers
-            const requestHeaders = new Headers(request.headers)
-            requestHeaders.set("x-org-id", orgId)
+      // Add org context to request headers
+      const requestHeaders = new Headers(request.headers)
+      requestHeaders.set("x-org-id", orgId)
 
-            return NextResponse.next({
-                request: {
-                    headers: requestHeaders,
-                },
-            })
-        } catch (error) {
-            return NextResponse.json({ error: "Authentication failed" }, { status: 401 })
-        }
+      return NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      })
+    } catch (error) {
+      return NextResponse.json({ error: "Authentication failed" }, { status: 401 })
     }
+  }
 
-    return NextResponse.next()
+  return NextResponse.next()
 }
 ```
 
@@ -274,12 +271,12 @@ NODE_ENV=development
 
 ```typescript
 interface ClerkUser {
-    id: string
-    email: string
-    firstName?: string
-    lastName?: string
-    createdAt: Date
-    updatedAt: Date
+  id: string
+  email: string
+  firstName?: string
+  lastName?: string
+  createdAt: Date
+  updatedAt: Date
 }
 ```
 
@@ -287,11 +284,11 @@ interface ClerkUser {
 
 ```typescript
 interface ClerkOrganization {
-    id: string
-    name: string
-    slug: string
-    createdAt: Date
-    updatedAt: Date
+  id: string
+  name: string
+  slug: string
+  createdAt: Date
+  updatedAt: Date
 }
 ```
 
@@ -299,11 +296,11 @@ interface ClerkOrganization {
 
 ```typescript
 interface JWTClaims {
-    sub: string
-    org_id: string
-    iat: number
-    exp: number
-    [key: string]: any
+  sub: string
+  org_id: string
+  iat: number
+  exp: number
+  [key: string]: any
 }
 ```
 
@@ -316,26 +313,26 @@ import { AppError } from "@hubble/core"
 
 // User not found
 if (!userId) {
-    throw new AppError("User not found", {
-        code: "USER_NOT_FOUND",
-        statusCode: 404,
-    })
+  throw new AppError("User not found", {
+    code: "USER_NOT_FOUND",
+    statusCode: 404,
+  })
 }
 
 // Organization not found
 if (!orgId) {
-    throw new AppError("Organization not found", {
-        code: "ORG_NOT_FOUND",
-        statusCode: 404,
-    })
+  throw new AppError("Organization not found", {
+    code: "ORG_NOT_FOUND",
+    statusCode: 404,
+  })
 }
 
 // Invalid token
 if (!token) {
-    throw new AppError("Invalid authentication token", {
-        code: "INVALID_TOKEN",
-        statusCode: 401,
-    })
+  throw new AppError("Invalid authentication token", {
+    code: "INVALID_TOKEN",
+    statusCode: 401,
+  })
 }
 ```
 
@@ -346,20 +343,20 @@ import { getUserAndOrgFromToken } from "@hubble/auth"
 import { AppError } from "@hubble/core"
 
 async function authenticateUser(token: string) {
-    try {
-        const { userId, orgId } = await getUserAndOrgFromToken(token)
-        return { userId, orgId }
-    } catch (error) {
-        if (error instanceof AppError) {
-            throw error
-        }
-
-        throw new AppError("Authentication failed", {
-            code: "AUTH_ERROR",
-            statusCode: 401,
-            originalError: error,
-        })
+  try {
+    const { userId, orgId } = await getUserAndOrgFromToken(token)
+    return { userId, orgId }
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error
     }
+
+    throw new AppError("Authentication failed", {
+      code: "AUTH_ERROR",
+      statusCode: 401,
+      originalError: error,
+    })
+  }
 }
 ```
 
@@ -372,35 +369,35 @@ import { describe, it, expect, vi } from "vitest"
 import { getOrgId, getUserAndOrgFromToken } from "@hubble/auth"
 
 describe("@hubble/auth", () => {
-    describe("getOrgId", () => {
-        it("should return org ID for valid user", async () => {
-            const orgId = await getOrgId("user_123")
-            expect(orgId).toBe("org_abc123")
-        })
-
-        it("should return null for invalid user", async () => {
-            const orgId = await getOrgId("invalid_user")
-            expect(orgId).toBeNull()
-        })
+  describe("getOrgId", () => {
+    it("should return org ID for valid user", async () => {
+      const orgId = await getOrgId("user_123")
+      expect(orgId).toBe("org_abc123")
     })
 
-    describe("getUserAndOrgFromToken", () => {
-        it("should extract user and org from valid token", async () => {
-            const mockToken = "valid.jwt.token"
-            const result = await getUserAndOrgFromToken(mockToken)
-
-            expect(result).toHaveProperty("userId")
-            expect(result).toHaveProperty("orgId")
-            expect(result).toHaveProperty("user")
-            expect(result).toHaveProperty("org")
-        })
-
-        it("should throw error for invalid token", async () => {
-            const invalidToken = "invalid.token"
-
-            await expect(getUserAndOrgFromToken(invalidToken)).rejects.toThrow("Invalid token")
-        })
+    it("should return null for invalid user", async () => {
+      const orgId = await getOrgId("invalid_user")
+      expect(orgId).toBeNull()
     })
+  })
+
+  describe("getUserAndOrgFromToken", () => {
+    it("should extract user and org from valid token", async () => {
+      const mockToken = "valid.jwt.token"
+      const result = await getUserAndOrgFromToken(mockToken)
+
+      expect(result).toHaveProperty("userId")
+      expect(result).toHaveProperty("orgId")
+      expect(result).toHaveProperty("user")
+      expect(result).toHaveProperty("org")
+    })
+
+    it("should throw error for invalid token", async () => {
+      const invalidToken = "invalid.token"
+
+      await expect(getUserAndOrgFromToken(invalidToken)).rejects.toThrow("Invalid token")
+    })
+  })
 })
 ```
 
@@ -411,11 +408,11 @@ import { describe, it, expect } from "vitest"
 import { getCurrentOrgId } from "@hubble/auth"
 
 describe("Auth Integration", () => {
-    it("should work with Clerk authentication", async () => {
-        // Mock Clerk authentication
-        const orgId = await getCurrentOrgId()
-        expect(orgId).toBeDefined()
-    })
+  it("should work with Clerk authentication", async () => {
+    // Mock Clerk authentication
+    const orgId = await getCurrentOrgId()
+    expect(orgId).toBeDefined()
+  })
 })
 ```
 
@@ -505,6 +502,6 @@ When contributing to `@hubble/auth`:
 
 ## Related Packages
 
-- [**@hubble/core**](../core/README.md) - Core utilities and error handling
-- [**@hubble/db**](../db/README.md) - Database client factories
-- [**@hubble/types**](../types/README.md) - Shared TypeScript types
+- [**@hubble/core**](../core.md) - Core utilities and error handling
+- [**@hubble/db**](../db.md) - Database client factories
+- [**@hubble/types**](../types.md) - Shared TypeScript types

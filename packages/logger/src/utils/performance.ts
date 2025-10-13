@@ -9,7 +9,7 @@
 //   Context: Wrap performance timers with OpenTelemetry spans to enable distributed tracing and performance analysis across service boundaries.
 //   labels: area/observability, feature/tracing, type/enhancement
 //   assignees: omzification
-//   milestone: 0.1.0
+//   milestone: 0.0.1
 
 import { structuredLogger } from "../core/structured-logger"
 

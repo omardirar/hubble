@@ -1,0 +1,24 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: "typescript"
+layer: "library"
+stack: "backend"
+tags:
+  - "shared"
+
+dependsOn:
+  - "auth"
+  - "config"
+  - "core"
+  - "db"
+  - "infrastructure"
+  - "logger"
+  - "schemas"
+
+workspace:
+  inheritedTasks:
+    exclude: ["build"]
+
+fileGroups:
+  sources:
+    - "src/**/*"

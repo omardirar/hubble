@@ -1,0 +1,24 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: "typescript"
+layer: "library"
+stack: "frontend"
+tags:
+  - "frontend"
+
+dependsOn:
+  - "chat"
+  - "connect"
+  - "core"
+  - "db"
+  - "logger"
+  - "types"
+
+workspace:
+  inheritedTasks:
+    exclude: ["build"]
+
+fileGroups:
+  sources:
+    - "src/**/*"
+    - "public/**/*"

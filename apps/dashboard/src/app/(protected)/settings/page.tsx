@@ -4,9 +4,11 @@
  * Application settings and configuration interface.
  * Currently shows a placeholder message for future implementation.
  *
- * TODO: Implement settings features:
- * - User preferences and notifications
- * - Data connection configurations
+ * TODO: Implement settings features
+ *   Context: User preferences and notifications, data connection configurations
+ *   labels: area/web, feature/settings, type/enhancement
+ *   assignees: omzification
+ *   milestone: 0.0.1
  * - API key management
  * - Theme and display options
  * - Security and privacy settings

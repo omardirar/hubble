@@ -1,0 +1,72 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: "python"
+layer: "application"
+stack: "backend"
+
+tags:
+  - "mcp"
+  - "python"
+
+toolchain:
+  python:
+    version: "3.12.11"
+
+workspace:
+  inheritedTasks:
+    exclude: ["build", "test"]
+
+fileGroups:
+  sources:
+    - "src/**/*.py"
+    - "*.py"
+
+tasks:
+  dev:
+    command: "uv"
+    args:
+      - "run"
+      - "python"
+      - "services/mcp/dice-roll/src/server.py"
+    inputs:
+      - "src/**/*.py"
+      - "*.py"
+      - "pyproject.toml"
+      - "/pyproject.toml"
+      - "/uv.lock"
+    options:
+      cache: false
+      persistent: true
+      runInCI: false
+      runFromWorkspaceRoot: true
+    local: true
+
+  # Development with auto-reload
+  dev-reload:
+    command: "uv"
+    args:
+      - "run"
+      - "uvicorn"
+      - "server:mcp.streamable_http_app"
+      - "--reload"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8002"
+      - "--log-level"
+      - "debug"
+      - "--factory"
+      - "--app-dir"
+      - "services/mcp/dice-roll/src"
+    inputs:
+      - "src/**/*.py"
+      - "*.py"
+      - "pyproject.toml"
+      - "/pyproject.toml"
+      - "/uv.lock"
+    options:
+      cache: false
+      persistent: true
+      runInCI: false
+      runFromWorkspaceRoot: true
+    local: true

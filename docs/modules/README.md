@@ -41,189 +41,28 @@ graph TB
 
 ## Available Modules
 
-### Core Modules
+The table below links each core module to its authoritative documentation. Most module-level references live in `docs/packages/*.md` because functionality is shared via workspaces.
 
-#### Authentication Module
+| Module                        | Repository Location                    | Documentation                                                          |
+| ----------------------------- | -------------------------------------- | ---------------------------------------------------------------------- |
+| Authentication                | `packages/auth/`                       | `docs/packages/auth.md`                                                |
+| Core Utilities                | `packages/core/`                       | `docs/packages/core.md`                                                |
+| Database                      | `packages/db/`                         | `docs/packages/db.md`                                                  |
+| Chat                          | `packages/chat/`                       | `docs/packages/chat.md`                                                |
+| Connect                       | `packages/connect/`                    | `docs/packages/connect.md`                                             |
+| Infrastructure (QStash/Redis) | `packages/infrastructure/`             | `docs/packages/infrastructure.md`                                      |
+| Logger & Observability        | `packages/logger/`                     | `docs/packages/logger.md`                                              |
+| UI Components                 | `packages/ui/`                         | `docs/packages/ui.md`                                                  |
+| Type Definitions              | `packages/types/`, `packages/schemas/` | `docs/packages/types.md`, `docs/packages/schemas.md`                   |
+| Server & Agent Runtime        | `packages/server/`                     | `docs/packages/server.md`                                              |
+| Agent Backend (Python)        | `services/agents/`                     | `services/agents/README.md`, `services/agents/docs/RESPONSE_SCHEMA.md` |
+| MCP Servers                   | `services/mcp/`                        | `docs/mcp/architecture.md`, `docs/mcp/motherduck.md`                   |
 
-- **Purpose**: User authentication and authorization
-- **Location**: `packages/auth/`
-- **Documentation**: [Authentication Module](./authentication.md)
-- **Key Features**:
-    - JWT token management
-    - Organization context
-    - User session handling
-    - Permission management
+### Feature Architecture Notes
 
-#### Database Module
-
-- **Purpose**: Database operations and client management
-- **Location**: `packages/db/`
-- **Documentation**: [Database Module](./database.md)
-- **Key Features**:
-    - Supabase client factories
-    - Row Level Security (RLS)
-    - Connection pooling
-    - Query optimization
-
-#### Error Handling Module
-
-- **Purpose**: Centralized error handling and management
-- **Location**: `packages/core/`
-- **Documentation**: [Error Handling Module](./error-handling.md)
-- **Key Features**:
-    - Custom error classes
-    - Error logging
-    - Error recovery
-    - User-friendly error messages
-
-#### Logging Module
-
-- **Purpose**: Structured logging and monitoring
-- **Location**: `packages/logger/`
-- **Documentation**: [Logging Module](./logging.md)
-- **Key Features**:
-    - Structured logging
-    - Log levels
-    - Performance monitoring
-    - Error tracking
-
-### Feature Modules
-
-#### Chat Module
-
-- **Purpose**: AI-powered chat functionality
-- **Location**: `packages/chat/`
-- **Documentation**: [Chat Module](./chat.md)
-- **Key Features**:
-    - Conversation management
-    - Message handling
-    - AI integration
-    - Real-time updates
-
-#### Connect Module
-
-- **Purpose**: Data pipeline provisioning and management
-- **Location**: `packages/connect/`
-- **Documentation**: [Connect Module](./connect.md)
-- **Key Features**:
-    - Data source connections
-    - Provisioning workflows
-    - Status monitoring
-    - Error handling
-
-#### Analytics Module
-
-- **Purpose**: Data analysis and reporting
-- **Location**: `packages/analytics/`
-- **Documentation**: [Analytics Module](./analytics.md)
-- **Key Features**:
-    - Data visualization
-    - Report generation
-    - Performance metrics
-    - Custom dashboards
-
-#### User Management Module
-
-- **Purpose**: User and organization management
-- **Location**: `packages/user-management/`
-- **Documentation**: [User Management Module](./user-management.md)
-- **Key Features**:
-    - User profiles
-    - Organization management
-    - Role-based access control
-    - Team collaboration
-
-### Infrastructure Modules
-
-#### API Module
-
-- **Purpose**: REST API implementation and management
-- **Location**: `apps/dashboard/src/app/api/`
-- **Documentation**: [API Module](./api.md)
-- **Key Features**:
-    - RESTful endpoints
-    - Request validation
-    - Response formatting
-    - Rate limiting
-
-#### Queue Module
-
-- **Purpose**: Background job processing
-- **Location**: `packages/infrastructure/`
-- **Documentation**: [Queue Module](./queue.md)
-- **Key Features**:
-    - Job queuing
-    - Background processing
-    - Retry logic
-    - Dead letter queues
-
-#### Cache Module
-
-- **Purpose**: Caching and session management
-- **Location**: `packages/infrastructure/`
-- **Documentation**: [Cache Module](./cache.md)
-- **Key Features**:
-    - Redis integration
-    - Session storage
-    - Data caching
-    - Cache invalidation
-
-#### External Services Module
-
-- **Purpose**: Third-party service integrations
-- **Location**: `packages/external-services/`
-- **Documentation**: [External Services Module](./external-services.md)
-- **Key Features**:
-    - API clients
-    - Service abstraction
-    - Error handling
-    - Rate limiting
-
-### UI Modules
-
-#### Component Library
-
-- **Purpose**: Reusable UI components
-- **Location**: `packages/ui/`
-- **Documentation**: [Component Library](./component-library.md)
-- **Key Features**:
-    - React components
-    - TypeScript support
-    - Accessibility
-    - Responsive design
-
-#### Theme Module
-
-- **Purpose**: Design system and theming
-- **Location**: `packages/ui/src/theme/`
-- **Documentation**: [Theme Module](./theme.md)
-- **Key Features**:
-    - Color system
-    - Typography
-    - Spacing
-    - Dark mode
-
-#### Layout Module
-
-- **Purpose**: Page layouts and navigation
-- **Location**: `packages/ui/src/layout/`
-- **Documentation**: [Layout Module](./layout.md)
-- **Key Features**:
-    - Page layouts
-    - Navigation
-    - Sidebar
-    - Header
-
-#### Form Module
-
-- **Purpose**: Form components and validation
-- **Location**: `packages/ui/src/forms/`
-- **Documentation**: [Form Module](./form.md)
-- **Key Features**:
-    - Form components
-    - Validation
-    - Error handling
-    - Accessibility
+- [**Chat Architecture**](../packages/chat-architecture.md) covers the real-time conversation loop, including streaming, optimistic updates, and persistence.
+- [**Server Architecture**](../packages/server-architecture.md) explains orchestration, tool routing, and event streaming.
+- [**Event Bus Evaluation**](../packages/event-bus-evaluation.md) captures trade-offs considered for queueing and messaging.
 
 ## Module Development
 
@@ -300,11 +139,11 @@ import { createClient } from "@hubble/db"
 ```typescript
 // Service injection for complex dependencies
 interface ChatService {
-    createConversation(data: CreateConversationData): Promise<Conversation>
+  createConversation(data: CreateConversationData): Promise<Conversation>
 }
 
 class ChatModule {
-    constructor(private chatService: ChatService) {}
+  constructor(private chatService: ChatService) {}
 }
 ```
 
@@ -315,9 +154,9 @@ class ChatModule {
 import { EventBus } from "@hubble/core"
 
 class ChatModule {
-    constructor(private eventBus: EventBus) {
-        this.eventBus.on("user.created", this.handleUserCreated.bind(this))
-    }
+  constructor(private eventBus: EventBus) {
+    this.eventBus.on("user.created", this.handleUserCreated.bind(this))
+  }
 }
 ```
 
@@ -366,11 +205,11 @@ graph TD
 import { generateId } from "@hubble/core"
 
 describe("Core Module", () => {
-    it("should generate unique IDs", () => {
-        const id1 = generateId()
-        const id2 = generateId()
-        expect(id1).not.toBe(id2)
-    })
+  it("should generate unique IDs", () => {
+    const id1 = generateId()
+    const id2 = generateId()
+    expect(id1).not.toBe(id2)
+  })
 })
 ```
 
@@ -382,16 +221,16 @@ import { ChatModule } from "@hubble/chat"
 import { DatabaseModule } from "@hubble/db"
 
 describe("Chat Module Integration", () => {
-    it("should create conversation in database", async () => {
-        const db = new DatabaseModule()
-        const chat = new ChatModule(db)
+  it("should create conversation in database", async () => {
+    const db = new DatabaseModule()
+    const chat = new ChatModule(db)
 
-        const conversation = await chat.createConversation({
-            title: "Test Conversation",
-        })
-
-        expect(conversation.id).toBeDefined()
+    const conversation = await chat.createConversation({
+      title: "Test Conversation",
     })
+
+    expect(conversation.id).toBeDefined()
+  })
 })
 ```
 
@@ -402,8 +241,8 @@ describe("Chat Module Integration", () => {
 import { vi } from "vitest"
 
 const mockDatabase = {
-    createConversation: vi.fn(),
-    getConversations: vi.fn(),
+  createConversation: vi.fn(),
+  getConversations: vi.fn(),
 }
 
 const chatModule = new ChatModule(mockDatabase)
@@ -444,7 +283,7 @@ const chatModule = new ChatModule(mockDatabase)
  * ```
  */
 export async function createConversation(data: CreateConversationData): Promise<Conversation> {
-    // Implementation
+  // Implementation
 }
 ````
 
@@ -506,8 +345,8 @@ export async function createConversation(data: CreateConversationData): Promise<
  * @see createConversation
  */
 export function createChat(data: ChatData): Promise<Chat> {
-    console.warn("createChat is deprecated, use createConversation instead")
-    return createConversation(data)
+  console.warn("createChat is deprecated, use createConversation instead")
+  return createConversation(data)
 }
 ```
 
@@ -515,6 +354,6 @@ export function createChat(data: ChatData): Promise<Chat> {
 
 - [Architecture Guide](../architecture.md)
 - [Setup Guide](../setup.md)
-- [API Documentation](../api/README.md)
-- [Package Documentation](../packages/README.md)
+- [API Documentation](../apps/dashboard/api.md)
+- [Package Documentation](../packages/overview.md)
 - [Testing Documentation](../tests/README.md)

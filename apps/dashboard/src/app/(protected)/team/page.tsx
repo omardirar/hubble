@@ -4,9 +4,11 @@
  * Team management and collaboration interface.
  * Currently shows a placeholder message for future implementation.
  *
- * TODO: Implement team features:
- * - Team member management
- * - Role and permission assignments
+ * TODO: Implement team features
+ *   Context: Team member management, role and permission assignments
+ *   labels: area/web, feature/team, type/enhancement
+ *   assignees: omzification
+ *   milestone: 0.0.1
  * - Invitation system
  * - Activity and collaboration tools
  * - Team analytics and insights

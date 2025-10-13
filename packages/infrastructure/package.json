@@ -5,6 +5,7 @@
   "type": "module",
   "main": "./src/index.ts",
   "scripts": {
+    "build": "echo 'Source-only package, no build needed'",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint . --max-warnings=0"
   },

@@ -4,9 +4,11 @@
  * Workspace management and organization interface.
  * Currently shows a placeholder message for future implementation.
  *
- * TODO: Implement workspace features:
- * - Workspace overview and settings
- * - Data source management
+ * TODO: Implement workspace features
+ *   Context: Workspace overview and settings, data source management
+ *   labels: area/web, feature/workspace, type/enhancement
+ *   assignees: omzification
+ *   milestone: 0.0.1
  * - Project organization
  * - Resource monitoring
  * - Workspace analytics

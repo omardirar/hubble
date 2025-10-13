@@ -143,16 +143,16 @@ apps/dashboard/
 
 2. **Set up environment variables**
 
-    ```bash
-    cp .env.example .env.local
-    # Edit .env.local with your credentials
-    ```
+   ```bash
+   cp .env.example .env.local
+   # Edit .env.local with your credentials
+   ```
 
 3. **Start development server**
 
-    ```bash
-    pnpm dev
-    ```
+   ```bash
+   pnpm dev
+   ```
 
 4. **Open application**
    Navigate to [http://localhost:3000](http://localhost:3000)
@@ -275,24 +275,24 @@ pnpm test:coverage          # Coverage report
 ### Common Issues
 
 1. **Build Failures**
-    - Check TypeScript errors: `pnpm typecheck`
-    - Verify environment variables
-    - Clear Next.js cache: `rm -rf .next`
+   - Check TypeScript errors: `pnpm typecheck`
+   - Verify environment variables
+   - Clear Next.js cache: `rm -rf .next`
 
 2. **Authentication Issues**
-    - Verify Clerk configuration
-    - Check JWT token validity
-    - Ensure proper redirect URLs
+   - Verify Clerk configuration
+   - Check JWT token validity
+   - Ensure proper redirect URLs
 
 3. **API Errors**
-    - Check Supabase connection
-    - Verify RLS policies
-    - Review server logs
+   - Check Supabase connection
+   - Verify RLS policies
+   - Review server logs
 
 4. **Performance Issues**
-    - Analyze bundle size
-    - Check for memory leaks
-    - Optimize images and fonts
+   - Analyze bundle size
+   - Check for memory leaks
+   - Optimize images and fonts
 
 ### Debug Mode
 
@@ -313,8 +313,8 @@ When contributing to the dashboard:
 
 ## Related Documentation
 
-- [API Documentation](../api/README.md)
-- [Package Documentation](../../packages/README.md)
-- [Database Schema](../../supabase/README.md)
-- [Deployment Guide](../../deployment/README.md)
+- [API Documentation](../api.md)
+- [Package Documentation](../../packages/overview.md)
+- [Database Schema](../../supabase/overview.md)
+- [Agent Backend Deployment](../../deployment/agent-backend.md)
 ```

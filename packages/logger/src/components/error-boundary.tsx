@@ -9,7 +9,7 @@
 //   Context: Integrate Sonner toast to display user-friendly error messages when ErrorBoundary catches errors, with option to disable for embedded components.
 //   labels: area/ui, feature/notifications, type/enhancement
 //   assignees: omzification
-//   milestone: 0.0.2
+//   milestone: 0.0.1
 
 "use client"
 

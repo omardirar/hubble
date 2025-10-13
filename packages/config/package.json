@@ -6,7 +6,8 @@
   "main": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint . --max-warnings=0"
+    "lint": "eslint . --max-warnings=0",
+    "build": "echo \"Source-only package, no build needed\""
   },
   "license": "MIT",
   "sideEffects": false,
@@ -18,6 +19,9 @@
   },
   "peerDependencies": {
     "zod": "^3 || ^4"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.19.1"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

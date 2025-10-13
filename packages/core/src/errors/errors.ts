@@ -101,8 +101,22 @@ export class ValidationError extends AppError {
 }
 
 export class UnauthorizedError extends AppError {
-  constructor(message = "Unauthorized", options: Omit<AppErrorOptions, "status"> = {}) {
-    super(message, { status: 401, code: options.code ?? ApiErrorCodes.UNAUTHORIZED, ...options })
+  constructor(
+    message = "Authentication required. Please sign in to continue.",
+    options: Omit<AppErrorOptions, "status"> = {},
+  ) {
+    super(message, {
+      status: 401,
+      code: options.code ?? ApiErrorCodes.UNAUTHORIZED,
+      details: {
+        hint:
+          process.env.NODE_ENV === "development"
+            ? "Check your Clerk environment variables and ensure you're signed in"
+            : undefined,
+        ...options.details,
+      },
+      ...options,
+    })
     this.name = "UnauthorizedError"
   }
 }

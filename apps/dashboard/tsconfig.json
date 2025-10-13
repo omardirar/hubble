@@ -4,7 +4,11 @@
     "allowJs": true,
     "noEmit": true,
     "incremental": true,
-    "plugins": [{ "name": "next" }],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
     "baseUrl": ".",
     "types": ["node", "vitest", "vitest/globals"],
     "paths": {
@@ -32,9 +36,72 @@
       "@hubble/types": ["../../packages/types/src/index.ts"],
       "@hubble/types/*": ["../../packages/types/src/*"],
       "@hubble/infrastructure": ["../../packages/infrastructure/src/index.ts"],
-      "@hubble/infrastructure/*": ["../../packages/infrastructure/src/*"]
+      "@hubble/infrastructure/*": ["../../packages/infrastructure/src/*"],
+      "@hubble/eslint-config/*": ["../../packages/eslint-config/*"],
+      "@hubble/logger": ["../../packages/logger/src/index.ts"],
+      "@hubble/logger/*": ["../../packages/logger/src/*"],
+      "@hubble/tsconfig/*": ["../../packages/tsconfig/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "../../packages/auth/**/*",
+    "../../packages/chat/**/*",
+    "../../packages/config/**/*",
+    "../../packages/connect/**/*",
+    "../../packages/core/**/*",
+    "../../packages/db/**/*",
+    "../../packages/eslint-config/**/*",
+    "../../packages/logger/**/*",
+    "../../packages/schemas/**/*",
+    "../../packages/server/**/*",
+    "../../packages/tsconfig/**/*",
+    "../../packages/types/**/*",
+    "../../packages/ui/**/*",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"],
+  "references": [
+    {
+      "path": "../../packages/auth"
+    },
+    {
+      "path": "../../packages/chat"
+    },
+    {
+      "path": "../../packages/config"
+    },
+    {
+      "path": "../../packages/connect"
+    },
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/db"
+    },
+    {
+      "path": "../../packages/eslint-config"
+    },
+    {
+      "path": "../../packages/logger"
+    },
+    {
+      "path": "../../packages/schemas"
+    },
+    {
+      "path": "../../packages/server"
+    },
+    {
+      "path": "../../packages/tsconfig"
+    },
+    {
+      "path": "../../packages/types"
+    },
+    {
+      "path": "../../packages/ui"
+    }
+  ]
 }

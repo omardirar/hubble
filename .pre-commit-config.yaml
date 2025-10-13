@@ -1,7 +1,6 @@
 default_language_version:
   python: python3
-exclude: "^(\n  node_modules/|\n  \\.next/|\n  \\.open-next/|\n  dist/|\n  build/|\n\
-  \  coverage/\n)\n"
+exclude: "^(node_modules/|\\.next/|\\.open-next/|dist/|build/|coverage/)"
 minimum_pre_commit_version: 3.7.0
 repos:
   - hooks:
@@ -35,7 +34,13 @@ repos:
   - hooks:
       - args:
           - -d
-          - "{extends: default, rules: {line-length: {max: 120}}}"
+          - >-
+            {extends: default,
+            rules: {line-length: {max: 120},
+            document-start: disable,
+            truthy: disable,
+            braces: disable,
+            comments: {min-spaces-from-content: 1}}}
         id: yamllint
         exclude: ^pnpm-lock\.yaml$
     repo: https://github.com/adrienverge/yamllint
@@ -44,8 +49,8 @@ repos:
     rev: v0.9.1
     hooks:
       - id: ruff
-        stages:
-          - pre-commit
+        args: [--fix]
+      - id: ruff-format
   - hooks:
       - files: \.(md|mdx)$
         id: markdownlint
@@ -81,47 +86,76 @@ repos:
     rev: 0.33.3
   - hooks:
       - id: editorconfig-checker
-        exclude: ^\.turbo/|^infra/supabase/supabase/migrations/|^apps/web/README\.md$
+        exclude: ^\.turbo/|^infra/supabase/supabase/migrations/|^apps/web/README\.md$|Caddyfile$
     repo: https://github.com/editorconfig-checker/editorconfig-checker.python
     rev: 3.4.0
+  # Dockerfile linting
   - hooks:
-      - additional_dependencies:
-          - cz-conventional-gitmoji
-        id: commitizen
-        stages:
-          - commit-msg
-    repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.8.4
+      - id: hadolint
+        args: [--ignore, DL3008, --ignore, DL3015]
+    repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+  # TOML linting and formatting
   - hooks:
-      - additional_dependencies: []
-        entry: npx --yes prettier --write
-        id: prettier
+      - id: taplo-lint
+        name: Lint TOML files
+        entry: taplo lint
         language: system
-        name: Prettier
-        exclude: ^(\.turbo/|pnpm-lock\.yaml$)
-        types_or:
-          - javascript
-          - jsx
-          - ts
-          - tsx
-          - json
-          - css
-          - scss
-          - markdown
-          - yaml
-      - entry: pnpm --filter @hubble/mcp-servers lint
-        id: mcp-servers-lint
+        files: \.toml$
+        pass_filenames: true
+      - id: taplo-format
+        name: Format TOML files
+        entry: taplo format
         language: system
-        name: MCP servers lint (Prettier check)
+        files: \.toml$
+        pass_filenames: true
+    repo: local
+  # Caddyfile validation and formatting
+  - hooks:
+      - id: caddy-validate
+        name: Validate Caddyfile
+        entry: caddy validate --config
+        language: system
+        files: ^.*Caddyfile$
+        pass_filenames: true
+      - id: caddy-fmt
+        name: Format Caddyfile
+        entry: caddy fmt --overwrite
+        language: system
+        files: ^.*Caddyfile$
+        pass_filenames: true
+    repo: local
+  # Prettier formatting
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        types_or: [javascript, jsx, ts, tsx, json, yaml, markdown, css, scss]
+  # ESLint
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v9.17.0
+    hooks:
+      - id: eslint
+        args: [--fix]
+        types_or: [javascript, jsx, ts, tsx]
+        additional_dependencies:
+          - eslint@^9.35.0
+          - typescript@^5.9.2
+  # TypeScript type checking
+  - hooks:
+      - id: tsc
+        name: TypeScript type-check
+        entry: pnpm exec tsc --noEmit
+        language: system
+        types: [ts, tsx]
         pass_filenames: false
-      - entry: npx --yes turbo run lint --filter=...[HEAD] --cache-dir=.turbo
-        id: turbo-lint
+    repo: local
+  # Python mypy type checking
+  - hooks:
+      - id: mypy
+        name: Type-check Python with mypy
+        entry: uv run mypy services/
         language: system
-        name: ESLint via Turbo (affected)
-        pass_filenames: false
-      - entry: npx --yes turbo run typecheck --filter=...[HEAD] --cache-dir=.turbo
-        id: turbo-typecheck
-        language: system
-        name: TypeScript type-check via Turbo (affected)
+        types: [python]
         pass_filenames: false
     repo: local

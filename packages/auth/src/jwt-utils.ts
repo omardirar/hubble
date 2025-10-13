@@ -34,8 +34,8 @@ export function decodeJWTPayload(token: string): any {
     throw new Error("Invalid JWT token format.")
   }
   try {
-    // Use built-in atob function instead of js-base64 to avoid bundling issues
-    return JSON.parse(atob(parts[1]))
+    // Use Buffer for Node.js compatibility instead of atob (browser-only)
+    return JSON.parse(Buffer.from(parts[1], "base64").toString("utf-8"))
   } catch (error) {
     throw new Error(
       `Failed to decode JWT payload: ${error instanceof Error ? error.message : String(error)}`,

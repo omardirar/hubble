@@ -1,0 +1,60 @@
+# https://moonrepo.dev/docs/config/workspace
+$schema: "./cache/schemas/workspace.json"
+versionConstraint: ">= 1.40.0"
+
+# VCS configuration for git integration
+vcs:
+  manager: "git"
+  defaultBranch: "main"
+  syncHooks: true
+
+# Project discovery - hybrid approach with globs and explicit mapping
+projects:
+  globs:
+    - "apps/*"
+    - "packages/*"
+    - "services/agents"
+    - "services/mcp/motherduck"
+    - "services/mcp/dice-roll"
+  sources:
+    # Explicit mappings for config packages that might not have moon.yml
+    tsconfig: "packages/tsconfig"
+    prettier-config: "packages/prettier-config"
+    eslint-config: "packages/eslint-config"
+    # MCP aggregator project
+    mcp: "services/mcp"
+
+# Constraint settings for enforcing project relationships
+constraints:
+  enforceProjectTypeRelationships: true
+  tagRelationships:
+    frontend: ["backend", "shared"]
+    backend: ["shared"]
+
+# Task runner settings
+runner:
+  archivableTargets: ["build", "buildStorybook"]
+  cacheLifetime: "7 days"
+  inheritColorsForPipedTasks: true
+  logRunningCommand: true
+  autoCleanCache: true
+
+# Hasher settings for input tracking
+hasher:
+  walkStrategy: "vcs"
+  ignorePatterns:
+    - "**/*.md"
+    - "**/README.*"
+    - "**/CHANGELOG.md"
+    - "**/LICENSE*"
+    - "**/.DS_Store"
+    - "**/.gitkeep"
+    - "**/node_modules"
+    - "**/.venv"
+    - "**/__pycache__"
+    - "**/.mypy_cache"
+    - "**/.ruff_cache"
+  ignoreMissingPatterns:
+    - "**/.eslintrc.*"
+    - "**/*.config.*"
+    - "**/.env"
