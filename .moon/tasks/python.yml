@@ -69,7 +69,7 @@ tasks:
       cache: false
       runInCI: true
       allowFailure: true
-      runFromWorkspaceRoot: true
+      runFromWorkspaceRoot: false
 
   format:
     command: "uv"

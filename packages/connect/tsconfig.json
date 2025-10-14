@@ -33,34 +33,5 @@
     "../tsconfig/**/*",
     "src/**/*"
   ],
-  "exclude": ["node_modules", "dist"],
-  "references": [
-    {
-      "path": "../auth"
-    },
-    {
-      "path": "../config"
-    },
-    {
-      "path": "../core"
-    },
-    {
-      "path": "../db"
-    },
-    {
-      "path": "../eslint-config"
-    },
-    {
-      "path": "../infrastructure"
-    },
-    {
-      "path": "../logger"
-    },
-    {
-      "path": "../schemas"
-    },
-    {
-      "path": "../tsconfig"
-    }
-  ]
+  "exclude": ["node_modules", "dist"]
 }

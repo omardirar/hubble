@@ -1,11 +1,8 @@
 {
   "extends": "@hubble/tsconfig/base.json",
   "compilerOptions": {
-    "composite": true,
-    "declaration": true,
-    "emitDeclarationOnly": true,
-    "rootDir": "src",
     "outDir": "dist",
+    "rootDir": "src",
     "skipLibCheck": true,
     "paths": {
       "@hubble/chat": ["../chat/src/index.ts"],
@@ -24,42 +21,6 @@
       "@hubble/types/*": ["../types/src/*"]
     }
   },
-  "include": [
-    "../chat/**/*",
-    "../connect/**/*",
-    "../core/**/*",
-    "../db/**/*",
-    "../eslint-config/**/*",
-    "../logger/**/*",
-    "../tsconfig/**/*",
-    "../types/**/*",
-    "src/**/*"
-  ],
-  "exclude": ["dist"],
-  "references": [
-    {
-      "path": "../chat"
-    },
-    {
-      "path": "../connect"
-    },
-    {
-      "path": "../core"
-    },
-    {
-      "path": "../db"
-    },
-    {
-      "path": "../eslint-config"
-    },
-    {
-      "path": "../logger"
-    },
-    {
-      "path": "../tsconfig"
-    },
-    {
-      "path": "../types"
-    }
-  ]
+  "include": ["src/**/*"],
+  "exclude": ["dist"]
 }

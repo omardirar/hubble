@@ -62,46 +62,5 @@
     "**/*.tsx",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules"],
-  "references": [
-    {
-      "path": "../../packages/auth"
-    },
-    {
-      "path": "../../packages/chat"
-    },
-    {
-      "path": "../../packages/config"
-    },
-    {
-      "path": "../../packages/connect"
-    },
-    {
-      "path": "../../packages/core"
-    },
-    {
-      "path": "../../packages/db"
-    },
-    {
-      "path": "../../packages/eslint-config"
-    },
-    {
-      "path": "../../packages/logger"
-    },
-    {
-      "path": "../../packages/schemas"
-    },
-    {
-      "path": "../../packages/server"
-    },
-    {
-      "path": "../../packages/tsconfig"
-    },
-    {
-      "path": "../../packages/types"
-    },
-    {
-      "path": "../../packages/ui"
-    }
-  ]
+  "exclude": ["node_modules"]
 }

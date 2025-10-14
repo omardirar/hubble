@@ -18,19 +18,5 @@
     "../tsconfig/**/*",
     "src/**/*"
   ],
-  "exclude": ["node_modules", "dist"],
-  "references": [
-    {
-      "path": "../config"
-    },
-    {
-      "path": "../core"
-    },
-    {
-      "path": "../eslint-config"
-    },
-    {
-      "path": "../tsconfig"
-    }
-  ]
+  "exclude": ["node_modules", "dist"]
 }

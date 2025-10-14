@@ -8,13 +8,5 @@
     }
   },
   "include": ["../eslint-config/**/*", "../tsconfig/**/*", "src/**/*"],
-  "exclude": ["node_modules", "dist"],
-  "references": [
-    {
-      "path": "../eslint-config"
-    },
-    {
-      "path": "../tsconfig"
-    }
-  ]
+  "exclude": ["node_modules", "dist"]
 }

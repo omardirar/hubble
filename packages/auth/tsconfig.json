@@ -1,10 +1,6 @@
 {
   "extends": "@hubble/tsconfig/base.json",
   "compilerOptions": {
-    "composite": true,
-    "declaration": true,
-    "emitDeclarationOnly": true,
-    "rootDir": "src",
     "outDir": "dist",
     "paths": {
       "@hubble/core": ["../core/src/index.ts"],
@@ -24,22 +20,5 @@
     "../logger/**/*",
     "../tsconfig/**/*",
     "src/**/*"
-  ],
-  "references": [
-    {
-      "path": "../core"
-    },
-    {
-      "path": "../db"
-    },
-    {
-      "path": "../eslint-config"
-    },
-    {
-      "path": "../logger"
-    },
-    {
-      "path": "../tsconfig"
-    }
   ]
 }

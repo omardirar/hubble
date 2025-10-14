@@ -2,7 +2,6 @@
   "extends": "@hubble/tsconfig/base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
     "paths": {
       "@hubble/auth": ["../auth/src/index.ts"],
       "@hubble/auth/*": ["../auth/src/*"],
@@ -40,40 +39,5 @@
     "../tsconfig/**/*",
     "src/**/*"
   ],
-  "exclude": ["node_modules", "dist"],
-  "references": [
-    {
-      "path": "../auth"
-    },
-    {
-      "path": "../chat"
-    },
-    {
-      "path": "../config"
-    },
-    {
-      "path": "../connect"
-    },
-    {
-      "path": "../core"
-    },
-    {
-      "path": "../db"
-    },
-    {
-      "path": "../eslint-config"
-    },
-    {
-      "path": "../infrastructure"
-    },
-    {
-      "path": "../logger"
-    },
-    {
-      "path": "../schemas"
-    },
-    {
-      "path": "../tsconfig"
-    }
-  ]
+  "exclude": ["node_modules", "dist"]
 }

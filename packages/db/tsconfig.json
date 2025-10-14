@@ -1,10 +1,6 @@
 {
   "extends": "@hubble/tsconfig/base.json",
   "compilerOptions": {
-    "composite": true,
-    "declaration": true,
-    "emitDeclarationOnly": true,
-    "rootDir": "src",
     "outDir": "dist",
     "paths": {
       "@hubble/config": ["../config/src/index.ts"],
@@ -13,16 +9,5 @@
       "@hubble/tsconfig/*": ["../tsconfig/*"]
     }
   },
-  "include": ["../config/**/*", "../eslint-config/**/*", "../tsconfig/**/*", "src/**/*"],
-  "references": [
-    {
-      "path": "../config"
-    },
-    {
-      "path": "../eslint-config"
-    },
-    {
-      "path": "../tsconfig"
-    }
-  ]
+  "include": ["../config/**/*", "../eslint-config/**/*", "../tsconfig/**/*", "src/**/*"]
 }

@@ -10,16 +10,5 @@
     }
   },
   "include": ["../eslint-config/**/*", "../schemas/**/*", "../tsconfig/**/*", "src/**/*"],
-  "exclude": ["node_modules", "dist"],
-  "references": [
-    {
-      "path": "../eslint-config"
-    },
-    {
-      "path": "../schemas"
-    },
-    {
-      "path": "../tsconfig"
-    }
-  ]
+  "exclude": ["node_modules", "dist"]
 }
