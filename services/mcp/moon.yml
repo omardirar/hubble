@@ -1,5 +1,6 @@
 $schema: "https://moonrepo.dev/schemas/project.json"
 
+id: "mcp"
 language: "unknown"
 layer: "configuration"
 stack: "infrastructure"
@@ -20,12 +21,12 @@ fileGroups:
     - "start.sh"
   sources:
     - "motherduck/src/**/*"
-    - "dice-roll/src/**/*"
 
 tasks:
   build:
     command: "docker"
     args:
+      - "buildx"
       - "build"
       - "-t"
       - "hubble-mcp"
@@ -40,8 +41,6 @@ tasks:
       - "pyproject.toml"
       - "motherduck/src/**/*"
       - "motherduck/pyproject.toml"
-      - "dice-roll/src/**/*"
-      - "dice-roll/pyproject.toml"
       - "/pyproject.toml"
       - "/uv.lock"
     options:
@@ -49,3 +48,17 @@ tasks:
       runInCI: true
       mergeArgs: "replace"
       mergeDeps: "replace"
+
+  dev:
+    command: "bash"
+    args:
+      - "-c"
+      - "
+        docker buildx build --load
+        -t hubble-mcp:latest
+        -f Dockerfile .
+        && docker run --rm
+        -p 8080:8080
+        --name hubble-mcp
+        hubble-mcp:latest"
+    description: "Build and run MCP gateway locally"

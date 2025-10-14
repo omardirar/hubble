@@ -14,14 +14,14 @@ dependencies = [
   "mcp>=1.17.0",
 ]
 
-# Development dependencies managed at workspace level
-
 [build-system]
 requires = ["hatchling>=1.25.0"]
 build-backend = "hatchling.build"
 
+# Only include the real package under src/
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+packages = ["src/hubble_agents"]
 
+# If you expose a CLI, point it at the package path (not src.*)
 [project.scripts]
-cli = "src.cli:main"
+cli = "hubble_agents.cli:main"

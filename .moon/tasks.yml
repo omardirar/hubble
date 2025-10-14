@@ -25,25 +25,28 @@ tasks:
     command: "true"
     args: []
     deps:
-      - { target: "^:build", args: [] }
+      - target: "^:build"
+    options: {}
 
   lint:
     command: "true"
     args: []
     deps:
-      - { target: "^:lint", args: [] }
+      - target: "^:lint"
+    options: {}
 
   typecheck:
     command: "true"
     args: []
     deps:
-      - { target: "^:typecheck", args: [] }
+      - target: "^:typecheck"
+    options: {}
 
   format:
     command: "true"
     args: []
     deps:
-      - { target: "^:format", args: [] }
+      - target: "^:format"
     options:
       cache: false
       runInCI: false
@@ -52,7 +55,7 @@ tasks:
     command: "true"
     args: []
     deps:
-      - { target: "^:format-check", args: [] }
+      - target: "^:format-check"
     options:
       cache: false
       runInCI: true

@@ -1,5 +1,6 @@
 $schema: "https://moonrepo.dev/schemas/project.json"
 
+id: "dice-roll"
 language: "python"
 layer: "application"
 stack: "backend"

@@ -1,5 +1,6 @@
 $schema: "https://moonrepo.dev/schemas/project.json"
 
+id: "eslint-config"
 language: "typescript"
 layer: "configuration"
 stack: "infrastructure"

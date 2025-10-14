@@ -1,5 +1,6 @@
 $schema: "https://moonrepo.dev/schemas/project.json"
 
+id: "dashboard"
 language: "typescript"
 layer: "application"
 stack: "frontend"
@@ -46,13 +47,15 @@ tasks:
       - "postcss.config.*"
     options:
       affectedFiles: false
+      cache: true
+      runInCI: true
 
   start:
     command: "next"
     args:
       - "start"
     deps:
-      - { target: "~:build", args: [] }
+      - target: "~:build"
     local: true
     options:
       cache: false

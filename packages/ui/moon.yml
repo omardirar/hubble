@@ -1,5 +1,6 @@
 $schema: "https://moonrepo.dev/schemas/project.json"
 
+id: "ui"
 language: "typescript"
 layer: "library"
 stack: "frontend"

@@ -1,5 +1,6 @@
 $schema: "https://moonrepo.dev/schemas/project.json"
 
+id: "tsconfig"
 language: "typescript"
 layer: "configuration"
 stack: "infrastructure"

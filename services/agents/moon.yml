@@ -1,5 +1,6 @@
 $schema: "https://moonrepo.dev/schemas/project.json"
 
+id: "agents"
 language: "python"
 layer: "application"
 stack: "backend"
@@ -7,9 +8,6 @@ stack: "backend"
 tags:
   - "agents"
   - "python"
-
-dependsOn:
-  - "mcp"
 
 toolchain:
   python:
@@ -19,65 +17,86 @@ fileGroups:
   sources:
     - "src/**/*.py"
     - "*.py"
-  tests:
-    - "tests/**/*.py"
+  docker:
+    - "Dockerfile"
+    - "pyproject.toml"
+    - "src/**"
+  env:
+    - ".env.local"
 
 tasks:
+  # Build a local image you can run immediately (uses buildx + --load)
   build:
     command: "docker"
     args:
+      - "buildx"
       - "build"
+      - "--load"
       - "-t"
-      - "mcp-agents"
+      - "hubble-agents:latest"
+      - "-f"
+      - "Dockerfile"
       - "."
     inputs:
-      - "Dockerfile"
-      - "src/**/*.py"
-      - "*.py"
-    outputs:
-      - "mcp-agents-image.tar"
+      - "@group(docker)"
     options:
       cache: true
       runInCI: true
 
+  # One-shot dev: build + run the container with env file
   dev:
+    command: "bash"
+    args:
+      - "-c"
+      - "
+        docker buildx build --load
+        -t hubble-agents:latest
+        -f Dockerfile .
+        &&
+        docker run --rm
+        -p 8000:8000
+        --name hubble-agents
+        --env-file .env.local
+        hubble-agents:latest"
+    inputs:
+      - "@group(docker)"
+      - "@group(env)"
+    options:
+      cache: false
+      persistent: false
+      runInCI: false
+    local: true
+
+  # Local hot-reload without Docker (uses your interpreter)
+  api-dev:
     command: "uvicorn"
     args:
-      - "src.main:app"
+      - "hubble_agents.main:app"
       - "--reload"
       - "--host"
       - "0.0.0.0"
       - "--port"
       - "8000"
     inputs:
-      - "src/**/*.py"
-      - "*.py"
-    outputs:
-      - "**/*.pyc"
-      - "__pycache__/**"
+      - "@group(sources)"
     options:
       cache: false
       persistent: true
       runInCI: false
     local: true
 
+  # Run the CLI entrypoint with your local Python (not in Docker)
   cli:
     command: "bash"
     args:
-      - "-c"
+      - "-lc"
       - "uv run cli"
     inputs:
-      - "src/**/*.py"
-      - "*.py"
+      - "@group(sources)"
       - "pyproject.toml"
-      - "/pyproject.toml" # Root workspace pyproject.toml
-    outputs:
-      - "**/*.pyc"
-      - "__pycache__/**"
-      - "responses/**/*.json" # CLI saves responses here
     options:
       cache: false
       runInCI: false
       interactive: true
-      runFromWorkspaceRoot: true
+      runFromWorkspaceRoot: false
     local: true
