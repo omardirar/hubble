@@ -22,40 +22,26 @@ fileGroups:
 
 tasks:
   build:
-    command: "echo"
-    args:
-      - "global build aggregator"
+    command: "true"
+    args: []
     deps:
       - { target: "^:build", args: [] }
 
   lint:
-    command: "echo"
-    args:
-      - "global lint aggregator"
+    command: "true"
+    args: []
     deps:
       - { target: "^:lint", args: [] }
 
   typecheck:
-    command: "echo"
-    args:
-      - "global typecheck aggregator"
+    command: "true"
+    args: []
     deps:
       - { target: "^:typecheck", args: [] }
 
-  test:
-    command: "echo"
-    args:
-      - "global test aggregator"
-    deps:
-      - { target: "^:test", args: [] }
-    options:
-      cache: true
-      runInCI: true
-
   format:
-    command: "echo"
-    args:
-      - "global format aggregator"
+    command: "true"
+    args: []
     deps:
       - { target: "^:format", args: [] }
     options:
@@ -63,9 +49,8 @@ tasks:
       runInCI: false
 
   format-check:
-    command: "echo"
-    args:
-      - "global format-check aggregator"
+    command: "true"
+    args: []
     deps:
       - { target: "^:format-check", args: [] }
     options:

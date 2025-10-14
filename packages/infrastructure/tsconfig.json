@@ -11,12 +11,6 @@
       "@hubble/tsconfig/*": ["../tsconfig/*"]
     }
   },
-  "include": [
-    "../config/**/*",
-    "../core/**/*",
-    "../eslint-config/**/*",
-    "../tsconfig/**/*",
-    "src/**/*"
-  ],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

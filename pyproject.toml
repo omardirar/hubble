@@ -116,7 +116,13 @@ show_error_codes = true
 # Handle monorepo structure for workspace
 explicit_package_bases = true
 # Exclude workspace-level __init__.py files that cause duplicate module errors
-exclude = ["^services/__init__.py$", "^services/agents/__init__.py$"]
+exclude = [
+  "^services/__init__.py$",
+  "^services/agents/__init__.py$",
+  "^services/agents/pyproject.toml$",
+  "^services/mcp/*/pyproject.toml$",
+  "^pyproject.toml$",
+]
 
 [[tool.mypy.overrides]]
 module = "tests.*"

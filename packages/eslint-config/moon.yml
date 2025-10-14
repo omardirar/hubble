@@ -9,22 +9,10 @@ tags:
 
 workspace:
   inheritedTasks:
-    exclude: ["lint", "typecheck", "format", "format-check"]
+    exclude: ["lint", "typecheck", "format", "format-check", "build"]
 
 fileGroups:
   sources:
     - "*.mjs"
     - "*.d.ts"
     - "*.json"
-
-tasks:
-  build:
-    command: "echo"
-    args:
-      - "No build needed for eslint-config package"
-    options:
-      cache: true
-      runInCI: true
-      mergeArgs: "replace"
-      mergeDeps: "replace"
-      mergeOutputs: "replace"

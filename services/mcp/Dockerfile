@@ -1,9 +1,9 @@
-FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim as base
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS base
 
 WORKDIR /app
 
 # Install Caddy
-FROM caddy:2-alpine as caddy
+FROM caddy:2-alpine AS caddy
 
 # Final stage
 FROM base

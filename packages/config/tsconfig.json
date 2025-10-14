@@ -7,5 +7,5 @@
       "@hubble/tsconfig/*": ["../tsconfig/*"]
     }
   },
-  "include": ["../eslint-config/**/*", "../tsconfig/**/*", "src/**/*"]
+  "include": ["src/**/*"]
 }

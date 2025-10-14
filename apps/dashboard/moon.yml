@@ -44,6 +44,8 @@ tasks:
       - "next.config.*"
       - "tailwind.config.*"
       - "postcss.config.*"
+    options:
+      affectedFiles: false
 
   start:
     command: "next"

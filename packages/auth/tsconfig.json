@@ -13,12 +13,5 @@
       "@hubble/tsconfig/*": ["../tsconfig/*"]
     }
   },
-  "include": [
-    "../core/**/*",
-    "../db/**/*",
-    "../eslint-config/**/*",
-    "../logger/**/*",
-    "../tsconfig/**/*",
-    "src/**/*"
-  ]
+  "include": ["src/**/*"]
 }
