@@ -4,63 +4,13 @@
     "allowJs": true,
     "noEmit": true,
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "plugins": [{ "name": "next" }],
     "baseUrl": ".",
     "types": ["node", "vitest", "vitest/globals"],
     "paths": {
-      "@/*": ["./src/*"],
-      "@hubble/ui": ["../../packages/ui/src/index.ts"],
-      "@hubble/ui/*": ["../../packages/ui/src/*"],
-      "@hubble/utils": ["../../packages/utils/src/index.ts"],
-      "@hubble/utils/*": ["../../packages/utils/src/*"],
-      "@hubble/config": ["../../packages/config/src/index.ts"],
-      "@hubble/config/*": ["../../packages/config/src/*"],
-      "@hubble/db": ["../../packages/db/src/index.ts"],
-      "@hubble/db/*": ["../../packages/db/src/*"],
-      "@hubble/auth": ["../../packages/auth/src/index.ts"],
-      "@hubble/auth/*": ["../../packages/auth/src/*"],
-      "@hubble/schemas": ["../../packages/schemas/src/index.ts"],
-      "@hubble/schemas/*": ["../../packages/schemas/src/*"],
-      "@hubble/core": ["../../packages/core/src/index.ts"],
-      "@hubble/core/*": ["../../packages/core/src/*"],
-      "@hubble/connect": ["../../packages/connect/src/index.ts"],
-      "@hubble/connect/*": ["../../packages/connect/src/*"],
-      "@hubble/chat": ["../../packages/chat/src/index.ts"],
-      "@hubble/chat/*": ["../../packages/chat/src/*"],
-      "@hubble/server": ["../../packages/server/src/index.ts"],
-      "@hubble/server/*": ["../../packages/server/src/*"],
-      "@hubble/types": ["../../packages/types/src/index.ts"],
-      "@hubble/types/*": ["../../packages/types/src/*"],
-      "@hubble/infrastructure": ["../../packages/infrastructure/src/index.ts"],
-      "@hubble/infrastructure/*": ["../../packages/infrastructure/src/*"],
-      "@hubble/eslint-config/*": ["../../packages/eslint-config/*"],
-      "@hubble/logger": ["../../packages/logger/src/index.ts"],
-      "@hubble/logger/*": ["../../packages/logger/src/*"],
-      "@hubble/tsconfig/*": ["../../packages/tsconfig/*"]
+      "@/*": ["./src/*"]
     }
   },
-  "include": [
-    "next-env.d.ts",
-    "../../packages/auth/**/*",
-    "../../packages/chat/**/*",
-    "../../packages/config/**/*",
-    "../../packages/connect/**/*",
-    "../../packages/core/**/*",
-    "../../packages/db/**/*",
-    "../../packages/eslint-config/**/*",
-    "../../packages/logger/**/*",
-    "../../packages/schemas/**/*",
-    "../../packages/server/**/*",
-    "../../packages/tsconfig/**/*",
-    "../../packages/types/**/*",
-    "../../packages/ui/**/*",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts"
-  ],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }

@@ -1,25 +1,5 @@
-# Workspace configuration for unified Python development
-# This file configures UV to use a single .venv at the repository root
-# for all Python projects in the workspace
-
-[project]
-name = "hubble-workspace"
-version = "1.0.0"
-description = "Hubble development workspace with unified virtual environment"
-requires-python = ">=3.12,<3.13"
-dependencies = ["hubble-mcp-motherduck", "hubble-agents"]
-
-[project.scripts]
-mcp-server-motherduck = "motherduck:main"
-cli = "src.cli:main"
-
-[build-system]
-requires = ["hatchling>=1.25.0"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = []
-include = ["pyproject.toml"]
+# Root workspace coordinator - NOT a package
+# Manages Python workspace members and shared tooling configuration
 
 [tool.uv.workspace]
 members = [
@@ -29,43 +9,10 @@ members = [
 ]
 
 [tool.uv]
-# Ensure UV uses managed Python installations
 python-preference = "managed"
-# Automatically download Python if needed
 python-downloads = "automatic"
-# Ensure consistency across all workspace members
-fork-strategy = "requires-python"
 
 [dependency-groups]
-# Core shared dependencies used across multiple workspace members
-shared = [
-  "mcp>=1.17.0",
-  "pydantic>=2.12.0",
-  "starlette>=0.48.0",
-  "uvicorn[standard]>=0.37.0",
-  "anyio>=4.4.0",
-]
-
-# Agent-specific dependencies
-agents = [
-  "pydantic-ai>=1.0.0",
-  "pydantic-settings>=2.11.0",
-  "fastapi>=0.118.0",
-  "httpx[http2]>=0.28.0",
-  "sse-starlette>=1.6.0",
-  "python-multipart>=0.0.6",
-  "zstandard>=0.22.0",
-]
-
-# Data processing dependencies for MotherDuck MCP
-data = [
-  "duckdb>=1.3.1",
-  "pyarrow>=21.0.0",
-  "tabulate>=0.9.0",
-  "pytz>=2024.1",
-  "sqlparse>=0.5.0",
-]
-
 dev = [
   "pytest>=8.1.0",
   "pytest-asyncio>=0.23.0",
@@ -75,33 +22,34 @@ dev = [
   "ruff>=0.14.0",
   "mypy>=1.10.0",
   "pyright>=1.1.379",
-  "no-implicit-optional>=1.4",
-  "safety>=2.3.0",
-  "bandit>=1.7.0",
-  # Type stubs for dependencies used in workspace
-  "types-requests==2.32.0.20241016",
-  "types-pyyaml==6.0.12.20241230",
-  "types-setuptools==75.6.0.20241223",
+  "types-requests>=2.32.0.20241016",
   "types-tabulate>=0.9.0",
   "types-pytz>=2024.2.0",
-  "types-click>=7.1.0",
-  "hubble-mcp-motherduck",
 ]
 
-[tool.uv.pip]
-# Use the workspace-wide Python version requirement for pip operations
-python-version = "3.12"
-
-[tool.uv.sources]
-hubble-agents = { workspace = true }
-hubble-mcp-motherduck = { workspace = true }
+# ============================================================================
+# Shared Tooling Configuration (applies to all workspace members)
+# ============================================================================
 
 [tool.ruff]
 target-version = "py312"
+line-length = 100
 src = ["services/*/src", "services/*/*/src"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes
+  "I",   # isort
+  "UP",  # pyupgrade
+  "B",   # flake8-bugbear
+  "SIM", # flake8-simplify
+  "RUF", # ruff-specific rules
+]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["hubble_agents", "motherduck"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -111,25 +59,20 @@ warn_unused_configs = true
 warn_unused_ignores = false
 disallow_untyped_defs = true
 ignore_missing_imports = false
-namespace_packages = true
 show_error_codes = true
-# Handle monorepo structure for workspace
-explicit_package_bases = true
-# Exclude workspace-level __init__.py files that cause duplicate module errors
-exclude = [
-  "^services/__init__.py$",
-  "^services/agents/__init__.py$",
-  "^services/agents/pyproject.toml$",
-  "^services/mcp/*/pyproject.toml$",
-  "^pyproject.toml$",
-]
+# Exclude root-level scripts and utilities
+exclude = ["^generate_token\\.py$", "^scripts/"]
 
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = "pyarrow"
+module = ["hubble_agents.*", "motherduck.*"]
+ignore_missing_imports = false
+
+[[tool.mypy.overrides]]
+module = ["pyarrow", "duckdb", "redis.*", "supabase.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -155,16 +98,5 @@ exclude_lines = [
   "def __repr__",
   "raise AssertionError",
   "raise NotImplementedError",
+  "if TYPE_CHECKING:",
 ]
-
-# Bandit security linting configuration
-[tool.bandit]
-exclude_dirs = ["tests", "test_*"]
-skips = [
-  "B101",
-  "B601",
-] # Skip assert checks and shell calls in trusted contexts
-
-# Safety vulnerability checking
-[tool.safety]
-ignore = [] # Add vulnerability IDs to ignore if needed

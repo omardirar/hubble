@@ -15,6 +15,8 @@ tasks:
     command: "uv"
     args:
       - "run"
+      - "--project"
+      - "$workspaceRoot"
       - "ruff"
       - "check"
       - "."
@@ -29,12 +31,14 @@ tasks:
       cache: false
       runInCI: true
       allowFailure: true
-      runFromWorkspaceRoot: true
+      runFromWorkspaceRoot: false
 
   lint-fix:
     command: "uv"
     args:
       - "run"
+      - "--project"
+      - "$workspaceRoot"
       - "ruff"
       - "check"
       - "--fix"
@@ -50,12 +54,14 @@ tasks:
       cache: false
       runInCI: false
       allowFailure: true
-      runFromWorkspaceRoot: true
+      runFromWorkspaceRoot: false
 
   typecheck:
     command: "uv"
     args:
       - "run"
+      - "--project"
+      - "$workspaceRoot"
       - "mypy"
       - "."
     inputs:
@@ -75,6 +81,8 @@ tasks:
     command: "uv"
     args:
       - "run"
+      - "--project"
+      - "$workspaceRoot"
       - "ruff"
       - "format"
       - "."
@@ -89,12 +97,14 @@ tasks:
       cache: false
       runInCI: false
       allowFailure: true
-      runFromWorkspaceRoot: true
+      runFromWorkspaceRoot: false
 
   format-check:
     command: "uv"
     args:
       - "run"
+      - "--project"
+      - "$workspaceRoot"
       - "ruff"
       - "format"
       - "--check"
@@ -110,4 +120,4 @@ tasks:
       cache: false
       runInCI: true
       allowFailure: true
-      runFromWorkspaceRoot: true
+      runFromWorkspaceRoot: false

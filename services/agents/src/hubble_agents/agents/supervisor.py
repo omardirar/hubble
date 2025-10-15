@@ -1,8 +1,10 @@
 """Supervisor agent with tool delegation pattern"""
 
+import contextlib
 import json
 import logging
 import uuid
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from typing import Any
 
@@ -11,6 +13,7 @@ from pydantic_ai.messages import ToolCallPart
 from pydantic_ai.run import AgentRunResult
 from pydantic_ai.usage import UsageLimits
 
+from ..events.broker import EventStreamBroker
 from ..mcp_client.session import get_session_tracker
 from ..models import EventType
 from ..models.event_tracker import EventTracker
@@ -178,17 +181,13 @@ async def provide_marketing_advice(
 
     except Exception as e:
         # Emit agent_run_failed (NOT tool_call_error)
-        error_code = (
-            "total_tokens_limit" if "total_tokens_limit" in str(e) else "UNKNOWN_ERROR"
-        )
+        error_code = "total_tokens_limit" if "total_tokens_limit" in str(e) else "UNKNOWN_ERROR"
 
         ctx.deps.add_event(
             event_type=EventType.AGENT_RUN_FAILED,
             agent="marketer_agent",
             content=f"Error in marketer_agent: {e!s}",
-            metadata=create_failed_event_data(
-                create_error_info(code=error_code, message=str(e))
-            ),
+            metadata=create_failed_event_data(create_error_info(code=error_code, message=str(e))),
         )
 
         # Log tool error
@@ -321,9 +320,7 @@ async def run_supervisor_workflow(
     allowed = ("user", "system", "automation")
     rb: str = requested_by if requested_by in allowed else "user"
     rb_lit = cast(Literal["user", "system", "automation"], rb)  # type: ignore[valid-type]
-    request = build_request_info(
-        user_message, requested_by=rb_lit, timestamp=start_time
-    )
+    request = build_request_info(user_message, requested_by=rb_lit, timestamp=start_time)
 
     # Build workflow config
     workflow = build_workflow_config(
@@ -345,16 +342,16 @@ async def run_supervisor_workflow(
         supervisor_agent = get_supervisor_agent()
 
         # Run supervisor agent with event stream handler
-        result = await supervisor_agent.run(
+        async with supervisor_agent.run_stream(
             user_message,
             deps=event_tracker,  # type: ignore[arg-type]
             usage_limits=UsageLimits(request_limit=10, total_tokens_limit=5000),
             event_stream_handler=stream_aggregator.handle_event,  # type: ignore[arg-type]
-        )
-
-        # Synthesize non-streaming events if needed
-        await stream_aggregator.synthesize_non_streaming(result)
-        event_tracker.record_agent_result("supervisor", result)
+        ) as stream_result:
+            result = stream_result  # type: ignore[assignment]
+            # Synthesize non-streaming events if needed
+            await stream_aggregator.synthesize_non_streaming(result)  # type: ignore[arg-type]
+            event_tracker.record_agent_result("supervisor", result)  # type: ignore[arg-type]
 
         # Log workflow completion
         event_tracker.add_workflow_complete(
@@ -388,18 +385,12 @@ async def run_supervisor_workflow(
             usage.tool_calls = max(usage.tool_calls, event_usage.tool_calls)
             usage.input_tokens = max(usage.input_tokens, event_usage.input_tokens)
             usage.output_tokens = max(usage.output_tokens, event_usage.output_tokens)
-            usage.reasoning_tokens = max(
-                usage.reasoning_tokens, event_usage.reasoning_tokens
-            )
-            usage.cache_write_tokens = max(
-                usage.cache_write_tokens, event_usage.cache_write_tokens
-            )
-            usage.cache_read_tokens = max(
-                usage.cache_read_tokens, event_usage.cache_read_tokens
-            )
+            usage.reasoning_tokens = max(usage.reasoning_tokens, event_usage.reasoning_tokens)
+            usage.cache_write_tokens = max(usage.cache_write_tokens, event_usage.cache_write_tokens)
+            usage.cache_read_tokens = max(usage.cache_read_tokens, event_usage.cache_read_tokens)
 
         # Build output result
-        output = build_output_result("text", result.output or "")
+        output = build_output_result("text", result.output if result else "")
 
         # Build messages envelope with optional compression
         messages = build_messages_envelope(result, compress=compress_messages)
@@ -434,9 +425,7 @@ async def run_supervisor_workflow(
         response_dict = final_response.model_dump()
         return response_dict
     except Exception as e:
-        logger.error(
-            "Supervisor workflow error", {"error": str(e), "run_id": str(run_id)}
-        )
+        logger.error("Supervisor workflow error", {"error": str(e), "run_id": str(run_id)})
 
         # Flush any remaining events
         await stream_aggregator.flush()
@@ -550,9 +539,7 @@ def _agent_config_from_result(
         config = AgentConfig(
             name=agent_name,
             role=inferred_role,
-            model=ModelConfig(
-                provider=provider_name or "unknown", name=model_name or "unknown"
-            ),
+            model=ModelConfig(provider=provider_name or "unknown", name=model_name or "unknown"),
             model_settings=ModelSettings(temperature=0.0, max_tokens=0, top_p=1.0),
         )
 
@@ -562,9 +549,7 @@ def _agent_config_from_result(
             model_update["name"] = model_name
         if provider_name:
             model_update["provider"] = provider_name
-        config = config.model_copy(
-            update={"model": config.model.model_copy(update=model_update)}
-        )
+        config = config.model_copy(update={"model": config.model.model_copy(update=model_update)})
 
     return config
 
@@ -621,9 +606,7 @@ def _routing_candidates_from_result(
 
     if not candidates:
         candidates.append(
-            create_routing_candidate(
-                type="agent", target="supervisor", score=1.0, eligible=True
-            )
+            create_routing_candidate(type="agent", target="supervisor", score=1.0, eligible=True)
         )
 
     selected = candidates[0].target
@@ -636,9 +619,7 @@ def _build_routing_decision(
 ) -> RoutingDecision:
     supervisor_result = tracker.get_agent_result("supervisor")
     if supervisor_result is not None or tracker.agent_results:
-        selected, confidence, candidates = _routing_candidates_from_result(
-            supervisor_result
-        )
+        selected, confidence, candidates = _routing_candidates_from_result(supervisor_result)
         return build_routing_decision(
             user_message=user_message,
             selected_agent=selected,
@@ -649,9 +630,7 @@ def _build_routing_decision(
     return _build_routing_from_events(user_message, events)
 
 
-def _build_routing_from_events(
-    user_message: str, events: list[EventRecord]
-) -> RoutingDecision:
+def _build_routing_from_events(user_message: str, events: list[EventRecord]) -> RoutingDecision:
     """Construct routing decision based on observed tool usage."""
     tool_candidates: list[dict[str, Any]] = []
     seen_targets: set[str] = set()
@@ -683,3 +662,239 @@ def _build_routing_from_events(
         strategy="prompt_router",
         candidates=candidates_data,
     )
+
+
+async def run_supervisor_workflow_streaming(
+    user_message: str,
+    conversation_id: str = "cli-session",
+    org_id: str = "cli-org",
+    user_id: str = "cli-user",
+    motherduck_token: str | None = None,
+    database_name: str | None = None,
+    mcp_server_url: str | None = None,
+    retry_of: uuid.UUID | None = None,
+    attempt: int = 1,
+    correlation_id: uuid.UUID | None = None,
+    requested_by: str = "user",
+    policy_version: str = "1.0",
+    compress_messages: bool = False,
+    test_mode: bool = False,
+) -> AsyncGenerator[dict[str, Any], None]:
+    """Run the supervisor workflow with true incremental streaming (Phase 3B)
+
+    This function yields SSE events in real-time as the agents execute:
+    - TEXT_DELTA: Incremental text chunks from agent responses
+    - THINKING_DELTA: Incremental thinking/reasoning chunks
+    - AGENT_RUN_STARTED/COMPLETED: Agent lifecycle events
+    - TOOL_CALL_STARTED/COMPLETED: Tool execution events
+    - WORKFLOW_START/COMPLETE: Workflow lifecycle events
+    """
+
+    # Generate UUID4 run ID
+    run_id = uuid.uuid4()
+    start_time = datetime.now(UTC)
+
+    # Create event broker for streaming
+    broker = EventStreamBroker()
+
+    # Create shared event tracker with broker integration
+    event_tracker = EventTracker(broker=broker)
+    stream_aggregator = StreamAggregator(event_tracker)
+    session_tracker = get_session_tracker()
+
+    # Build conversation context
+    conversation = build_conversation_context(conversation_id, org_id, user_id)
+
+    # Build request info
+    from typing import Literal, cast
+
+    allowed = ("user", "system", "automation")
+    rb: str = requested_by if requested_by in allowed else "user"
+    rb_lit = cast(Literal["user", "system", "automation"], rb)  # type: ignore[valid-type]
+    request = build_request_info(user_message, requested_by=rb_lit, timestamp=start_time)
+
+    # Build workflow config
+    workflow = build_workflow_config(
+        type="multi_agent",
+        supervisor_agent="supervisor",
+        sub_agents=[
+            {"name": "marketer_agent", "as_tool": True},
+            {"name": "analyst_agent", "as_tool": True},
+        ],
+    )
+
+    result: AgentRunResult[Any] | None = None
+
+    try:
+        # Log workflow start
+        event_tracker.add_workflow_start(entrypoint="supervisor_workflow")
+
+        # Emit workflow start event
+        yield {
+            "event": "WORKFLOW_START",
+            "data": {
+                "run_id": str(run_id),
+                "entrypoint": "supervisor_workflow",
+                "timestamp": start_time.isoformat(),
+            },
+        }
+
+        # Create supervisor agent at runtime
+        supervisor_agent = get_supervisor_agent()
+
+        # Start a background task to forward broker events to the response stream
+        import asyncio
+
+        event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+
+        async def forward_broker_to_queue() -> None:
+            """Forward broker events to our response queue"""
+            async for event in broker.subscribe():
+                await event_queue.put(event)
+
+        # Start the broker forwarding task
+        forward_task = asyncio.create_task(forward_broker_to_queue())
+
+        try:
+            # Run supervisor agent (non-streaming but with event_stream_handler)
+            # The EventTracker will publish deltas to the broker in real-time
+            result_task = asyncio.create_task(
+                supervisor_agent.run(
+                    user_message,
+                    deps=event_tracker,  # type: ignore[arg-type]
+                    usage_limits=UsageLimits(request_limit=10, total_tokens_limit=5000),
+                    event_stream_handler=stream_aggregator.handle_event,  # type: ignore[arg-type]
+                )
+            )
+
+            # Stream events from the broker queue while the agent runs
+            while not result_task.done():
+                try:
+                    # Wait for broker events with a short timeout
+                    event = await asyncio.wait_for(event_queue.get(), timeout=0.1)
+                    yield event
+                except TimeoutError:
+                    # No events in queue, check if agent is done
+                    continue
+
+            # Get the final result
+            result = await result_task
+
+            # Drain any remaining broker events
+            while not event_queue.empty():
+                try:
+                    event = event_queue.get_nowait()
+                    yield event
+                except asyncio.QueueEmpty:
+                    break
+
+        finally:
+            # Cancel the broker forwarding task
+            forward_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await forward_task
+
+        # Synthesize non-streaming events if needed
+        await stream_aggregator.synthesize_non_streaming(result)
+        event_tracker.record_agent_result("supervisor", result)
+
+        # Log workflow completion
+        event_tracker.add_workflow_complete(
+            status="succeeded", total_events=len(event_tracker.events) + 1
+        )
+
+        # Emit workflow complete event
+        yield {
+            "event": "WORKFLOW_COMPLETE",
+            "data": {
+                "run_id": str(run_id),
+                "status": "succeeded",
+                "timestamp": datetime.now(UTC).isoformat(),
+            },
+        }
+
+        # Build final response with all metadata
+        end_time = datetime.now(UTC)
+        run = build_run_info(
+            run_id=run_id,
+            started_at=start_time,
+            completed_at=end_time,
+            status="succeeded",
+            workflow=workflow,
+            retry_of=retry_of,
+            attempt=attempt,
+            correlation_id=correlation_id,
+            tags=["production", "v1.3", "streaming"],
+        )
+
+        events = event_tracker.to_v1_3_events()
+        routing = _build_routing_decision(user_message, event_tracker, events)
+        agents = _build_agents_from_tracker(event_tracker)
+
+        usage = extract_usage_from_result(result)
+        event_usage = compute_run_usage(events)
+        if usage.requests == 0 and usage.tool_calls == 0:
+            usage = event_usage
+        else:
+            usage.requests = max(usage.requests, event_usage.requests)
+            usage.tool_calls = max(usage.tool_calls, event_usage.tool_calls)
+            usage.input_tokens = max(usage.input_tokens, event_usage.input_tokens)
+            usage.output_tokens = max(usage.output_tokens, event_usage.output_tokens)
+            usage.reasoning_tokens = max(usage.reasoning_tokens, event_usage.reasoning_tokens)
+            usage.cache_write_tokens = max(usage.cache_write_tokens, event_usage.cache_write_tokens)
+            usage.cache_read_tokens = max(usage.cache_read_tokens, event_usage.cache_read_tokens)
+
+        # Build output result
+        output = build_output_result("text", result.output or "")
+
+        # Build messages envelope
+        messages = build_messages_envelope(result, compress=compress_messages)
+
+        # Build MCP info
+        mcp = MCPInfo(
+            servers=session_tracker.get_servers(),
+            sessions=session_tracker.get_all_sessions(),
+        )
+
+        # Build policy
+        policy = build_policy(
+            thinking_visibility="full", pii_filter=False, policy_version=policy_version
+        )
+
+        # Create final response
+        final_response = create_final_response(
+            conversation=conversation,
+            request=request,
+            run=run,
+            agents=agents,
+            routing=routing,
+            output=output,
+            usage=usage,
+            messages=messages,
+            events=events,
+            mcp=mcp,
+            policy=policy,
+        )
+
+        # Emit final response as FINAL event
+        yield {
+            "event": "FINAL",
+            "data": final_response.model_dump(),
+        }
+
+    except Exception as e:
+        logger.error(
+            "Supervisor workflow streaming error",
+            {"error": str(e), "run_id": str(run_id)},
+        )
+
+        # Emit error event
+        yield {
+            "event": "ERROR",
+            "data": {
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "run_id": str(run_id),
+                "timestamp": datetime.now(UTC).isoformat(),
+            },
+        }

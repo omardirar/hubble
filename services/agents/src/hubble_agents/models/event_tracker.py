@@ -52,18 +52,12 @@ class EventTracker:
     """Shared event tracker for all agents in the workflow with aggregation support"""
 
     events: list[WorkflowEvent] = field(default_factory=list)
-    delta_buffers: dict[str, str] = field(
-        default_factory=dict
-    )  # event_id -> accumulated_content
+    delta_buffers: dict[str, str] = field(default_factory=dict)  # event_id -> accumulated_content
     _correlation_ids: dict[str, str] = field(
         default_factory=dict
     )  # start_event_id -> correlation_id
-    _completed_events: set[str] = field(
-        default_factory=set
-    )  # Track completed event IDs
-    _truncated_buffers: set[str] = field(
-        default_factory=set
-    )  # Track truncated event IDs
+    _completed_events: set[str] = field(default_factory=set)  # Track completed event IDs
+    _truncated_buffers: set[str] = field(default_factory=set)  # Track truncated event IDs
     _active_thinking_metadata: dict[str, dict[str, Any]] = field(
         default_factory=dict
     )  # event_id -> metadata
@@ -84,6 +78,8 @@ class EventTracker:
     stream_aggregator: "StreamAggregator | None" = None
     agent_results: dict[str, AgentRunResult[Any]] = field(default_factory=dict)
     _mcp_request_payloads: dict[str, dict[str, Any]] = field(default_factory=dict)
+    broker: Any = None  # EventStreamBroker (avoid circular import)
+    _background_tasks: set[asyncio.Task[Any]] = field(default_factory=set)
 
     def add_event(
         self,
@@ -99,9 +95,7 @@ class EventTracker:
         """Add an event to the timeline and return its ID"""
         # Validate event type
         if not isinstance(event_type, EventType):
-            raise TypeError(
-                f"event_type must be EventType enum, got {type(event_type)}"
-            )
+            raise TypeError(f"event_type must be EventType enum, got {type(event_type)}")
 
         # Assign insertion index for deterministic ordering
         insertion_index = self._insertion_counter
@@ -237,8 +231,7 @@ class EventTracker:
 
             logger = logging.getLogger(__name__)
             logger.warning(
-                f"Duplicate workflow_start attempt "
-                f"(#{self.workflow_start_attempts}) - ignoring"
+                f"Duplicate workflow_start attempt (#{self.workflow_start_attempts}) - ignoring"
             )
             return None  # Already emitted
 
@@ -296,9 +289,7 @@ class EventTracker:
         """Add workflow_cancelled event"""
         self.event_sequence += 1
 
-        data = WorkflowCancelledData(
-            error=error, workflow_stage=workflow_stage, run_id=run_id
-        )
+        data = WorkflowCancelledData(error=error, workflow_stage=workflow_stage, run_id=run_id)
 
         return self.add_event(
             event_type=EventType.WORKFLOW_CANCELLED,
@@ -350,7 +341,7 @@ class EventTracker:
         return event_id
 
     def add_thinking_delta(self, event_id: str, delta: str) -> None:
-        """Add thinking delta with overflow protection"""
+        """Add thinking delta with overflow protection and broker publishing"""
         # Check if already truncated - refuse further appends
         if event_id in self._truncated_buffers:
             return
@@ -359,19 +350,27 @@ class EventTracker:
             self.delta_buffers[event_id] = ""
 
         current_content = self.delta_buffers[event_id]
+
+        # Publish delta to broker for real-time streaming (Phase 3B)
+        if self.broker and delta:
+            agent = self._active_thinking_metadata.get(event_id, {}).get("agent", "unknown")
+            # Schedule async publish without blocking
+            task = asyncio.create_task(
+                self.broker.publish_delta("thinking_delta", agent, delta, event_id)
+            )
+            # Store reference to prevent garbage collection
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
+
         if len(current_content) + len(delta) > self.max_buffer_chars:
             # Truncate with marker and mark as truncated
             remaining_chars = self.max_buffer_chars - len(current_content)
             if remaining_chars > 0:
                 self.delta_buffers[event_id] = (
-                    current_content
-                    + delta[:remaining_chars]
-                    + "...[truncated at 20000 chars]"
+                    current_content + delta[:remaining_chars] + "...[truncated at 20000 chars]"
                 )
             else:
-                self.delta_buffers[event_id] = (
-                    current_content + "...[truncated at 20000 chars]"
-                )
+                self.delta_buffers[event_id] = current_content + "...[truncated at 20000 chars]"
             self._truncated_buffers.add(event_id)
         else:
             self.delta_buffers[event_id] = current_content + delta
@@ -390,8 +389,7 @@ class EventTracker:
         # Check for orphan completion
         if not metadata:
             raise ValueError(
-                f"Orphan thinking completion for event_id {event_id} - "
-                f"no corresponding start found"
+                f"Orphan thinking completion for event_id {event_id} - no corresponding start found"
             )
 
         # Check for duplicate completion
@@ -399,9 +397,7 @@ class EventTracker:
             import logging
 
             logger = logging.getLogger(__name__)
-            logger.warning(
-                f"Duplicate thinking completion for event_id {event_id} - ignoring"
-            )
+            logger.warning(f"Duplicate thinking completion for event_id {event_id} - ignoring")
             return None
 
         # Calculate duration using monotonic time (for potential future use)
@@ -447,8 +443,7 @@ class EventTracker:
         # Check for orphan completion
         if not metadata:
             raise ValueError(
-                f"Orphan thinking failure for event_id {event_id} - "
-                f"no corresponding start found"
+                f"Orphan thinking failure for event_id {event_id} - no corresponding start found"
             )
 
         # Check for duplicate completion
@@ -456,9 +451,7 @@ class EventTracker:
             import logging
 
             logger = logging.getLogger(__name__)
-            logger.warning(
-                f"Duplicate thinking failure for event_id {event_id} - ignoring"
-            )
+            logger.warning(f"Duplicate thinking failure for event_id {event_id} - ignoring")
             return None
 
         content = self.delta_buffers.pop(event_id, "")
@@ -486,24 +479,32 @@ class EventTracker:
         return event_id
 
     def add_text_delta(self, event_id: str, delta: str) -> None:
-        """Add text delta with overflow protection"""
+        """Add text delta with overflow protection and broker publishing"""
         if event_id not in self.delta_buffers:
             self.delta_buffers[event_id] = ""
 
         current_content = self.delta_buffers[event_id]
+
+        # Publish delta to broker for real-time streaming
+        if self.broker and delta:
+            agent = self._active_text_metadata.get(event_id, {}).get("agent", "unknown")
+            # Schedule async publish without blocking
+            task = asyncio.create_task(
+                self.broker.publish_delta("text_delta", agent, delta, event_id)
+            )
+            # Store reference to prevent garbage collection
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
+
         if len(current_content) + len(delta) > self.max_buffer_chars:
             # Truncate with marker
             remaining_chars = self.max_buffer_chars - len(current_content)
             if remaining_chars > 0:
                 self.delta_buffers[event_id] = (
-                    current_content
-                    + delta[:remaining_chars]
-                    + "...[truncated at 20000 chars]"
+                    current_content + delta[:remaining_chars] + "...[truncated at 20000 chars]"
                 )
             else:
-                self.delta_buffers[event_id] = (
-                    current_content + "...[truncated at 20000 chars]"
-                )
+                self.delta_buffers[event_id] = current_content + "...[truncated at 20000 chars]"
         else:
             self.delta_buffers[event_id] = current_content + delta
 
@@ -564,9 +565,7 @@ class EventTracker:
             event_id=event_id,
         )
 
-    def start_tool_call(
-        self, agent: str, tool_name: str, args: dict[str, Any]
-    ) -> tuple[str, str]:
+    def start_tool_call(self, agent: str, tool_name: str, args: dict[str, Any]) -> tuple[str, str]:
         """Start tool call and return (event_id, tool_call_id)"""
         event_id = str(uuid.uuid4())
         tool_call_id = str(uuid.uuid4())  # Stable correlation ID
@@ -618,9 +617,7 @@ class EventTracker:
             import logging
 
             logger = logging.getLogger(__name__)
-            logger.warning(
-                f"Duplicate tool call completion for event_id {event_id} - ignoring"
-            )
+            logger.warning(f"Duplicate tool call completion for event_id {event_id} - ignoring")
             return None
 
         # Get correlation ID and mark as completed
@@ -741,9 +738,7 @@ class EventTracker:
             import logging
 
             logger = logging.getLogger(__name__)
-            logger.warning(
-                f"Duplicate MCP request completion for event_id {event_id} - ignoring"
-            )
+            logger.warning(f"Duplicate MCP request completion for event_id {event_id} - ignoring")
             return None
 
         # Mark as completed
@@ -825,8 +820,7 @@ class EventTracker:
         # Check for orphan completion
         if event_id not in self._correlation_ids:
             raise ValueError(
-                f"Orphan MCP request failure for event_id {event_id} - "
-                f"no corresponding start found"
+                f"Orphan MCP request failure for event_id {event_id} - no corresponding start found"
             )
 
         # Check for duplicate completion
@@ -834,9 +828,7 @@ class EventTracker:
             import logging
 
             logger = logging.getLogger(__name__)
-            logger.warning(
-                f"Duplicate MCP request failure for event_id {event_id} - ignoring"
-            )
+            logger.warning(f"Duplicate MCP request failure for event_id {event_id} - ignoring")
             return None
 
         # Remove correlation ID mapping and mark as completed
@@ -867,10 +859,7 @@ class EventTracker:
 
         # Check for buffer leaks
         if self.started_count != (
-            self.completed_count
-            + self.failed_count
-            + self.flushed_count
-            + len(self.delta_buffers)
+            self.completed_count + self.failed_count + self.flushed_count + len(self.delta_buffers)
         ):
             logger.warning(
                 f"Buffer leak detected: started={self.started_count}, "
@@ -937,9 +926,7 @@ class EventTracker:
         seq = 0
 
         # Sort events by timestamp, then by insertion_index for deterministic tie-break
-        sorted_events = sorted(
-            self.events, key=lambda e: (e.timestamp, e.insertion_index)
-        )
+        sorted_events = sorted(self.events, key=lambda e: (e.timestamp, e.insertion_index))
 
         for event in sorted_events:
             # Skip internal start events (finished-only export)
@@ -970,8 +957,7 @@ class EventTracker:
                 type=event.event_type,
                 data=event_data,
                 content=None
-                if event.event_type
-                in [EventType.TEXT_COMPLETED, EventType.THINKING_COMPLETED]
+                if event.event_type in [EventType.TEXT_COMPLETED, EventType.THINKING_COMPLETED]
                 else content,
                 parent_event_id=event.parent_event_id,
             )
@@ -998,8 +984,6 @@ class EventTracker:
         ]
         if exported_starts:
             leaked_ids = [e.id for e in exported_starts]
-            raise AssertionError(
-                f"Internal start events leaked to export: {leaked_ids}"
-            )
+            raise AssertionError(f"Internal start events leaked to export: {leaked_ids}")
 
         return event_records

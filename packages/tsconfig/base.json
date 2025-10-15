@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
@@ -12,35 +12,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "types": ["node"],
-    "baseUrl": ".",
-    "paths": {
-      "@hubble/ui": ["packages/ui/src/index.ts"],
-      "@hubble/ui/*": ["packages/ui/src/*"],
-      "@hubble/config": ["packages/config/src/index.ts"],
-      "@hubble/config/*": ["packages/config/src/*"],
-      "@hubble/db": ["packages/db/src/index.ts"],
-      "@hubble/db/*": ["packages/db/src/*"],
-      "@hubble/utils": ["packages/utils/src/index.ts"],
-      "@hubble/utils/*": ["packages/utils/src/*"],
-      "@hubble/schemas": ["packages/schemas/src/index.ts"],
-      "@hubble/schemas/*": ["packages/schemas/src/*"],
-      "@hubble/auth": ["packages/auth/src/index.ts"],
-      "@hubble/auth/*": ["packages/auth/src/*"],
-      "@hubble/core": ["packages/core/src/index.ts"],
-      "@hubble/core/*": ["packages/core/src/*"],
-      "@hubble/connect": ["packages/connect/src/index.ts"],
-      "@hubble/connect/*": ["packages/connect/src/*"],
-      "@hubble/chat": ["packages/chat/src/index.ts"],
-      "@hubble/chat/*": ["packages/chat/src/*"],
-      "@hubble/server": ["packages/server/src/index.ts"],
-      "@hubble/server/*": ["packages/server/src/*"],
-      "@hubble/types": ["packages/types/src/index.ts"],
-      "@hubble/types/*": ["packages/types/src/*"],
-      "@hubble/infrastructure": ["packages/infrastructure/src/index.ts"],
-      "@hubble/infrastructure/*": ["packages/infrastructure/src/*"],
-      "@hubble/logger": ["packages/logger/src/index.ts"],
-      "@hubble/logger/*": ["packages/logger/src/*"]
-    }
+    "composite": true
   },
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "dist", "build", ".next", ".turbo"]
 }

@@ -19,6 +19,10 @@ fileGroups:
     - ".*ignore"
     - ".editorconfig"
     - ".prettier*"
+  python_sources:
+    - "src/**/*.py"
+    - "*.py"
+    - "pyproject.toml"
 
 tasks:
   build:

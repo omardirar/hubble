@@ -1,6 +1,7 @@
 """FastAPI application for Pydantic AI agents"""
 
 import asyncio
+import json
 import os
 import time
 from collections.abc import AsyncGenerator
@@ -32,9 +33,7 @@ app = FastAPI(
 
 # Security middleware
 app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(
-    TrustedHostMiddleware, allowed_hosts=["*.fly.dev", "localhost", "127.0.0.1"]
-)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*.fly.dev", "localhost", "127.0.0.1"])
 
 # CORS
 allowed_origins = [os.getenv("DASHBOARD_URL", "http://localhost:3000")]
@@ -146,13 +145,17 @@ async def stream_chat(
                     agent = event["data"].get("agent")
                     action = event["data"].get("action")
                     if agent and action:
-                        log_agent_decision(
-                            agent, action, current_user.user_id, current_user.org_id
-                        )
+                        log_agent_decision(agent, action, current_user.user_id, current_user.org_id)
+
+                # Format as proper SSE with event type and JSON data
+                event_type = event.get("event", "message").upper()
+                event_data = json.dumps(event.get("data", {}), default=str)
+
+                yield f"event: {event_type}\n"
+                yield f"data: {event_data}\n\n"
 
                 # Add small delay for streaming effect
                 await asyncio.sleep(0.01)
-                yield f"data: {event}\n\n"
 
         except HTTPException:
             raise
@@ -168,10 +171,14 @@ async def stream_chat(
                 exc_info=True,
             )
 
-            error_data = {
-                "error": "An error occurred processing your request",
-                "timestamp": time.time(),
-            }
-            yield f"event: error\ndata: {error_data}\n\n"
+            error_data = json.dumps(
+                {
+                    "error": "An error occurred processing your request",
+                    "error_type": type(e).__name__,
+                    "timestamp": time.time(),
+                }
+            )
+            yield "event: ERROR\n"
+            yield f"data: {error_data}\n\n"
 
     return EventSourceResponse(event_generator())

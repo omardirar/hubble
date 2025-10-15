@@ -1,26 +1,7 @@
 {
   "extends": "@hubble/tsconfig/base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "paths": {
-      "@hubble/auth": ["../auth/src/index.ts"],
-      "@hubble/auth/*": ["../auth/src/*"],
-      "@hubble/config": ["../config/src/index.ts"],
-      "@hubble/config/*": ["../config/src/*"],
-      "@hubble/core": ["../core/src/index.ts"],
-      "@hubble/core/*": ["../core/src/*"],
-      "@hubble/db": ["../db/src/index.ts"],
-      "@hubble/db/*": ["../db/src/*"],
-      "@hubble/eslint-config/*": ["../eslint-config/*"],
-      "@hubble/infrastructure": ["../infrastructure/src/index.ts"],
-      "@hubble/infrastructure/*": ["../infrastructure/src/*"],
-      "@hubble/logger": ["../logger/src/index.ts"],
-      "@hubble/logger/*": ["../logger/src/*"],
-      "@hubble/schemas": ["../schemas/src/index.ts"],
-      "@hubble/schemas/*": ["../schemas/src/*"],
-      "@hubble/tsconfig/*": ["../tsconfig/*"]
-    }
+    "outDir": "dist"
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*"]
 }

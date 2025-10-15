@@ -9,10 +9,6 @@ tags:
   - "agents"
   - "python"
 
-toolchain:
-  python:
-    version: "3.12.11"
-
 fileGroups:
   sources:
     - "src/**/*.py"
@@ -48,8 +44,7 @@ tasks:
     command: "bash"
     args:
       - "-c"
-      - "
-        docker buildx build --load
+      - "docker buildx build --load
         -t hubble-agents:latest
         -f Dockerfile .
         &&
@@ -69,14 +64,10 @@ tasks:
 
   # Local hot-reload without Docker (uses your interpreter)
   api-dev:
-    command: "uvicorn"
+    command: "bash"
     args:
-      - "hubble_agents.main:app"
-      - "--reload"
-      - "--host"
-      - "0.0.0.0"
-      - "--port"
-      - "8000"
+      - "-c"
+      - "uvicorn hubble_agents.main:app --reload --host 0.0.0.0 --port 8000"
     inputs:
       - "@group(sources)"
     options:
@@ -100,3 +91,53 @@ tasks:
       interactive: true
       runFromWorkspaceRoot: false
     local: true
+
+  # Testing tasks
+  test:
+    command: "pytest"
+    args:
+      - "-v"
+      - "tests/"
+    inputs:
+      - "@group(sources)"
+      - "tests/**/*.py"
+      - "pyproject.toml"
+    options:
+      cache: false
+      runInCI: true
+
+  test-unit:
+    command: "pytest"
+    args:
+      - "-v"
+      - "tests/unit/"
+    inputs:
+      - "@group(sources)"
+      - "tests/unit/**/*.py"
+    options:
+      cache: false
+
+  test-integration:
+    command: "pytest"
+    args:
+      - "-v"
+      - "tests/integration/"
+    inputs:
+      - "@group(sources)"
+      - "tests/integration/**/*.py"
+    options:
+      cache: false
+      runInCI: true
+
+  test-cov:
+    command: "pytest"
+    args:
+      - "--cov=src"
+      - "--cov-report=html"
+      - "--cov-report=term"
+      - "tests/"
+    inputs:
+      - "@group(sources)"
+      - "tests/**/*.py"
+    options:
+      cache: false

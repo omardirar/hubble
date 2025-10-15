@@ -1,26 +1,7 @@
 {
   "extends": "@hubble/tsconfig/base.json",
   "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": "src",
-    "skipLibCheck": true,
-    "paths": {
-      "@hubble/chat": ["../chat/src/index.ts"],
-      "@hubble/chat/*": ["../chat/src/*"],
-      "@hubble/connect": ["../connect/src/index.ts"],
-      "@hubble/connect/*": ["../connect/src/*"],
-      "@hubble/core": ["../core/src/index.ts"],
-      "@hubble/core/*": ["../core/src/*"],
-      "@hubble/db": ["../db/src/index.ts"],
-      "@hubble/db/*": ["../db/src/*"],
-      "@hubble/eslint-config/*": ["../eslint-config/*"],
-      "@hubble/logger": ["../logger/src/index.ts"],
-      "@hubble/logger/*": ["../logger/src/*"],
-      "@hubble/tsconfig/*": ["../tsconfig/*"],
-      "@hubble/types": ["../types/src/index.ts"],
-      "@hubble/types/*": ["../types/src/*"]
-    }
+    "outDir": "dist"
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*"]
 }

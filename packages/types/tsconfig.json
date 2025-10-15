@@ -1,14 +1,7 @@
 {
   "extends": "@hubble/tsconfig/base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "paths": {
-      "@hubble/eslint-config/*": ["../eslint-config/*"],
-      "@hubble/schemas": ["../schemas/src/index.ts"],
-      "@hubble/schemas/*": ["../schemas/src/*"],
-      "@hubble/tsconfig/*": ["../tsconfig/*"]
-    }
+    "outDir": "dist"
   },
-  "include": ["../eslint-config/**/*", "../schemas/**/*", "../tsconfig/**/*", "src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*"]
 }
