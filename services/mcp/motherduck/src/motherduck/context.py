@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from contextvars import ContextVar, Token
 from typing import Any
 
-_HEADERS_CTX: ContextVar[dict[str, str] | None] = ContextVar(
+_HEADERS_CTX: ContextVar[dict[str, str] | None] = ContextVar(  # type: ignore[assignment]
     "_HEADERS_CTX", default=None
 )
 

@@ -1,137 +1,123 @@
-"""Analyst agent for data analysis and SQL queries"""
+"""Analyst agent responsible for answering data questions via MCP."""
 
-import os
+from __future__ import annotations
 
-from pydantic import BaseModel
+import json
+from dataclasses import dataclass
+from typing import Any
+
 from pydantic_ai import Agent, RunContext
-from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
-from pydantic_ai.providers.anthropic import AnthropicProvider
 
-from ..models import EventType
-from ..models.event_tracker import EventTracker
-from ..models.response_schema import (
-    AgentRunCompletedData,
-    AgentRunStartedData,
-    create_error_info,
-    create_failed_event_data,
-)
+from ..config.settings import Settings, get_settings
+from ..mcp_client import call_mcp_tool
 from ..utils.logging import get_logger
-from ..utils.response_builder import build_agent_config
-
-# Agent configuration constant for v1.3+ schema
-ANALYST_CONFIG = build_agent_config(
-    name="analyst_agent",
-    role="sub_agent_tool",
-    provider="anthropic",
-    model_name="claude-sonnet-4-20250514",
-    temperature=0.2,
-    max_tokens=20000,
-    top_p=1.0,
-    thinking_enabled=True,
-    thinking_budget_tokens=8000,
-)
+from .factory import build_anthropic_model
 
 logger = get_logger(__name__)
 
-
-class QueryResult(BaseModel):
-    sql: str
-    results: str
-    explanation: str
-    rows_affected: int = 0
+DEFAULT_SQL_TOOL_NAME = "sql.query"
 
 
-async def execute_query(ctx: RunContext[EventTracker], sql: str) -> str:
-    """Execute SQL query via MCP server with event tracking"""
-    query_event_id: str | None = None
-    try:
-        # Log query start
-        query_event_id = ctx.deps.add_event(
-            event_type=EventType.AGENT_RUN_STARTED,
-            agent="analyst_agent",
-            content=f"Starting SQL query execution: {sql[:100]}...",
-            metadata=AgentRunStartedData(),
-        )
+@dataclass(slots=True)
+class AnalystDeps:
+    """Dependency container injected into the analyst agent at runtime."""
 
-        logger.info("Executing query", extra={"sql": sql})
+    motherduck_url: str | None
+    motherduck_token: str | None
+    database_name: str | None
+    sql_tool_name: str = DEFAULT_SQL_TOOL_NAME
+    timeout_seconds: float = 30.0
 
-        # Note: This would need to be updated to work with EventTracker
-        # For now, we'll simulate the query execution
-        result = f"Query executed successfully: {sql}"
-
-        # Log query completion
-        ctx.deps.add_event(
-            event_type=EventType.AGENT_RUN_COMPLETED,
-            agent="analyst_agent",
-            content="SQL query completed successfully",
-            metadata=AgentRunCompletedData(),
-            parent_event_id=query_event_id,
-        )
-
-        return result
-
-    except Exception as e:
-        # Log query error
-        error_info = create_error_info(code=type(e).__name__, message=str(e))
-        ctx.deps.add_event(
-            event_type=EventType.AGENT_RUN_FAILED,
-            agent="analyst_agent",
-            content=f"SQL query failed: {e!s}",
-            metadata=create_failed_event_data(error_info),
-            parent_event_id=query_event_id,
-        )
-
-        logger.error("Query execution failed", extra={"error": str(e), "sql": sql})
-        return f"Error: {e!s}"
+    def token_value(self) -> str | None:
+        return self.motherduck_token
 
 
-def get_analyst_agent() -> Agent[EventTracker, str]:
-    """Get analyst agent with runtime model initialization"""
-    # Create model with extended thinking at runtime
-    model = AnthropicModel(
-        "claude-sonnet-4-20250514",
-        provider=AnthropicProvider(api_key=os.getenv("ANTHROPIC_API_KEY")),
-    )
-    settings = AnthropicModelSettings(
-        anthropic_thinking={"type": "enabled", "budget_tokens": 4096},
-        max_tokens=8192,  # Must be greater than thinking budget
+async def run_sql(ctx: RunContext[AnalystDeps], sql: str) -> str:
+    """Execute a SQL statement through the configured MCP server."""
+
+    deps = ctx.deps
+    if not deps.motherduck_url:
+        raise RuntimeError("motherduck_url is not configured for the analyst agent")
+
+    logger.debug(
+        "Executing SQL via MCP",
+        extra={
+            "sql_preview": sql[:200],
+            "server": deps.motherduck_url,
+            "tool": deps.sql_tool_name,
+            "database": deps.database_name,
+        },
     )
 
-    agent = Agent(
+    tool_result = await call_mcp_tool(
+        url=deps.motherduck_url,
+        tool_name=deps.sql_tool_name,
+        arguments={"sql": sql},
+        token=deps.token_value(),
+        database=deps.database_name,
+        timeout=deps.timeout_seconds,
+    )
+
+    return _format_mcp_tool_result(tool_result)
+
+
+def create_analyst_agent(settings: Settings | None = None) -> Agent[AnalystDeps, str]:
+    """Instantiate the analyst agent."""
+
+    settings = settings or get_settings()
+    model, model_settings = build_anthropic_model(
+        settings.analyst, settings.anthropic_api_key.get_secret_value()
+    )
+
+    return Agent(
         model=model,
-        model_settings=settings,
-        name="analyst_agent",
-        deps_type=EventTracker,
-        system_prompt="""You are a data analyst expert for MotherDuck/DuckDB.
-
-**Your capabilities:**
-- Generate efficient DuckDB SQL queries
-- Execute queries via MCP protocol
-- Format and explain results clearly
-- Handle errors gracefully
-- Provide business insights from data
-
-**Guidelines:**
-- Use proper DuckDB syntax
-- Optimize queries for performance
-- Explain results in business terms
-- Include row counts and metadata
-- Focus on actionable insights
-
-**Response style:**
-- Data-driven and analytical
-- Clear explanations of findings
-- Business context for technical results
-- Specific recommendations based on data""",
-        tools=[execute_query],
+        model_settings=model_settings,
+        name="analyst",
+        deps_type=AnalystDeps,
+        output_type=str,
+        system_prompt=(
+            "You are a data analyst. Answer the question by generating concise SQL that can be "
+            "executed against a DuckDB database via MCP. Return a friendly explanation of the "
+            "result along with any caveats."
+        ),
+        tools=[run_sql],
     )
-    return agent
 
 
-# Create the agent function reference for lazy loading
-analyst_agent = get_analyst_agent
+def _format_mcp_tool_result(result: Any) -> str:
+    """Convert an MCP tool result into a displayable string."""
 
+    if result is None:
+        return "No results returned."
 
-async def track_agent_completion(ctx: RunContext[EventTracker], output: str) -> str:
-    """Track agent completion with event logging"""
-    return output
+    # Many MCP responses expose a `.content` list mirroring the protocol spec.
+    content = getattr(result, "content", None)
+    if content:
+        text_fragments: list[str] = []
+        for item in content:
+            text = getattr(item, "text", None)
+            if text:
+                text_fragments.append(text)
+                continue
+            value = getattr(item, "value", None)
+            if value is not None:
+                text_fragments.append(str(value))
+                continue
+            if hasattr(item, "model_dump"):
+                try:
+                    text_fragments.append(json.dumps(item.model_dump(), default=str))
+                    continue
+                except Exception:  # pragma: no cover - defensive
+                    pass
+            text_fragments.append(repr(item))
+
+        if text_fragments:
+            return "\n".join(text_fragments)
+
+    if hasattr(result, "model_dump"):
+        try:
+            return json.dumps(result.model_dump(), default=str)
+        except Exception:  # pragma: no cover - defensive
+            return repr(result)
+
+    return repr(result)

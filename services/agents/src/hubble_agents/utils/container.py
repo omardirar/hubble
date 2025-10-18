@@ -21,17 +21,13 @@ class Container:
     def __init__(self) -> None:
         self._services: dict[type[Any], ServiceDefinition] = {}
 
-    def register_singleton(
-        self, service_type: type[Any], factory: Callable[[], Any]
-    ) -> None:
+    def register_singleton(self, service_type: type[Any], factory: Callable[[], Any]) -> None:
         """Register a singleton service"""
         self._services[service_type] = ServiceDefinition(
             service_type=service_type, factory=factory, singleton=True
         )
 
-    def register_transient(
-        self, service_type: type[Any], factory: Callable[[], Any]
-    ) -> None:
+    def register_transient(self, service_type: type[Any], factory: Callable[[], Any]) -> None:
         """Register a transient service (new instance each time)"""
         self._services[service_type] = ServiceDefinition(
             service_type=service_type, factory=factory, singleton=False

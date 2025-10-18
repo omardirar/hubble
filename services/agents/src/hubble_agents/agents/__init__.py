@@ -1,8 +1,14 @@
-"""
-Agents Module - PydanticAI agent definitions
+"""Agent factory helpers for the Hubble agent backend."""
 
-This module contains the agent implementations for the Hubble agent backend:
-- supervisor.py: Supervisor agent that orchestrates sub-agents
-- analyst.py: Data analysis agent for SQL queries
-- marketer.py: Marketing strategy agent
-"""
+from .analyst import AnalystDeps, create_analyst_agent
+from .marketer import MarketerDeps, create_marketer_agent
+from .supervisor import SupervisorDeps, create_supervisor_agent
+
+__all__ = [
+    "AnalystDeps",
+    "MarketerDeps",
+    "SupervisorDeps",
+    "create_analyst_agent",
+    "create_marketer_agent",
+    "create_supervisor_agent",
+]

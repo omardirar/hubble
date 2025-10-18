@@ -8,9 +8,7 @@ from typing import Any
 audit_logger = logging.getLogger("audit")
 
 
-def log_security_event(
-    event_type: str, user_id: str, org_id: str, details: dict[str, Any]
-) -> None:
+def log_security_event(event_type: str, user_id: str, org_id: str, details: dict[str, Any]) -> None:
     """Log security events for audit trail"""
     audit_logger.info(
         json.dumps(
@@ -27,6 +25,4 @@ def log_security_event(
 
 def log_agent_decision(agent: str, decision: str, user_id: str, org_id: str) -> None:
     """Log agent decisions for transparency"""
-    log_security_event(
-        "agent_decision", user_id, org_id, {"agent": agent, "decision": decision}
-    )
+    log_security_event("agent_decision", user_id, org_id, {"agent": agent, "decision": decision})

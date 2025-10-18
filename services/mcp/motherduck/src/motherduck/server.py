@@ -24,7 +24,7 @@ from .prompt import PROMPT_TEMPLATE
 
 logger = logging.getLogger("mcp_server_motherduck")
 
-_current_motherduck_context: ContextVar[MotherDuckContext | None] = ContextVar(
+_current_motherduck_context: ContextVar[MotherDuckContext | None] = ContextVar(  # type: ignore[assignment]
     "_current_motherduck_context", default=None
 )
 
@@ -148,9 +148,7 @@ async def query(
             ] = [
                 types.TextContent(
                     type="text",
-                    text="\n".join(
-                        metadata_lines + ([preview_text] if preview_text else [])
-                    ),
+                    text="\n".join(metadata_lines + ([preview_text] if preview_text else [])),
                 )
             ]
 
@@ -187,9 +185,7 @@ async def query(
         raise
     except Exception as exc:
         logger.error("Unexpected error executing tool: %s", exc)
-        raise ToolError(
-            "Error: Tool execution encountered an unexpected failure"
-        ) from exc
+        raise ToolError("Error: Tool execution encountered an unexpected failure") from exc
 
 
 # Expose server and lifespan factory for external configuration
