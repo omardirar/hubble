@@ -1,0 +1,29 @@
+services:
+  agents-api:
+    build:
+      context: ./services/agents
+      dockerfile: Dockerfile
+    env_file:
+      - ./services/agents/.env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    depends_on:
+      - mcp
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    container_name: agents-api
+
+  mcp:
+    build:
+      context: ./services/mcp
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+      - "8001:8001"
+    restart: unless-stopped
+    container_name: mcp-servers
+
+networks:
+  default:
+    name: hubble-net

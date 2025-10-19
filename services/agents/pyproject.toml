@@ -4,21 +4,20 @@ version = "1.0.0"
 description = "Hubble AI Agents Service"
 requires-python = ">=3.12"
 dependencies = [
-  "pydantic-ai>=1.0.5,<2.0.0",
   "pydantic>=2.12.0",
   "pydantic-settings>=2.0.0",
   "fastapi>=0.114.1",
   "uvicorn[standard]>=0.37.0",
-  "httpx[http2]>=0.28.0",
-  "sse-starlette>=1.6.0",
-  "python-multipart>=0.0.6",
-  "zstandard>=0.22.0",
-  "mcp>=1.17.0",
+  "click>=8.1.7",
   "pyjwt[crypto]>=2.8.0",
-  "cryptography>=41.0.0",
-  "supabase>=2.0.0",
-  "redis>=5.0.0",
-  "tenacity>=8.2.0",
+  "crewai>=0.203.0",
+  "pyyaml>=6.0.2",
+  "asyncpg>=0.29.0",
+  "sse-starlette>=1.6.5",
+  "opentelemetry-sdk>=1.37.0",
+  "opentelemetry-exporter-otlp-proto-http>=1.37.0",
+  "opentelemetry-instrumentation-fastapi>=0.47b0",
+  "opentelemetry-instrumentation-httpx>=0.47b0",
 ]
 
 [project.optional-dependencies]

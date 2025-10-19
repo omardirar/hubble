@@ -156,7 +156,7 @@ def print_token_info(token: str, token_type: str) -> None:
 
     print("Usage with curl:")
     print(f"""
-curl -X POST http://localhost:8000/api/chat/stream \\
+curl -X POST http://localhost:8000/api/chat \\
   -H "Authorization: Bearer {token}" \\
   -H "Content-Type: application/json" \\
   -d '{{
@@ -172,7 +172,7 @@ curl -X POST http://localhost:8000/api/chat/stream \\
 import requests
 
 response = requests.post(
-    'http://localhost:8000/api/chat/stream',
+    'http://localhost:8000/api/chat',
     headers={{
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json',
@@ -183,12 +183,8 @@ response = requests.post(
         'org_id': 'default-org',
         'user_id': 'default-user',
     }},
-    stream=True,
 )
-
-for line in response.iter_lines():
-    if line:
-        print(line.decode('utf-8'))
+print(response.json())
 """)
 
     print(f"\n{'=' * 80}\n")
@@ -248,7 +244,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Load .env.local if it exists
-    env_file = Path(__file__).parent / ".env.local"
+    env_file = Path(__file__).parent / ".env"
     if env_file.exists():
         print(f"Loading environment from {env_file}")
         with open(env_file) as f:

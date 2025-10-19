@@ -24,15 +24,10 @@ fileGroups:
 
 tasks:
   build:
-    command: "docker"
+    command: "bash"
     args:
-      - "buildx"
-      - "build"
-      - "-t"
-      - "hubble-mcp"
-      - "-f"
-      - "Dockerfile"
-      - "."
+      - "-lc"
+      - "docker compose build mcp"
     description: "Build MCP Docker image"
     inputs:
       - "Dockerfile"
@@ -48,17 +43,14 @@ tasks:
       runInCI: true
       mergeArgs: "replace"
       mergeDeps: "replace"
+      runFromWorkspaceRoot: true
 
   dev:
     command: "bash"
     args:
       - "-c"
-      - "
-        docker buildx build --load
-        -t hubble-mcp:latest
-        -f Dockerfile .
-        && docker run --rm
-        -p 8080:8080
-        --name hubble-mcp
-        hubble-mcp:latest"
+      - "docker compose up mcp --build"
     description: "Build and run MCP gateway locally"
+    options:
+      runFromWorkspaceRoot: true
+    local: true

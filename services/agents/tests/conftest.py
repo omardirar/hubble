@@ -1,8 +1,14 @@
-"""Pytest configuration and fixtures for hubble_agents tests"""
+"""Pytest configuration and fixtures for hubble_agents tests."""
 
+import os
 from typing import Any
 
 import pytest
+
+os.environ.setdefault("ANTHROPIC_API_KEY", "sk-test-key")
+os.environ.setdefault("SERVICE_AUTH_SECRET", "x" * 32)
+os.environ.setdefault("SUPABASE_DB_URL", "postgresql://postgres:postgres@localhost:5432/postgres")
+os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "x" * 64)
 
 
 @pytest.fixture

@@ -18,48 +18,33 @@ fileGroups:
     - "pyproject.toml"
     - "src/**"
   env:
-    - ".env.local"
+    - ".env"
 
 tasks:
   # Build a local image you can run immediately (uses buildx + --load)
   build:
-    command: "docker"
+    command: "bash"
     args:
-      - "buildx"
-      - "build"
-      - "--load"
-      - "-t"
-      - "hubble-agents:latest"
-      - "-f"
-      - "Dockerfile"
-      - "."
+      - "-lc"
+      - "docker compose build agents-api"
     inputs:
       - "@group(docker)"
     options:
       cache: true
       runInCI: true
+      runFromWorkspaceRoot: true
 
   # One-shot dev: build + run the container with env file
   dev:
     command: "bash"
     args:
       - "-c"
-      - "docker buildx build --load
-        -t hubble-agents:latest
-        -f Dockerfile .
-        &&
-        docker run --rm
-        -p 8000:8000
-        --name hubble-agents
-        --env-file .env.local
-        hubble-agents:latest"
+      - "docker compose up agents-api --build"
     inputs:
       - "@group(docker)"
       - "@group(env)"
     options:
-      cache: false
-      persistent: false
-      runInCI: false
+      runFromWorkspaceRoot: true
     local: true
 
   # Local hot-reload without Docker (uses your interpreter)

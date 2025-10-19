@@ -1,0 +1,27 @@
+analyze_request:
+  description: >-
+    Review the authenticated request from user {user_id} in organisation {org_id}. Identify
+    supporting data points, potential risks, and any missing context needed to proceed with
+    confidence. The latest user prompt is: {user_prompt}.
+  expected_output: >-
+    A short narrative covering observed insights, open questions, and missing data.
+  agent: analyst
+
+prepare_marketing:
+  description: >-
+    Provide marketing and enablement guidance tailored to organisation {org_id} for
+    conversation {conversation_id}. Base your recommendations on the prompt: {user_prompt}.
+  expected_output: >-
+    Key positioning ideas, recommended channels, and a short rationale for each suggestion.
+  agent: marketer
+
+compose_response:
+  description: >-
+    Combine the specialist insights into a final answer for user {user_id}. Summarise the
+    most important points, list actionable next steps, and mention any remaining blockers.
+  expected_output: >-
+    Structured summary and follow-up actions suitable for sending directly to the user.
+  agent: manager
+  context:
+    - analyze_request
+    - prepare_marketing

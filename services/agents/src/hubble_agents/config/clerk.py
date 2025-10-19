@@ -6,7 +6,6 @@ with caching and clock skew handling for production-grade authentication.
 
 import time
 
-import httpx
 import jwt
 from jwt import PyJWKClient
 from pydantic import BaseModel
@@ -156,9 +155,6 @@ def verify_clerk_jwt(
         return None
     except jwt.InvalidTokenError:
         # Invalid token (signature, format, etc.)
-        return None
-    except httpx.HTTPError:
-        # JWKS fetch failed
         return None
     except Exception:
         # Unexpected error - fail closed
