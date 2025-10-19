@@ -23,6 +23,11 @@ from crewai.events.types.llm_events import (  # type: ignore[import-untyped]
     LLMCallCompletedEvent,
     LLMStreamChunkEvent,
 )
+from crewai.events.types.reasoning_events import (  # type: ignore[import-untyped]
+    AgentReasoningCompletedEvent,
+    AgentReasoningFailedEvent,
+    AgentReasoningStartedEvent,
+)
 from crewai.events.types.task_events import (  # type: ignore[import-untyped]
     TaskCompletedEvent,
     TaskFailedEvent,
@@ -102,6 +107,8 @@ class StreamingEventListener:
         self._pending: set[asyncio.Task[Any]] = set()
         self._last_task_run_id: uuid.UUID | None = None
         self._model_name: str | None = None
+        self._agent_metadata: dict[str, dict[str, Any]] = {}
+        self._task_metadata: dict[str, dict[str, Any]] = {}
 
     def attach(self) -> None:
         """Register event handlers with the CrewAI event bus."""
@@ -138,6 +145,18 @@ class StreamingEventListener:
         @crewai_event_bus.on(LLMCallCompletedEvent)  # type: ignore[misc]
         def _llm_completed(_source: Any, event: LLMCallCompletedEvent) -> None:
             self._schedule(self._handle_llm_completed(event))
+
+        @crewai_event_bus.on(AgentReasoningStartedEvent)  # type: ignore[misc]
+        def _reasoning_started(_source: Any, event: AgentReasoningStartedEvent) -> None:
+            self._schedule(self._handle_reasoning_event(event, status="started"))
+
+        @crewai_event_bus.on(AgentReasoningCompletedEvent)  # type: ignore[misc]
+        def _reasoning_completed(_source: Any, event: AgentReasoningCompletedEvent) -> None:
+            self._schedule(self._handle_reasoning_event(event, status="completed"))
+
+        @crewai_event_bus.on(AgentReasoningFailedEvent)  # type: ignore[misc]
+        def _reasoning_failed(_source: Any, event: AgentReasoningFailedEvent) -> None:
+            self._schedule(self._handle_reasoning_event(event, status="failed"))
 
         @crewai_event_bus.on(ToolUsageStartedEvent)  # type: ignore[misc]
         def _tool_started(_source: Any, event: ToolUsageStartedEvent) -> None:
@@ -188,13 +207,21 @@ class StreamingEventListener:
     def _emit(self, event_type: str, payload: Mapping[str, Any]) -> None:
         if self._queue is None:
             return
-        event = StreamEvent(type=event_type, data=dict(payload))
+        event = StreamEvent(type=event_type, data=self._clean_payload(dict(payload)))
         self._loop.call_soon_threadsafe(self._queue.put_nowait, event)
 
     async def _handle_task_started(self, task: Any) -> None:
         task_id = str(getattr(task, "id", uuid.uuid4()))
         agent = getattr(task, "agent", None)
-        agent_name = getattr(agent, "role", None) or getattr(agent, "name", None) or "agent"
+        agent_role = getattr(agent, "role", None)
+        agent_name = agent_role or getattr(agent, "name", None) or "agent"
+        agent_id = str(getattr(agent, "id", "")) if agent else ""
+        if agent_id:
+            self._agent_metadata[agent_id] = {
+                "id": agent_id,
+                "role": agent_role,
+                "name": agent_name,
+            }
         task_name = getattr(task, "name", None) or getattr(task, "description", None) or agent_name
 
         task_run_id = await self._repo.create_task_run(
@@ -206,6 +233,10 @@ class StreamingEventListener:
         )
         self._task_runs[task_id] = task_run_id
         self._last_task_run_id = task_run_id
+        self._task_metadata[str(task_run_id)] = {
+            "task_name": task_name,
+            "agent_id": agent_id,
+        }
 
         self._emit(
             "task_started",
@@ -213,6 +244,7 @@ class StreamingEventListener:
                 "task_run_id": _ensure_uuid(task_run_id),
                 "task_name": task_name,
                 "agent_name": agent_name,
+                "agent": self._agent_metadata.get(agent_id) if agent_id else None,
             },
         )
 
@@ -220,6 +252,8 @@ class StreamingEventListener:
         task_id = str(getattr(task, "id", ""))
         task_run_id = self._task_runs.get(task_id)
         output_text = getattr(event.output, "raw", None)
+        task_meta = self._task_metadata.get(str(task_run_id), {}) if task_run_id else {}
+        agent_info = self._agent_metadata.get(task_meta.get("agent_id", ""), {})
         if task_run_id:
             await self._repo.complete_task_run(
                 task_run_id,
@@ -232,12 +266,16 @@ class StreamingEventListener:
             {
                 "task_run_id": _ensure_uuid(task_run_id or uuid.uuid4()),
                 "status": "succeeded",
+                "agent": agent_info or None,
+                "task": self._task_context(task_run_id),
             },
         )
 
     async def _handle_task_failed(self, task: Any, error: str) -> None:
         task_id = str(getattr(task, "id", ""))
         task_run_id = self._task_runs.get(task_id)
+        task_meta = self._task_metadata.get(str(task_run_id), {}) if task_run_id else {}
+        agent_info = self._agent_metadata.get(task_meta.get("agent_id", ""), {})
         if task_run_id:
             await self._repo.complete_task_run(
                 task_run_id,
@@ -251,6 +289,8 @@ class StreamingEventListener:
                 "task_run_id": _ensure_uuid(task_run_id or uuid.uuid4()),
                 "status": "failed",
                 "error": error,
+                "agent": agent_info or None,
+                "task": self._task_context(task_run_id),
             },
         )
 
@@ -269,12 +309,18 @@ class StreamingEventListener:
         )
 
         task_run_id = self._resolve_task_run_id(event)
+        agent_info = self._agent_context(event)
+        task_context = self._task_context(task_run_id)
         if task_run_id:
             await self._repo.log_agent_event(
                 self._ctx,
                 task_run_id=task_run_id,
                 kind="llm_token",
-                payload={"chunk": event.chunk},
+                payload={
+                    "chunk": event.chunk,
+                    "agent": agent_info,
+                    "task": task_context,
+                },
                 span_id=None,
             )
         self._emit(
@@ -282,17 +328,26 @@ class StreamingEventListener:
             {
                 "message_id": _ensure_uuid(self._assistant_message_id),
                 "delta": event.chunk,
+                "agent": agent_info or None,
+                "task": task_context or None,
             },
         )
 
     async def _handle_llm_completed(self, event: LLMCallCompletedEvent) -> None:
         task_run_id = self._resolve_task_run_id(event)
+        agent_info = self._agent_context(event)
+        task_context = self._task_context(task_run_id)
         if task_run_id:
             await self._repo.log_agent_event(
                 self._ctx,
                 task_run_id=task_run_id,
                 kind="llm_message",
-                payload={"model": event.model, "response": getattr(event, "response", None)},
+                payload={
+                    "model": event.model,
+                    "response": getattr(event, "response", None),
+                    "agent": agent_info,
+                    "task": task_context,
+                },
                 span_id=None,
             )
         if getattr(event, "model", None):
@@ -300,12 +355,17 @@ class StreamingEventListener:
 
     async def _handle_tool_started(self, event: ToolUsageStartedEvent) -> None:
         task_run_id = self._resolve_task_run_id(event)
+        task_context = self._task_context(task_run_id)
         if task_run_id:
             await self._repo.log_agent_event(
                 self._ctx,
                 task_run_id=task_run_id,
                 kind="tool_call",
-                payload={"tool_name": event.tool_name, "tool_args": event.tool_args},
+                payload={
+                    "tool_name": event.tool_name,
+                    "tool_args": event.tool_args,
+                    "task": task_context,
+                },
                 span_id=None,
             )
         self._emit(
@@ -313,16 +373,19 @@ class StreamingEventListener:
             {
                 "task_run_id": _ensure_uuid(task_run_id or uuid.uuid4()),
                 "tool_name": event.tool_name,
+                "task": task_context or None,
             },
         )
 
     async def _handle_tool_finished(self, event: ToolUsageFinishedEvent) -> None:
         task_run_id = self._resolve_task_run_id(event)
+        task_context = self._task_context(task_run_id)
         payload = {
             "tool_name": event.tool_name,
             "output": getattr(event, "output", None),
             "duration_ms": self._milliseconds_between(event.started_at, event.finished_at),
             "from_cache": event.from_cache,
+            "task": task_context,
         }
         if task_run_id:
             await self._repo.log_agent_event(
@@ -343,12 +406,17 @@ class StreamingEventListener:
 
     async def _handle_tool_error(self, event: ToolUsageErrorEvent) -> None:
         task_run_id = self._resolve_task_run_id(event)
+        task_context = self._task_context(task_run_id)
         if task_run_id:
             await self._repo.log_agent_event(
                 self._ctx,
                 task_run_id=task_run_id,
                 kind="error",
-                payload={"tool_name": event.tool_name, "error": str(event.error)},
+                payload={
+                    "tool_name": event.tool_name,
+                    "error": str(event.error),
+                    "task": task_context,
+                },
                 span_id=None,
             )
         self._emit(
@@ -357,6 +425,7 @@ class StreamingEventListener:
                 "task_run_id": _ensure_uuid(task_run_id or uuid.uuid4()),
                 "tool_name": event.tool_name,
                 "error": str(event.error),
+                "task": task_context or None,
             },
         )
 
@@ -399,6 +468,58 @@ class StreamingEventListener:
                 "actions": [],
             },
         )
+
+    async def _handle_reasoning_event(self, event: Any, *, status: str) -> None:
+        task_run_id = self._resolve_task_run_id(event)
+        agent_info = self._agent_context(event)
+        task_context = self._task_context(task_run_id)
+        payload = self._clean_payload(
+            {
+                "status": status,
+                "agent": agent_info or None,
+                "task": task_context or None,
+                "trace": getattr(event, "trace", None),
+                "steps": getattr(event, "steps", None),
+                "analysis": getattr(event, "analysis", None),
+                "output": getattr(event, "output", None),
+                "error": getattr(event, "error", None) if status == "failed" else None,
+            }
+        )
+
+        if task_run_id:
+            await self._repo.log_agent_event(
+                self._ctx,
+                task_run_id=task_run_id,
+                kind="reasoning",
+                payload=payload,
+                span_id=None,
+            )
+
+        self._emit(f"reasoning_{status}", payload)
+
+    def _agent_context(self, event: Any) -> dict[str, Any]:
+        agent_id = getattr(event, "agent_id", None)
+        if agent_id is None:
+            return {}
+        meta = self._agent_metadata.get(str(agent_id))
+        if meta:
+            return meta
+        return {"id": str(agent_id)}
+
+    def _task_context(self, task_run_id: uuid.UUID | None) -> dict[str, Any]:
+        if task_run_id is None:
+            return {}
+        meta = self._task_metadata.get(str(task_run_id), {})
+        context: dict[str, Any] = {"task_run_id": _ensure_uuid(task_run_id)}
+        if meta.get("task_name"):
+            context["task_name"] = meta["task_name"]
+        if meta.get("agent_id"):
+            context["agent_id"] = meta["agent_id"]
+        return context
+
+    @staticmethod
+    def _clean_payload(payload: dict[str, Any]) -> dict[str, Any]:
+        return {key: value for key, value in payload.items() if value not in (None, {}, [])}
 
     def _resolve_task_run_id(self, event: Any) -> uuid.UUID | None:
         task_id = getattr(event, "task_id", None)

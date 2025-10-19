@@ -58,9 +58,9 @@ def verify_hmac_token(token: str) -> ServiceTokenPayload | None:
 
         payload_data = json.loads(payload_str)
 
-        # Check token age (5 minutes max)
+        # Check token age (90 minutes max)
         age = time.time() * 1000 - payload_data["timestamp"]
-        if age > 5 * 60 * 1000:
+        if age > 90 * 60 * 1000:
             return None
 
         # Convert to ServiceTokenPayload format

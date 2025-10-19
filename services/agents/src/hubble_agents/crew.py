@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     Crew = Any
     Process = Any
     Task = Any
+    LLM = Any
 
     TClass = TypeVar("TClass", bound=type)
 
@@ -27,7 +28,13 @@ if TYPE_CHECKING:
 
     def CrewBase(cls: TClass) -> TClass: ...
 else:
-    from crewai import Agent, Crew, Process, Task  # type: ignore[import-untyped]
+    from crewai import (  # type: ignore[import-untyped]  # noqa: I001
+        Agent,
+        Crew,
+        LLM,
+        Process,
+        Task,
+    )
     from crewai.project import CrewBase, agent, crew, task  # type: ignore[import-untyped]
 
 
@@ -81,19 +88,34 @@ class AuthenticatedSupportCrew:
                 self._tasks_cache = cast(Mapping[str, Mapping[str, Any]], _load_yaml(config))
         return self._tasks_cache
 
+    def _agent_config_with_llm(self, key: str) -> dict[str, Any]:
+        base_config = dict(self._agent_configs()[key])
+        base_config["llm"] = self._build_llm(base_config.get("llm"))
+        return base_config
+
+    @staticmethod
+    def _build_llm(value: Any) -> LLM:
+        if isinstance(value, Mapping):
+            options = dict(value)
+            options.setdefault("stream", True)
+            return LLM(**options)
+        if isinstance(value, str):
+            return LLM(model=value, stream=True)
+        return LLM(stream=True)
+
     @agent
     def manager(self) -> Agent:
-        config = self._agent_configs()["manager"]
+        config = self._agent_config_with_llm("manager")
         return Agent(config=config, allow_delegation=True, verbose=False)
 
     @agent
     def analyst(self) -> Agent:
-        config = self._agent_configs()["analyst"]
+        config = self._agent_config_with_llm("analyst")
         return Agent(config=config, allow_delegation=False, verbose=False)
 
     @agent
     def marketer(self) -> Agent:
-        config = self._agent_configs()["marketer"]
+        config = self._agent_config_with_llm("marketer")
         return Agent(config=config, allow_delegation=False, verbose=False)
 
     @task
