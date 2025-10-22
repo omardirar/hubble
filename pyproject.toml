@@ -27,6 +27,8 @@ dev = [
   "types-pytz>=2024.2.0",
   "types-jsonschema>=4.17.0",
   "jsonschema>=4.17.0",
+  "types-pyyaml>=6.0.12.20250915",
+  "pyjwt[crypto]>=2.10.1",
 ]
 
 # ============================================================================
@@ -51,7 +53,7 @@ select = [
 ignore = []
 
 [tool.ruff.lint.isort]
-known-first-party = ["hubble_agents", "motherduck"]
+known-first-party = ["h10s", "motherduck"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -69,13 +71,19 @@ exclude = ["^generate_token\\.py$", "^scripts/"]
 module = "tests.*"
 disallow_untyped_defs = false
 
-[[tool.mypy.overrides]]
-module = ["hubble_agents.*", "motherduck.*"]
-ignore_missing_imports = false
-
-[[tool.mypy.overrides]]
-module = ["pyarrow", "duckdb", "redis.*", "supabase.*"]
-ignore_missing_imports = true
+[tool.ty.src]
+exclude = [
+  "**/node_modules",
+  "**/__pycache__",
+  ".git",
+  "**/.pytest_cache",
+  "**/.next",
+  "**/dist",
+  "**/build",
+  "**/.turbo",
+  "**/.venv",
+  "**/typings",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

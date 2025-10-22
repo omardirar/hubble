@@ -18,10 +18,10 @@ fileGroups:
     - "pyproject.toml"
     - "src/**"
   env:
-    - ".env"
+    - ".env.local"
 
 tasks:
-  # Build a local image you can run immediately (uses buildx + --load)
+  # Build a local image you can run immediately
   build:
     command: "bash"
     args:
@@ -52,29 +52,13 @@ tasks:
     command: "bash"
     args:
       - "-c"
-      - "uvicorn hubble_agents.main:app --reload --host 0.0.0.0 --port 8000"
+      - "uvicorn h10s.main:app --reload --host 0.0.0.0 --port 8000"
     inputs:
       - "@group(sources)"
     options:
       cache: false
       persistent: true
       runInCI: false
-    local: true
-
-  # Run the CLI entrypoint with your local Python (not in Docker)
-  cli:
-    command: "bash"
-    args:
-      - "-lc"
-      - "uv run cli"
-    inputs:
-      - "@group(sources)"
-      - "pyproject.toml"
-    options:
-      cache: false
-      runInCI: false
-      interactive: true
-      runFromWorkspaceRoot: false
     local: true
 
   # Testing tasks

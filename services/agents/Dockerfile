@@ -26,4 +26,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD python -c "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).status==200 else sys.exit(1)"
 
 # Run via module import path (package name, not filesystem path)
-CMD ["uvicorn", "hubble_agents.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "h10s.main:app", "--host", "0.0.0.0", "--port", "8000"]

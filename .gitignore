@@ -26,6 +26,7 @@ AGENTS.md
 **/venv/
 **/env/
 services/responses/
+**/typings/
 
 # node / frontend artifacts
 **/node_modules

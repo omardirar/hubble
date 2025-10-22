@@ -4,7 +4,7 @@ services:
       context: ./services/agents
       dockerfile: Dockerfile
     env_file:
-      - ./services/agents/.env
+      - ./services/agents/.env.local
     ports:
       - "8000:8000"
     restart: unless-stopped
