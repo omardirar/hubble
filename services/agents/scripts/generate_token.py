@@ -1,52 +1,43 @@
 #!/usr/bin/env python3
-"""Generate JWT access tokens for the H10S Copilot API.
+"""Generate Clerk-compatible JWT tokens for testing the H10S Copilot API.
 
-The API expects HMAC-SHA256 JWTs signed with ``JWT_SECRET`` and including at least
-the following claims:
-
-* ``sub`` – the user identifier
-* ``org_id`` – organisation identifier used for multi-tenancy
-* ``user_id`` – duplicated subject for convenience
-* ``exp`` – expiration timestamp (seconds since epoch)
-
-Optional claims ``aud`` and ``iss`` are validated when the corresponding environment
-variables are configured. This script reads configuration from ``.env.local`` (or
-``.env`` as a fallback) and allows overriding values via CLI flags.
+This script creates JWT tokens signed with Clerk's JWKS that can be used to test
+the FastAPI endpoints via /docs or curl. The tokens are cryptographically valid
+and include all required Clerk claims.
 
 Usage examples
 --------------
 
 .. code-block:: bash
 
-   python services/agents/scripts/generate_token.py \\
-       --org-id org_123 --user-id user_456 --minutes 30
+   # Generate token for a specific user by email
+   python services/agents/scripts/generate_token.py --email user@example.com
 
-   # Override JWT secret and include audience / issuer
-   python services/agents/scripts/generate_token.py \\
-       --jwt-secret $(openssl rand -base64 64) \\
-       --audience your-audience --issuer https://api.example.com
-"""  # noqa: RUF002
+   # Generate token for a user by Clerk user ID
+   python services/agents/scripts/generate_token.py --user-id user_2xyz
+
+   # Specify custom expiration (default: 60 minutes)
+   python services/agents/scripts/generate_token.py --email user@example.com --minutes 120
+
+   # Use in FastAPI /docs:
+   # 1. Run this script and copy the token
+   # 2. Go to http://localhost:8000/docs
+   # 3. Click "Authorize" and paste the token
+"""
 
 from __future__ import annotations
 
 import argparse
-import base64
-import hashlib
-import hmac
-import json
 import os
-from datetime import UTC, datetime, timedelta
+import sys
 from pathlib import Path
-from typing import Final
+from typing import Any
 
-DEFAULT_CONVERSATION_ID: Final[str] = "00000000-0000-0000-0000-000000000001"
-DEFAULT_ORG_ID: Final[str] = "11111111-2222-3333-4444-555555555555"
-DEFAULT_USER_ID: Final[str] = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+import httpx
 
 
 def load_env_file() -> None:
     """Load key=value pairs from .env.local (or .env) if present."""
-
     script_dir = Path(__file__).resolve()
     project_root = script_dir.parent.parent  # services/agents
 
@@ -62,161 +53,234 @@ def load_env_file() -> None:
             break
 
 
-def require_secret(cli_secret: str | None) -> str:
-    """Return the JWT secret from CLI or environment."""
-
-    secret = cli_secret or os.getenv("JWT_SECRET")
+def get_clerk_secret() -> str:
+    """Get Clerk secret key from environment."""
+    secret = os.getenv("CLERK_SECRET_KEY")
     if not secret:
         raise SystemExit(
-            "JWT secret not provided. Set JWT_SECRET in .env.local or pass --jwt-secret."
+            "CLERK_SECRET_KEY not found. Set it in .env.local or environment variables.\n"
+            "Get it from: https://dashboard.clerk.com/ → API Keys → Secret keys"
         )
-    if len(secret) < 32:
-        raise SystemExit("JWT secret must be at least 32 characters for security.")
     return secret
 
 
-def generate_jwt(
-    *,
-    org_id: str,
-    user_id: str,
-    conversation_id: str,
-    secret: str,
-    issuer: str | None,
-    audience: str | None,
-    expires_delta: timedelta,
-) -> str:
-    """Generate a signed JWT compatible with the H10S authentication middleware."""
+def get_user_by_email(email: str, secret_key: str) -> dict[str, Any]:
+    """Fetch user from Clerk by email address."""
+    try:
+        response = httpx.get(
+            "https://api.clerk.com/v1/users",
+            headers={"Authorization": f"Bearer {secret_key}"},
+            params={"email_address": [email]},
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        users = response.json()
 
-    now = datetime.now(tz=UTC)
-    payload: dict[str, object] = {
-        "sub": user_id,
-        "user_id": user_id,
-        "org_id": org_id,
-        "conversation_id": conversation_id,
-        "iat": int(now.timestamp()),
-        "exp": int((now + expires_delta).timestamp()),
-    }
+        if not users or len(users) == 0:
+            raise SystemExit(f"No user found with email: {email}")
 
-    if issuer:
-        payload["iss"] = issuer
-    if audience:
-        payload["aud"] = audience
-
-    header = {"alg": "HS256", "typ": "JWT"}
-
-    def _b64(data: bytes) -> str:
-        return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
-
-    header_segment = _b64(json.dumps(header, separators=(",", ":")).encode("utf-8"))
-    payload_segment = _b64(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
-
-    signing_input = f"{header_segment}.{payload_segment}".encode("ascii")
-    signature = hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest()
-    signature_segment = _b64(signature)
-
-    return f"{header_segment}.{payload_segment}.{signature_segment}"
+        return users[0]  # type: ignore[no-any-return]
+    except httpx.HTTPError as e:
+        raise SystemExit(f"Failed to fetch user from Clerk API: {e}") from e
 
 
-def print_instructions(token: str, *, org_id: str, user_id: str, conversation_id: str) -> None:
-    """Display the generated token alongside example usage commands."""
+def get_user_by_id(user_id: str, secret_key: str) -> dict[str, Any]:
+    """Fetch user from Clerk by user ID."""
+    try:
+        response = httpx.get(
+            f"https://api.clerk.com/v1/users/{user_id}",
+            headers={"Authorization": f"Bearer {secret_key}"},
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        return response.json()  # type: ignore[no-any-return]
+    except httpx.HTTPError as e:
+        raise SystemExit(f"Failed to fetch user from Clerk API: {e}") from e
 
+
+def get_user_org_memberships(user_id: str, secret_key: str) -> list[dict[str, Any]]:
+    """Fetch organization memberships for a user via Clerk API.
+
+    Uses the endpoint: GET /users/{user_id}/organization_memberships
+    """
+    try:
+        response = httpx.get(
+            f"https://api.clerk.com/v1/users/{user_id}/organization_memberships",
+            headers={"Authorization": f"Bearer {secret_key}"},
+            params={"limit": 100},  # Get up to 100 orgs
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        result = response.json()
+
+        # API returns {"data": [...], "totalCount": N}
+        return result.get("data", [])  # type: ignore[no-any-return]
+    except httpx.HTTPError as e:
+        raise SystemExit(f"Failed to fetch organization memberships: {e}") from e
+
+
+def get_jwks_private_key(issuer: str) -> str:
+    """Fetch the private key from Clerk's JWKS endpoint.
+
+    In production, Clerk uses RS256 with their own private keys.
+    For testing, we'll create a mock token using Clerk's Backend API to get a session token,
+    or use the simpler approach of creating a properly formatted JWT.
+    """
+    # Note: Clerk's actual implementation would require their private key
+    # For testing purposes, we'll fetch a real session token from Clerk's API
+    raise NotImplementedError(
+        "Direct JWKS key access not available. Use Clerk Backend API to generate tokens."
+    )
+
+
+def create_session_for_user(user_id: str, secret_key: str) -> str:
+    """Create a new session for a user (development/testing only).
+
+    Returns the session ID.
+    """
+    try:
+        response = httpx.post(
+            "https://api.clerk.com/v1/sessions",
+            headers={
+                "Authorization": f"Bearer {secret_key}",
+                "Content-Type": "application/json",
+            },
+            json={"user_id": user_id},
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        session = response.json()
+        return session["id"]  # type: ignore[no-any-return]
+    except httpx.HTTPError as e:
+        raise SystemExit(
+            f"Failed to create session: {e}\n"
+            "Note: Session creation only works in development instances."
+        ) from e
+
+
+def create_session_token(session_id: str, secret_key: str, expires_in_seconds: int) -> str:
+    """Create a session token from an existing session.
+
+    Returns a valid JWT signed by Clerk.
+    """
+    try:
+        response = httpx.post(
+            f"https://api.clerk.com/v1/sessions/{session_id}/tokens",
+            headers={
+                "Authorization": f"Bearer {secret_key}",
+                "Content-Type": "application/json",
+            },
+            json={"expires_in_seconds": expires_in_seconds},
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        token_data = response.json()
+        return token_data["jwt"]  # type: ignore[no-any-return]
+    except httpx.HTTPError as e:
+        raise SystemExit(f"Failed to create session token: {e}") from e
+
+
+def print_token_info(token: str, user: dict[str, Any], org_id: str) -> None:
+    """Display the generated token and usage instructions."""
     bar = "=" * 80
-    print(f"\n{bar}\nJWT Token\n{bar}\n")
-    print(f"{token}\n")
+    print(f"\n{bar}")
+    print("Generated Clerk JWT Token")
+    print(f"{bar}\n")
 
-    print("curl example:\n")
-    print(
-        f"""curl -X POST http://localhost:8000/api/copilot/stream \\
-  -H "Authorization: Bearer {token}" \\
-  -H "Content-Type: application/json" \\
-  -d '{{
-    "prompt": "Plan our June marketing budget.",
-    "conversation_id": "{conversation_id}",
-    "org_id": "{org_id}",
-    "user_id": "{user_id}"
-  }}'"""
-    )
+    print(f"User: {user.get('email_addresses', [{}])[0].get('email_address', 'N/A')}")
+    print(f"User ID: {user['id']}")
+    print(f"Org ID: {org_id}")
+    print(f"\nToken:\n{token}\n")
 
-    print("\nPython requests example:\n")
-    print(
-        f"""import requests
+    print(f"{bar}")
+    print("Usage Instructions")
+    print(f"{bar}\n")
 
-token = "{token}"
+    print("1. FastAPI /docs (Swagger UI):")
+    print("   - Go to http://localhost:8000/docs")
+    print("   - Click the 'Authorize' button (top right)")
+    print("   - Paste the token (with or without 'Bearer ' prefix)\n")
 
-payload = {{
-    "prompt": "Plan our June marketing budget.",
-    "conversation_id": "{conversation_id}",
-    "org_id": "{org_id}",
-    "user_id": "{user_id}",
-}}
+    print("2. curl example:")
+    print(f"""   curl -X GET http://localhost:8000/api/health \\
+     -H "Authorization: Bearer {token}"\n""")
 
-response = requests.post(
-    "http://localhost:8000/api/copilot/stream",
-    headers={{"Authorization": f"Bearer {{token}}"}},
-    json=payload,
-)
-print(response.status_code, response.text)"""
-    )
-    print(f"\n{bar}\n")
+    print("3. httpx/requests example:")
+    print(f"""   import httpx
+   response = httpx.get(
+       "http://localhost:8000/api/health",
+       headers={{"Authorization": f"Bearer {token}"}}
+   )\n""")
+
+    print(f"{bar}\n")
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate H10S Copilot JWT tokens.")
-    parser.add_argument("--org-id", default=DEFAULT_ORG_ID, help="Organisation identifier (UUID).")
-    parser.add_argument("--user-id", default=DEFAULT_USER_ID, help="User identifier (UUID).")
-    parser.add_argument(
-        "--conversation-id",
-        default=DEFAULT_CONVERSATION_ID,
-        help="Conversation UUID associated with the run.",
+    parser = argparse.ArgumentParser(
+        description="Generate Clerk-compatible JWT tokens for testing H10S API."
     )
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--email", help="User email address to look up in Clerk")
+    group.add_argument("--user-id", help="Clerk user ID (e.g., user_2...)")
+
     parser.add_argument(
         "--minutes",
         type=int,
-        default=15,
-        help="Token validity in minutes (default: 15).",
-    )
-    parser.add_argument(
-        "--jwt-secret",
-        help="Override JWT secret instead of reading JWT_SECRET from the environment.",
-    )
-    parser.add_argument(
-        "--issuer",
-        help="Override issuer claim (defaults to JWT_ISSUER env var if set).",
-    )
-    parser.add_argument(
-        "--audience",
-        help="Override audience claim (defaults to JWT_AUDIENCE env var if set).",
+        default=60,
+        help="Token validity in minutes (default: 60)",
     )
     return parser.parse_args()
 
 
 def main() -> None:
+    """Main entry point for token generation."""
     load_env_file()
     args = parse_args()
 
-    secret = require_secret(args.jwt_secret)
-    issuer = args.issuer if args.issuer is not None else os.getenv("JWT_ISSUER")
-    audience = args.audience if args.audience is not None else os.getenv("JWT_AUDIENCE")
+    # Get Clerk configuration
+    secret_key = get_clerk_secret()
+    issuer = os.getenv("CLERK_ISSUER")
 
-    try:
-        token = generate_jwt(
-            org_id=args.org_id,
-            user_id=args.user_id,
-            conversation_id=args.conversation_id,
-            secret=secret,
-            issuer=issuer,
-            audience=audience,
-            expires_delta=timedelta(minutes=args.minutes),
+    if not issuer:
+        raise SystemExit(
+            "CLERK_ISSUER not configured. Set it in .env.local\n"
+            "Example: CLERK_ISSUER=https://caring-tapir-12.clerk.accounts.dev"
         )
-    except Exception as exc:  # pragma: no cover - runtime safety
-        raise SystemExit(f"Failed to generate JWT: {exc}") from exc
 
-    print_instructions(
-        token,
-        org_id=args.org_id,
-        user_id=args.user_id,
-        conversation_id=args.conversation_id,
-    )
+    # Fetch user information
+    print("Fetching user from Clerk...", file=sys.stderr)
+    if args.email:
+        user = get_user_by_email(args.email, secret_key)
+    else:
+        user = get_user_by_id(args.user_id, secret_key)
+
+    user_id = user["id"]
+
+    # Fetch organization memberships using dedicated endpoint
+    print("Fetching organization memberships...", file=sys.stderr)
+    org_memberships = get_user_org_memberships(user_id, secret_key)
+
+    if not org_memberships:
+        raise SystemExit(
+            f"User {user_id} is not a member of any organization.\n"
+            "Assign them to an organization in Clerk Dashboard first."
+        )
+
+    # Use the organization from the first membership
+    org_id = org_memberships[0]["organization"]["id"]
+
+    # Create a session for the user (development/testing only)
+    print(f"Creating session for user {user_id}...", file=sys.stderr)
+    session_id = create_session_for_user(user_id, secret_key)
+    print(f"Session created: {session_id}", file=sys.stderr)
+
+    # Generate token from session
+    print("Generating token from session...", file=sys.stderr)
+    expires_in_seconds = args.minutes * 60
+    token = create_session_token(session_id, secret_key, expires_in_seconds)
+
+    # Display results
+    print_token_info(token, user, org_id)
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry point

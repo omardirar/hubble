@@ -110,32 +110,40 @@ async def query(
     ctx: Context[ServerSession, MotherDuckContext] | None = None,
 ) -> types.CallToolResult:
     """Execute a SQL query against the caller's MotherDuck database."""
+    logger.debug("Query tool invoked format=%s preview_rows=%d", format, preview_rows)
+
     try:
         lifespan_context = None
         if ctx and hasattr(ctx.request_context, "lifespan_context"):
             lifespan_context = ctx.request_context.lifespan_context
+            logger.debug("Retrieved lifespan context from request context")
         if lifespan_context is None:
             lifespan_context = _current_motherduck_context.get()
+            logger.debug("Retrieved lifespan context from context var")
         if lifespan_context is None:
+            logger.error("Database context is unavailable")
             raise ToolError("Database context unavailable.")
 
         db_client = getattr(lifespan_context, "db_client", None)
         if db_client is None:
+            logger.error("Database client not found in lifespan context")
             raise ToolError("Database client not available.")
 
-        logger.info("Executing query")
+        logger.info("Starting query execution format=%s", format)
 
         preview_rows = max(0, preview_rows)
 
         headers = get_current_headers()
-        logger.info("Captured request headers: %s", headers)
+        logger.debug("Captured %d request headers", len(headers))
         try:
             credentials = verify_and_extract(headers)
+            logger.debug("Credentials verified for org_id=%s", credentials.org_id)
         except AuthError as auth_error:
-            logger.warning("Unauthorized request: %s", auth_error)
+            logger.warning("Authentication failed: %s", auth_error)
             raise ToolError(f"Unauthorized: {auth_error}") from auth_error
 
         if format == "arrow":
+            logger.info("Fetching Arrow format results")
             try:
                 table, duration_ms = await anyio.to_thread.run_sync(
                     db_client.fetch_arrow_table,
@@ -143,8 +151,9 @@ async def query(
                     credentials,
                     cancellable=True,
                 )
+                logger.debug("Arrow table fetched: %d rows", table.num_rows)
             except Exception as error:
-                logger.error("Error fetching Arrow table: %s", error)
+                logger.error("Error fetching Arrow table: %s", error, exc_info=True)
                 raise ToolError("Error: Query failed") from error
 
             import pyarrow as pa  # type: ignore
@@ -156,6 +165,7 @@ async def query(
             blob_b64 = base64.b64encode(blob_bytes).decode("ascii")
 
             resource_uri = f"urn:duckdb:result:{uuid.uuid4()}"
+            logger.debug("Created Arrow resource with URI: %s", resource_uri)
 
             metadata_lines = [
                 f"Rows: {table.num_rows}",
@@ -166,6 +176,7 @@ async def query(
             preview_text = ""
             if preview_rows > 0 and table.num_rows:
                 display_rows = min(preview_rows, table.num_rows)
+                logger.debug("Generating preview for %d rows", display_rows)
                 preview_slice = table.slice(0, display_rows)
                 preview_payload = preview_slice.to_pylist()
                 preview_json = json.dumps(preview_payload, indent=2, default=str)
@@ -197,8 +208,14 @@ async def query(
                 )
             )
 
+            logger.info(
+                "Query completed successfully format=arrow rows=%d duration_ms=%.2f",
+                table.num_rows,
+                duration_ms,
+            )
             return types.CallToolResult(content=contents)
 
+        logger.info("Executing query in text format")
         try:
             tool_response = await anyio.to_thread.run_sync(
                 db_client.query,
@@ -206,8 +223,9 @@ async def query(
                 credentials,
                 cancellable=True,
             )
+            logger.info("Query completed successfully format=text")
         except Exception as error:
-            logger.error("Error executing query: %s", error)
+            logger.error("Error executing query: %s", error, exc_info=True)
             raise ToolError("Error: Query failed") from error
 
         return types.CallToolResult(
@@ -217,7 +235,7 @@ async def query(
     except ToolError:
         raise
     except Exception as exc:
-        logger.error("Unexpected error executing tool: %s", exc)
+        logger.error("Unexpected error executing tool: %s", exc, exc_info=True)
         raise ToolError("Error: Tool execution encountered an unexpected failure") from exc
 
 

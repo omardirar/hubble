@@ -43,16 +43,21 @@ def _load_mcp_tools(
     settings: AppSettings, headers_override: Mapping[str, str] | None = None
 ) -> list[BaseTool]:
     """Synchronously load MCP tools for the current invocation."""
+    logger.debug("Loading MCP tools synchronously has_override=%s", headers_override is not None)
 
     try:
         loop = asyncio.get_event_loop()
+        logger.debug("Using existing event loop")
     except RuntimeError:
+        logger.debug("Creating new event loop")
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-    return loop.run_until_complete(
+    tools = loop.run_until_complete(
         create_motherduck_tools(settings, headers_override=headers_override)
     )
+    logger.debug("MCP tools loaded count=%d", len(tools))
+    return tools
 
 
 def agent(config: RunnableConfig) -> Any:
@@ -74,6 +79,8 @@ def agent(config: RunnableConfig) -> Any:
     Returns:
         Compiled LangGraph ready for execution
     """
+    logger.debug("Agent graph factory invoked")
+
     # Use pre-initialized settings (loaded at module import time)
     settings = _SETTINGS
 
@@ -87,23 +94,33 @@ def agent(config: RunnableConfig) -> Any:
         )
         configurable = {}
 
+    logger.debug(
+        "Processing configurable parameters count=%d",
+        len(configurable) if isinstance(configurable, dict) else 0,
+    )
+
     headers_override = configurable.get("motherduck_headers") or configurable.get(
         "mcp_motherduck_headers"
     )
 
-    if headers_override is not None and not isinstance(headers_override, Mapping):
-        logger.warning(
-            "motherduck_headers config expected Mapping[str, str], got %s",
-            type(headers_override).__name__,
-        )
-        headers_override = None
+    if headers_override is not None:
+        if not isinstance(headers_override, Mapping):
+            logger.warning(
+                "motherduck_headers config expected Mapping[str, str], got %s - ignoring",
+                type(headers_override).__name__,
+            )
+            headers_override = None
+        else:
+            logger.debug("Using MotherDuck headers override header_count=%d", len(headers_override))
 
     try:
+        logger.debug("Initializing MCP tools for graph")
         mcp_tools = _load_mcp_tools(settings, headers_override=headers_override)
         logger.info("MCP tools initialized for run: %d tool(s) loaded", len(mcp_tools))
     except Exception as e:
-        logger.warning("Failed to initialize MCP tools for run: %s", e)
+        logger.error("Failed to initialize MCP tools for run: %s", e, exc_info=True)
         mcp_tools = []
+        logger.warning("Graph will operate without MCP tools")
 
     logger.debug(
         "Building marketing copilot graph model=%s tools=%d",
@@ -118,7 +135,17 @@ def agent(config: RunnableConfig) -> Any:
 
         # Check if message has tool calls
         if hasattr(last_message, "tool_calls") and last_message.tool_calls:
-            logger.debug("Routing to tools node tool_count=%d", len(last_message.tool_calls))
+            tool_names = [
+                tc.get("name", "<unknown>")
+                if isinstance(tc, dict)
+                else getattr(tc, "name", "<unknown>")
+                for tc in last_message.tool_calls
+            ]
+            logger.debug(
+                "Routing to tools node tool_count=%d tools=%s",
+                len(last_message.tool_calls),
+                ", ".join(tool_names),
+            )
             return "tools"
 
         logger.debug("Routing back to supervisor - no tools needed")
@@ -152,6 +179,7 @@ def agent(config: RunnableConfig) -> Any:
         return "performance_analyst"
 
     # Create graph with CopilotState
+    logger.debug("Building graph structure")
     graph = StateGraph(CopilotState)
 
     # Add supervisor node
@@ -181,7 +209,10 @@ def agent(config: RunnableConfig) -> Any:
 
     # Add ToolNode if MCP tools are available
     if mcp_tools:
+        logger.debug("Adding tools node with %d tools", len(mcp_tools))
         graph.add_node("tools", ToolNode(mcp_tools))
+    else:
+        logger.debug("No MCP tools available - skipping tools node")
 
     # Define edges and routing
     graph.add_edge(START, "supervisor")
@@ -229,10 +260,12 @@ def agent(config: RunnableConfig) -> Any:
     graph.add_edge("media_buyer", "supervisor")
 
     # Compile and return
+    logger.debug("Compiling graph")
     compiled = graph.compile()
-    logger.debug(
-        "Marketing copilot graph compiled: 4 specialists, %d tool(s)",
+    logger.info(
+        "Marketing copilot graph compiled successfully specialists=4 tools=%d has_tool_node=%s",
         len(mcp_tools),
+        bool(mcp_tools),
     )
 
     return compiled

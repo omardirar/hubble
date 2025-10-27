@@ -3,5 +3,5 @@
   "graphs": {
     "copilot": "./services/agents/src/h10s/graphs/copilot.py:agent"
   },
-  "env": "./services/agents/.env.local"
+  "env": ".env.local"
 }

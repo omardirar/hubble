@@ -35,6 +35,7 @@ class MotherDuckRepository:
         Raises:
             Exception: If database query fails
         """
+        logger.debug("Resolving MotherDuck credentials for org_id=%s", org_id)
         async with self.pool.acquire() as conn:
             # Get database name from data_destinations
             dest_row = await conn.fetchrow(
@@ -47,10 +48,11 @@ class MotherDuckRepository:
             )
 
             if not dest_row:
-                logger.warning("No MotherDuck destination found for org_id=%s", org_id)
+                logger.info("No MotherDuck destination provisioned for org_id=%s", org_id)
                 return None
 
             md_db_name = dest_row["md_db_name"]
+            logger.debug("Found MotherDuck database org_id=%s db_name=%s", org_id, md_db_name)
 
             # Get token from secrets using RPC function
             token = await conn.fetchval(
@@ -62,12 +64,14 @@ class MotherDuckRepository:
 
             if not token:
                 logger.warning(
-                    "No MotherDuck token found for org_id=%s db_name=%s", org_id, md_db_name
+                    "No MotherDuck service token found for org_id=%s db_name=%s", org_id, md_db_name
                 )
                 return None
 
             logger.info(
-                "Resolved MotherDuck credentials for org_id=%s db_name=%s", org_id, md_db_name
+                "Successfully resolved MotherDuck credentials org_id=%s db_name=%s",
+                org_id,
+                md_db_name,
             )
 
             return {"db_name": md_db_name, "token": token}
@@ -82,12 +86,12 @@ class MotherDuckRepository:
             Dictionary with MCP headers (x-motherduck-service-secret, x-motherduck-connection)
             Returns empty dict if credentials not found (allows graceful degradation)
         """
+        logger.debug("Building MCP headers for org_id=%s", org_id)
         creds = await self.get_credentials(org_id)
 
         if not creds:
             logger.warning(
-                "MotherDuck credentials not available for org_id=%s "
-                "- MCP tools will be unavailable",
+                "Cannot build MCP headers - MotherDuck not provisioned for org_id=%s",
                 org_id,
             )
             return {}
@@ -98,6 +102,11 @@ class MotherDuckRepository:
             "x-motherduck-connection": f"md:{creds['db_name']}",
         }
 
-        logger.debug("Built MCP headers for org_id=%s db=%s", org_id, creds["db_name"])
+        logger.info(
+            "Built MCP headers successfully org_id=%s db=%s header_count=%d",
+            org_id,
+            creds["db_name"],
+            len(headers),
+        )
 
         return headers

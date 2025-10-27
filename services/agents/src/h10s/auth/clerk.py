@@ -111,10 +111,14 @@ def verify_clerk_jwt(token: str, settings: AppSettings) -> dict[str, Any]:
             leeway=60,  # 60 second leeway for clock skew
         )
 
+        # Extract org_id for logging (handle nested structure)
+        org_data = claims.get("o", {})
+        org_id_for_log = org_data.get("id") if isinstance(org_data, dict) else claims.get("org_id")
+
         logger.debug(
             "JWT verified successfully sub=%s org_id=%s",
             claims.get("sub"),
-            claims.get("org_id"),
+            org_id_for_log,
         )
 
         return dict(claims)
@@ -156,12 +160,21 @@ def get_auth_context(token: str, settings: AppSettings) -> AuthContext:
 
     # Extract required claims
     user_id = claims.get("sub")
-    org_id = claims.get("org_id")
+
+    # Clerk stores org info in nested 'o' object
+    org_data = claims.get("o", {})
+    org_id = org_data.get("id") if isinstance(org_data, dict) else None
+
+    # Fallback to direct org_id claim (for backwards compatibility)
+    if not org_id:
+        org_id = claims.get("org_id")
 
     if not user_id:
         raise AuthenticationError("Token missing 'sub' claim (user_id)")
 
     if not org_id:
-        raise AuthenticationError("Token missing 'org_id' claim")
+        raise AuthenticationError(
+            "Token missing organization claim. Expected 'o.id' or 'org_id' in JWT."
+        )
 
     return AuthContext(user_id=user_id, org_id=org_id)

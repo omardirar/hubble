@@ -1,5 +1,6 @@
 """Threads and messages router."""
 
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -17,6 +18,7 @@ from h10s.schema import (
 from h10s.schema.domain import AuthContext
 
 router = APIRouter(prefix="/api/v1", tags=["threads"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/threads", response_model=CreateThreadResponse, status_code=status.HTTP_201_CREATED)
@@ -26,12 +28,22 @@ async def create_thread(
     repo: InteractionsRepository = Depends(get_interactions_repo),
 ) -> CreateThreadResponse:
     """Create a new thread."""
+    logger.info(
+        "Creating thread org_id=%s user_id=%s title=%s",
+        auth.org_id,
+        auth.user_id,
+        request.title or "<untitled>",
+    )
+
     thread = await repo.create_thread(
         org_id=auth.org_id,
         owner_user_id=auth.user_id,
         title=request.title,
         metadata=request.metadata,
     )
+
+    logger.info("Thread created thread_id=%s org_id=%s", thread["id"], auth.org_id)
+
     return CreateThreadResponse(
         id=thread["id"], title=thread["title"], created_at=thread["created_at"]
     )
@@ -44,10 +56,14 @@ async def get_thread(
     repo: InteractionsRepository = Depends(get_interactions_repo),
 ) -> ThreadResponse:
     """Get thread by ID."""
+    logger.debug("Fetching thread thread_id=%s org_id=%s", thread_id, auth.org_id)
+
     thread = await repo.get_thread(thread_id, auth.org_id)
     if not thread:
+        logger.warning("Thread not found thread_id=%s org_id=%s", thread_id, auth.org_id)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Thread not found")
 
+    logger.debug("Thread retrieved thread_id=%s", thread_id)
     return ThreadResponse(**thread)
 
 
@@ -60,12 +76,31 @@ async def get_thread_messages(
     repo: InteractionsRepository = Depends(get_interactions_repo),
 ) -> MessagesListResponse:
     """Get messages for a thread."""
+    logger.debug(
+        "Fetching messages thread_id=%s org_id=%s limit=%d before=%s",
+        thread_id,
+        auth.org_id,
+        limit,
+        before,
+    )
+
     # Verify thread exists and user has access
     thread = await repo.get_thread(thread_id, auth.org_id)
     if not thread:
+        logger.warning(
+            "Thread not found for messages thread_id=%s org_id=%s", thread_id, auth.org_id
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Thread not found")
 
     messages = await repo.get_messages(thread_id, auth.org_id, limit=limit, before_id=before)
+
+    logger.info(
+        "Retrieved messages thread_id=%s count=%d has_more=%s",
+        thread_id,
+        len(messages),
+        len(messages) == limit,
+    )
+
     return MessagesListResponse(
         messages=[MessageResponse(**msg) for msg in messages], has_more=len(messages) == limit
     )
@@ -83,9 +118,20 @@ async def create_message(
     repo: InteractionsRepository = Depends(get_interactions_repo),
 ) -> MessageResponse:
     """Add a message to a thread."""
+    logger.info(
+        "Creating message thread_id=%s org_id=%s user_id=%s role=%s",
+        thread_id,
+        auth.org_id,
+        auth.user_id,
+        request.role,
+    )
+
     # Verify thread exists
     thread = await repo.get_thread(thread_id, auth.org_id)
     if not thread:
+        logger.warning(
+            "Thread not found for message creation thread_id=%s org_id=%s", thread_id, auth.org_id
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Thread not found")
 
     message = await repo.create_message(
@@ -95,4 +141,7 @@ async def create_message(
         content=request.content,
         author_user_id=auth.user_id,
     )
+
+    logger.info("Message created message_id=%s thread_id=%s", message["id"], thread_id)
+
     return MessageResponse(**message)

@@ -1,4 +1,3 @@
-import contextlib
 import logging
 import os
 from typing import Any
@@ -112,37 +111,29 @@ def main(
         saas_mode=saas_mode,
     )
 
-    # Create a lifespan that manages both the DB context and session manager
-    @contextlib.asynccontextmanager
-    async def combined_lifespan(app: Any) -> Any:
-        async with server.session_manager.run():
-            logger.info("MotherDuck MCP server started")
-            try:
-                yield
-            finally:
-                logger.info("MotherDuck MCP server shutting down")
+    logger.info(f"🦆 Connect to MotherDuck MCP Server at http://{SERVER_LOCALHOST}:{port}/mcp")
 
-    # Mount FastMCP's streamable HTTP app at root
-    stream_app = HeaderCaptureApp(
-        server.streamable_http_app(),
-        default_headers=None,
-    )
+    # Get FastMCP's streamable HTTP app
+    mcp_app = server.streamable_http_app()
 
+    # Wrap MCP app with header capture
+    wrapped_mcp_app = HeaderCaptureApp(mcp_app, default_headers=None)
+
+    # Health endpoint
     async def health_endpoint(request: Any) -> JSONResponse:
         return JSONResponse({"status": "ok", "service": "motherduck"})
 
-    starlette_app = Starlette(
+    # Create main app with MCP mounted at /mcp
+    main_app = Starlette(
         routes=[
             Route("/health", health_endpoint, methods=["GET"]),
-            Mount("/", app=stream_app),
+            Mount("/mcp", app=wrapped_mcp_app),
         ],
-        lifespan=combined_lifespan,
     )
 
-    logger.info(f"🦆 Connect to MotherDuck MCP Server at http://{SERVER_LOCALHOST}:{port}/mcp")
-
+    # Run with uvicorn
     uvicorn.run(
-        starlette_app,
+        main_app,
         host=SERVER_LOCALHOST,
         port=port,
         log_config=UVICORN_LOGGING_CONFIG,

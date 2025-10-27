@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 from uuid import UUID
@@ -41,19 +42,21 @@ class InteractionsRepository:
         Returns:
             Created thread record as dictionary
         """
+        logger.debug("Creating thread in database org_id=%s user_id=%s", org_id, owner_user_id)
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
                 INSERT INTO h10s.threads (org_id, owner_user_id, title, metadata)
-                VALUES ($1, $2, $3, $4)
+                VALUES ($1, $2, $3, $4::jsonb)
                 RETURNING id, org_id, owner_user_id, title, metadata, created_at, updated_at
                 """,
                 org_id,
                 owner_user_id,
                 title,
-                metadata or {},
+                json.dumps(metadata or {}),
             )
             assert row is not None  # INSERT...RETURNING always returns a row
+            logger.info("Thread created in database thread_id=%s org_id=%s", row["id"], org_id)
             return dict(row)
 
     async def get_thread(self, thread_id: UUID, org_id: str) -> dict[str, Any] | None:
@@ -66,6 +69,7 @@ class InteractionsRepository:
         Returns:
             Thread record or None if not found
         """
+        logger.debug("Fetching thread from database thread_id=%s org_id=%s", thread_id, org_id)
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
@@ -76,6 +80,10 @@ class InteractionsRepository:
                 thread_id,
                 org_id,
             )
+            if row:
+                logger.debug("Thread found thread_id=%s", thread_id)
+            else:
+                logger.debug("Thread not found thread_id=%s org_id=%s", thread_id, org_id)
             return dict(row) if row else None
 
     # Message operations
@@ -101,13 +109,16 @@ class InteractionsRepository:
         Returns:
             Created message record
         """
+        logger.debug(
+            "Creating message in database thread_id=%s org_id=%s role=%s", thread_id, org_id, role
+        )
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
                 INSERT INTO h10s.messages (
                     thread_id, org_id, author_user_id, role, content, metadata
                 )
-                VALUES ($1, $2, $3, $4, $5, $6)
+                VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)
                 RETURNING
                     id, thread_id, org_id, author_user_id,
                     role, content, text_content, metadata, created_at
@@ -116,10 +127,16 @@ class InteractionsRepository:
                 org_id,
                 author_user_id,
                 role,
-                content,
-                metadata or {},
+                json.dumps(content),
+                json.dumps(metadata or {}),
             )
             assert row is not None  # INSERT...RETURNING always returns a row
+            logger.info(
+                "Message created in database message_id=%s thread_id=%s role=%s",
+                row["id"],
+                thread_id,
+                role,
+            )
             return dict(row)
 
     async def get_messages(
@@ -140,6 +157,13 @@ class InteractionsRepository:
         Returns:
             List of message records
         """
+        logger.debug(
+            "Fetching messages from database thread_id=%s org_id=%s limit=%d before_id=%s",
+            thread_id,
+            org_id,
+            limit,
+            before_id,
+        )
         async with self.pool.acquire() as conn:
             if before_id:
                 rows = await conn.fetch(
@@ -175,7 +199,11 @@ class InteractionsRepository:
                     limit,
                 )
 
-            return [dict(row) for row in rows]
+            result = [dict(row) for row in rows]
+            logger.debug(
+                "Retrieved messages from database thread_id=%s count=%d", thread_id, len(result)
+            )
+            return result
 
     # Run operations
     async def create_run(
@@ -194,18 +222,25 @@ class InteractionsRepository:
         Returns:
             Created run record
         """
+        logger.debug("Creating run in database thread_id=%s org_id=%s", thread_id, org_id)
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
                 INSERT INTO h10s.runs (thread_id, org_id, status, metadata)
-                VALUES ($1, $2, 'pending', $3)
+                VALUES ($1, $2, 'pending', $3::jsonb)
                 RETURNING id, thread_id, org_id, status, started_at, finished_at, error, metadata
                 """,
                 thread_id,
                 org_id,
-                metadata or {},
+                json.dumps(metadata or {}),
             )
             assert row is not None  # INSERT...RETURNING always returns a row
+            logger.info(
+                "Run created in database run_id=%s thread_id=%s status=%s",
+                row["id"],
+                thread_id,
+                row["status"],
+            )
             return dict(row)
 
     async def update_run_status(
@@ -221,6 +256,12 @@ class InteractionsRepository:
             status: New status (running/completed/failed/cancelled)
             error: Optional error message if failed
         """
+        logger.debug(
+            "Updating run status in database run_id=%s status=%s has_error=%s",
+            run_id,
+            status,
+            error is not None,
+        )
         async with self.pool.acquire() as conn:
             if status in ("completed", "failed", "cancelled"):
                 await conn.execute(
@@ -233,6 +274,7 @@ class InteractionsRepository:
                     error,
                     run_id,
                 )
+                logger.info("Run status updated (final) run_id=%s status=%s", run_id, status)
             else:
                 await conn.execute(
                     """
@@ -244,6 +286,7 @@ class InteractionsRepository:
                     error,
                     run_id,
                 )
+                logger.info("Run status updated (interim) run_id=%s status=%s", run_id, status)
 
     async def get_run(self, run_id: UUID, org_id: str) -> dict[str, Any] | None:
         """Get run by ID.

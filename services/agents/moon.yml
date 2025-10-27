@@ -52,7 +52,7 @@ tasks:
     command: "bash"
     args:
       - "-c"
-      - "uvicorn h10s.main:app --reload --host 0.0.0.0 --port 8000"
+      - "uv run --project . uvicorn h10s.api.main:app --reload --host 0.0.0.0 --port 8000 --env-file .env.local"
     inputs:
       - "@group(sources)"
     options:

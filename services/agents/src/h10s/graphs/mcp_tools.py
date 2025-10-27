@@ -30,16 +30,24 @@ async def create_motherduck_tools(
     Returns:
         List of LangChain-compatible tools from MCP server
     """
+    logger.debug("Creating MotherDuck MCP tools has_override=%s", headers_override is not None)
+
     # Build authentication headers for MotherDuck
     headers: dict[str, str] = {
         key: value for key, value in (headers_override or {}).items() if value
     }
+    logger.debug("Using %d headers from override", len(headers))
 
     if not headers:
+        logger.debug("No override headers, using settings configuration")
         if settings.motherduck_token:
             headers["x-motherduck-service-secret"] = settings.motherduck_token.get_secret_value()
+            logger.debug("Added service secret from settings")
         if settings.motherduck_connection:
             headers["x-motherduck-connection"] = settings.motherduck_connection
+            logger.debug(
+                "Added connection string from settings: %s", settings.motherduck_connection
+            )
 
     # Configure MCP client with HTTP transport
     mcp_config: dict[str, Any] = {
@@ -50,16 +58,35 @@ async def create_motherduck_tools(
         }
     }
 
-    logger.info("Initializing MotherDuck MCP client url=%s", settings.mcp_motherduck_url)
+    logger.info(
+        "Initializing MotherDuck MCP client url=%s header_count=%d",
+        settings.mcp_motherduck_url,
+        len(headers),
+    )
 
     try:
+        logger.debug("Creating MultiServerMCPClient")
         client = MultiServerMCPClient(mcp_config)
+
+        logger.debug("Fetching tools from MCP server")
         tools: list[BaseTool] = await client.get_tools()  # type: ignore[assignment]
-        logger.info("Loaded %d tool(s) from MotherDuck MCP server", len(tools))
+
+        logger.info("Successfully loaded %d tool(s) from MotherDuck MCP server", len(tools))
+
+        if tools:
+            tool_names = [getattr(t, "name", "<unknown>") for t in tools]
+            logger.debug("Available tools: %s", ", ".join(tool_names))
+
         return tools
     except Exception as e:
-        logger.error("Failed to connect to MotherDuck MCP server: %s", e, exc_info=True)
+        logger.error(
+            "Failed to connect to MotherDuck MCP server url=%s error=%s",
+            settings.mcp_motherduck_url,
+            e,
+            exc_info=True,
+        )
         # Return empty list to allow graph to continue without tools
+        logger.warning("Continuing without MotherDuck tools")
         return []
 
 

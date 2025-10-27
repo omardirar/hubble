@@ -80,8 +80,13 @@ class CreateRunRequest(BaseModel):
     """Request to create a run."""
 
     thread_id: UUID
-    input: str | None = Field(
-        default=None, description="Optional input text (if not using last message)"
+    message: str | None = Field(
+        default=None,
+        description="Optional message to add before running (shortcut for user message)",
+    )
+    stream: bool = Field(
+        default=True,
+        description="If true, immediately stream execution. If false, return run details.",
     )
     metadata: dict[str, Any] = Field(default_factory=dict)
 

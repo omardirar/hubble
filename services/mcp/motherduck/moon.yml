@@ -27,7 +27,7 @@ tasks:
     command: "bash"
     args:
       - "-c"
-      - "uv run mcp-server-motherduck --port 8001"
+      - "uv run --env-file services/mcp/motherduck/.env.local mcp-server-motherduck --port 8001"
     inputs:
       - "src/**/*.py"
       - "*.py"
