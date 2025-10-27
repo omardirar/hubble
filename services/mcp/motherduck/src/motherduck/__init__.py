@@ -15,9 +15,10 @@ from .configs import (
     SERVER_LOCALHOST,
     SERVER_VERSION,
     UVICORN_LOGGING_CONFIG,
+    resolve_http_auth_headers,
     validate_http_env_or_raise,
 )
-from .server import get_motherduck_lifespan, get_motherduck_server
+from .server import configure_runtime_context, get_motherduck_server
 
 __version__ = SERVER_VERSION
 
@@ -68,6 +69,24 @@ _configure_root_logger()
     ),
 )
 @click.option(
+    "--http-service-secret",
+    default=None,
+    envvar="MOTHERDUCK_HTTP_SERVICE_SECRET",
+    help=(
+        "Optional MotherDuck service secret to forward via HTTP headers "
+        "(env: MOTHERDUCK_HTTP_SERVICE_SECRET)"
+    ),
+)
+@click.option(
+    "--http-connection",
+    default=None,
+    envvar="MOTHERDUCK_HTTP_CONNECTION",
+    help=(
+        "Optional MotherDuck connection identifier to forward via HTTP headers "
+        "(env: MOTHERDUCK_HTTP_CONNECTION)"
+    ),
+)
+@click.option(
     "--saas-mode",
     is_flag=True,
     help="Flag for connecting to MotherDuck in SaaS mode",
@@ -86,6 +105,8 @@ def main(
     transport: str,
     default_connection: str | None,
     motherduck_token: str | None,
+    http_service_secret: str | None,
+    http_connection: str | None,
     saas_mode: bool,
     json_response: bool,
 ) -> None:
@@ -96,9 +117,7 @@ def main(
 
     # For now, force streamable HTTP transport as we've refactored to FastMCP
     if transport != "stream":
-        logger.warning(
-            f"Transport '{transport}' not supported in FastMCP version, using 'stream'"
-        )
+        logger.warning(f"Transport '{transport}' not supported in FastMCP version, using 'stream'")
         transport = "stream"
 
     server = get_motherduck_server()
@@ -108,18 +127,26 @@ def main(
     # Fail fast on missing envs in HTTP/SSE mode
     validate_http_env_or_raise(transport)
 
+    default_headers = resolve_http_auth_headers(
+        service_secret_override=http_service_secret,
+        connection_override=http_connection,
+    )
+    if default_headers:
+        logger.info(
+            "Configured default HTTP auth headers: %s",
+            ", ".join(default_headers.keys()),
+        )
+
+    configure_runtime_context(
+        db_path=default_connection,
+        motherduck_token=motherduck_token,
+        saas_mode=saas_mode,
+    )
+
     # Create a lifespan that manages both the DB context and session manager
     @contextlib.asynccontextmanager
     async def combined_lifespan(app: Any) -> Any:
-        # First, start the database context
-        async with (
-            get_motherduck_lifespan(
-                db_path=default_connection,
-                motherduck_token=motherduck_token,
-                saas_mode=saas_mode,
-            ) as _,
-            server.session_manager.run(),
-        ):
+        async with server.session_manager.run():
             logger.info("MotherDuck MCP server started")
             try:
                 yield
@@ -127,7 +154,10 @@ def main(
                 logger.info("MotherDuck MCP server shutting down")
 
     # Mount FastMCP's streamable HTTP app at root
-    stream_app = HeaderCaptureApp(server.streamable_http_app())
+    stream_app = HeaderCaptureApp(
+        server.streamable_http_app(),
+        default_headers=default_headers or None,
+    )
 
     async def health_endpoint(request: Any) -> JSONResponse:
         return JSONResponse({"status": "ok", "service": "motherduck"})
@@ -140,9 +170,7 @@ def main(
         lifespan=combined_lifespan,
     )
 
-    logger.info(
-        f"🦆 Connect to MotherDuck MCP Server at http://{SERVER_LOCALHOST}:{port}/mcp"
-    )
+    logger.info(f"🦆 Connect to MotherDuck MCP Server at http://{SERVER_LOCALHOST}:{port}/mcp")
 
     uvicorn.run(
         starlette_app,

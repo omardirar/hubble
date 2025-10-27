@@ -1,26 +1,16 @@
 [project]
 name = "h10s"
 version = "1.0.0"
-description = "Hubble AI Agents Service"
+description = "H10S Marketing Copilot - Multi-Specialist Agent System"
 requires-python = ">=3.12"
 dependencies = [
   "pydantic>=2.12.0",
   "pydantic-settings>=2.0.0",
-  "fastapi>=0.114.1",
-  "uvicorn[standard]>=0.37.0",
-  "click>=8.1.7",
-  "pyjwt[crypto]>=2.8.0",
-  "pyjwt>=2.8.0",
-  "crewai>=0.203.0",
-  "pyyaml>=6.0.2",
-  "supabase>=2.2.0",
-  "sse-starlette>=1.6.5",
-  "python-ulid>=2.2.0",
-  "slowapi>=0.1.9",
-  "opentelemetry-sdk>=1.37.0",
-  "opentelemetry-exporter-otlp-proto-http>=1.37.0",
-  "opentelemetry-instrumentation-fastapi>=0.47b0",
-  "opentelemetry-instrumentation-httpx>=0.47b0",
+  "langgraph>=0.2.60",
+  "langchain-core>=0.3.30",
+  "langchain-anthropic>=0.2.10",
+  "langgraph-cli[inmem]>=0.4.4",
+  "langchain-mcp-adapters>=0.1.0",
 ]
 
 [project.optional-dependencies]
@@ -31,8 +21,7 @@ dev = [
   "pytest-mock>=3.12.0",
   "ruff>=0.14.0",
   "mypy>=1.10.0",
-  "types-requests>=2.32.0",
-  "types-PyYAML>=6.0.8",
+  "langgraph-cli[inmem]>=0.2.60",
 ]
 
 [build-system]

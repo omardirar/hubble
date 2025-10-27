@@ -27,6 +27,7 @@ AGENTS.md
 **/env/
 services/responses/
 **/typings/
+**/.langgraph_api/
 
 # node / frontend artifacts
 **/node_modules

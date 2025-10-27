@@ -9,18 +9,30 @@ from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 
 from .asgi import HeaderCaptureApp
-from .server import get_motherduck_lifespan, get_motherduck_server
+from .configs import resolve_http_auth_headers
+from .server import configure_runtime_context, get_motherduck_server
 
 
-def create_app() -> Starlette:
+def create_app(
+    *,
+    default_headers: dict[str, str] | None = None,
+    db_path: str | None = None,
+    motherduck_token: str | None = None,
+    saas_mode: bool = False,
+) -> Starlette:
     server = get_motherduck_server()
+    resolved_headers = (
+        dict(default_headers) if default_headers is not None else resolve_http_auth_headers()
+    )
+    configure_runtime_context(
+        db_path=db_path,
+        motherduck_token=motherduck_token,
+        saas_mode=saas_mode,
+    )
 
     @contextlib.asynccontextmanager
     async def lifespan(app: Any) -> AsyncIterator[None]:
-        async with (
-            get_motherduck_lifespan(None, None, False) as _,
-            server.session_manager.run(),
-        ):
+        async with server.session_manager.run():
             yield
 
     async def health(_request: Request) -> JSONResponse:
@@ -29,7 +41,13 @@ def create_app() -> Starlette:
     return Starlette(
         routes=[
             Route("/health", health),
-            Mount("/", app=HeaderCaptureApp(server.streamable_http_app())),
+            Mount(
+                "/",
+                app=HeaderCaptureApp(
+                    server.streamable_http_app(),
+                    default_headers=resolved_headers or None,
+                ),
+            ),
         ],
         lifespan=lifespan,
     )

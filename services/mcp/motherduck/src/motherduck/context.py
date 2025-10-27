@@ -27,14 +27,24 @@ def _to_str_dict(pairs: Iterable[tuple[bytes, bytes]] | None) -> dict[str, str]:
 
 def set_current_headers_from_scope(
     scope: dict[str, Any],
+    default_headers: dict[str, str] | None = None,
 ) -> Token[dict[str, str] | None]:
     """Capture incoming HTTP headers from ASGI scope into a context variable."""
     if not isinstance(scope, dict):
-        return _HEADERS_CTX.set({})
-    headers = scope.get("headers")
-    if headers is None:
-        return _HEADERS_CTX.set({})
-    return _HEADERS_CTX.set(_to_str_dict(headers))
+        resolved_headers: dict[str, str] = {}
+    else:
+        headers = scope.get("headers")
+        resolved_headers = _to_str_dict(headers)
+
+    if default_headers:
+        for key, value in default_headers.items():
+            if not value:
+                continue
+            lowered_key = key.lower()
+            # Preserve caller-provided headers when duplicates exist
+            resolved_headers.setdefault(lowered_key, value)
+
+    return _HEADERS_CTX.set(resolved_headers)
 
 
 def set_current_headers(headers: dict[str, str] | None) -> Token[dict[str, str] | None]:

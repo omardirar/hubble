@@ -36,6 +36,16 @@ class MotherDuckContext:
     db_client: DatabaseClient
 
 
+@dataclass(slots=True)
+class RuntimeConfig:
+    db_path: str | None = None
+    motherduck_token: str | None = None
+    saas_mode: bool = False
+
+
+_RUNTIME_CONFIG = RuntimeConfig()
+
+
 @asynccontextmanager
 async def motherduck_lifespan(
     db_path: str | None,
@@ -58,8 +68,30 @@ async def motherduck_lifespan(
         logger.info("MotherDuck database client shutting down")
 
 
+@asynccontextmanager
+async def _fastmcp_lifespan(_: FastMCP) -> AsyncIterator[MotherDuckContext]:
+    async with motherduck_lifespan(
+        db_path=_RUNTIME_CONFIG.db_path,
+        motherduck_token=_RUNTIME_CONFIG.motherduck_token,
+        saas_mode=_RUNTIME_CONFIG.saas_mode,
+    ) as ctx:
+        yield ctx
+
+
+def configure_runtime_context(
+    *,
+    db_path: str | None,
+    motherduck_token: str | None,
+    saas_mode: bool,
+) -> None:
+    """Configure runtime defaults used when FastMCP spawns request lifespans."""
+    _RUNTIME_CONFIG.db_path = db_path
+    _RUNTIME_CONFIG.motherduck_token = motherduck_token
+    _RUNTIME_CONFIG.saas_mode = saas_mode
+
+
 # Create FastMCP server
-mcp = FastMCP("motherduck")
+mcp = FastMCP("motherduck", lifespan=_fastmcp_lifespan)
 
 
 # Prompt
@@ -96,6 +128,7 @@ async def query(
         preview_rows = max(0, preview_rows)
 
         headers = get_current_headers()
+        logger.info("Captured request headers: %s", headers)
         try:
             credentials = verify_and_extract(headers)
         except AuthError as auth_error:
