@@ -1,6 +1,4 @@
 import os
-import re
-from collections.abc import Iterable
 from typing import Any
 
 
@@ -54,16 +52,6 @@ ENV_MOTHERDUCK_TOKEN_KEYS: list[str] = [
     "motherduck_token",
 ]
 
-ENV_HTTP_SERVICE_SECRET_KEYS: tuple[str, ...] = (
-    "MOTHERDUCK_HTTP_SERVICE_SECRET",
-    "motherduck_http_service_secret",
-)
-
-ENV_HTTP_CONNECTION_KEYS: tuple[str, ...] = (
-    "MOTHERDUCK_HTTP_CONNECTION",
-    "motherduck_http_connection",
-)
-
 
 def get_env(name: str, default: str | None = None) -> str | None:
     value = os.getenv(name)
@@ -98,57 +86,18 @@ def get_default_limit() -> int:
         return 500
 
 
-# Allow formats:
-# - tenant_db
-# - orgslug/tenant_db
-# - md:tenant_db
-# - md:orgslug/tenant_db
-DB_NAME_ALLOWLIST_REGEX = re.compile(r"^(?:md:)?[A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)?$")
-
-# Connection string allowlist for MotherDuck DSNs supplied via headers
-MOTHERDUCK_CONNECTION_REGEX = re.compile(r"^md:[A-Za-z0-9_./-]+(?:\?[A-Za-z0-9_=&.-]*)?$")
-
 MOTHERDUCK_SERVICE_SECRET_HEADERS: tuple[str, ...] = (
     "x-motherduck-service-secret",
     "x-md-service-secret",
 )
 
-MOTHERDUCK_CONNECTION_HEADERS: tuple[str, ...] = (
-    "x-motherduck-connection",
-    "x-md-connection",
-)
-
 
 def validate_http_env_or_raise(transport: str) -> None:
-    """Placeholder for HTTP/SSE-specific environment validation."""
+    """Validate HTTP/SSE-specific environment configuration."""
     if transport not in ("sse", "stream"):
         return
 
-    # HTTP clients provide MotherDuck credentials per request via custom headers.
-    # No mandatory server-side environment variables to validate.
-
-
-def _first_env(names: Iterable[str]) -> str | None:
-    for name in names:
-        value = os.getenv(name)
-        if value:
-            return value
-    return None
-
-
-def resolve_http_auth_headers(
-    service_secret_override: str | None = None,
-    connection_override: str | None = None,
-) -> dict[str, str]:
-    """Resolve default HTTP headers containing MotherDuck credentials."""
-    headers: dict[str, str] = {}
-
-    service_secret = service_secret_override or _first_env(ENV_HTTP_SERVICE_SECRET_KEYS)
-    connection_uri = connection_override or _first_env(ENV_HTTP_CONNECTION_KEYS)
-
-    if service_secret:
-        headers[MOTHERDUCK_SERVICE_SECRET_HEADERS[0]] = service_secret.strip()
-    if connection_uri:
-        headers[MOTHERDUCK_CONNECTION_HEADERS[0]] = connection_uri.strip()
-
-    return headers
+    # Ensure CLERK_SECRET_KEY is configured for JWT verification
+    clerk_key = os.getenv("CLERK_SECRET_KEY")
+    if not clerk_key:
+        raise RuntimeError("CLERK_SECRET_KEY environment variable is required for HTTP/SSE mode")

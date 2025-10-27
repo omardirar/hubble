@@ -14,6 +14,7 @@ members = [
 
 [manifest.dependency-groups]
 dev = [
+    { name = "asyncpg-stubs", specifier = ">=0.29.0" },
     { name = "jsonschema", specifier = ">=4.17.0" },
     { name = "mypy", specifier = ">=1.10.0" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10.1" },
@@ -29,6 +30,15 @@ dev = [
     { name = "types-pyyaml", specifier = ">=6.0.12.20250915" },
     { name = "types-requests", specifier = ">=2.32.0.20241016" },
     { name = "types-tabulate", specifier = ">=0.9.0" },
+]
+
+[[package]]
+name = "annotated-doc"
+version = "0.0.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d7/a6/dc46877b911e40c00d395771ea710d5e77b6de7bacd5fdcd78d70cc5a48f/annotated_doc-0.0.3.tar.gz", hash = "sha256:e18370014c70187422c33e945053ff4c286f453a984eba84d0dbfa0c935adeda", size = 5535 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/02/b7/cf592cb5de5cb3bade3357f8d2cf42bf103bbe39f459824b4939fd212911/annotated_doc-0.0.3-py3-none-any.whl", hash = "sha256:348ec6664a76f1fd3be81f43dffbee4c7e8ce931ba71ec67cc7f4ade7fbbb580", size = 5488 },
 ]
 
 [[package]]
@@ -71,6 +81,43 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c6/78/7d432127c41b50bccba979505f272c16cbcadcc33645d5fa3a738110ae75/anyio-4.11.0.tar.gz", hash = "sha256:82a8d0b81e318cc5ce71a5f1f8b5c4e63619620b63141ef8c995fa0db95a57c4", size = 219094 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/15/b3/9b1a8074496371342ec1e796a96f99c82c945a339cd81a8e73de28b4cf9e/anyio-4.11.0-py3-none-any.whl", hash = "sha256:0287e96f4d26d4149305414d4e3bc32f0dcd0862365a4bddea19d7a1ec38c4fc", size = 109097 },
+]
+
+[[package]]
+name = "asyncpg"
+version = "0.30.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2f/4c/7c991e080e106d854809030d8584e15b2e996e26f16aee6d757e387bc17d/asyncpg-0.30.0.tar.gz", hash = "sha256:c551e9928ab6707602f44811817f82ba3c446e018bfe1d3abecc8ba5f3eac851", size = 957746 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4b/64/9d3e887bb7b01535fdbc45fbd5f0a8447539833b97ee69ecdbb7a79d0cb4/asyncpg-0.30.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:c902a60b52e506d38d7e80e0dd5399f657220f24635fee368117b8b5fce1142e", size = 673162 },
+    { url = "https://files.pythonhosted.org/packages/6e/eb/8b236663f06984f212a087b3e849731f917ab80f84450e943900e8ca4052/asyncpg-0.30.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:aca1548e43bbb9f0f627a04666fedaca23db0a31a84136ad1f868cb15deb6e3a", size = 637025 },
+    { url = "https://files.pythonhosted.org/packages/cc/57/2dc240bb263d58786cfaa60920779af6e8d32da63ab9ffc09f8312bd7a14/asyncpg-0.30.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6c2a2ef565400234a633da0eafdce27e843836256d40705d83ab7ec42074efb3", size = 3496243 },
+    { url = "https://files.pythonhosted.org/packages/f4/40/0ae9d061d278b10713ea9021ef6b703ec44698fe32178715a501ac696c6b/asyncpg-0.30.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1292b84ee06ac8a2ad8e51c7475aa309245874b61333d97411aab835c4a2f737", size = 3575059 },
+    { url = "https://files.pythonhosted.org/packages/c3/75/d6b895a35a2c6506952247640178e5f768eeb28b2e20299b6a6f1d743ba0/asyncpg-0.30.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:0f5712350388d0cd0615caec629ad53c81e506b1abaaf8d14c93f54b35e3595a", size = 3473596 },
+    { url = "https://files.pythonhosted.org/packages/c8/e7/3693392d3e168ab0aebb2d361431375bd22ffc7b4a586a0fc060d519fae7/asyncpg-0.30.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:db9891e2d76e6f425746c5d2da01921e9a16b5a71a1c905b13f30e12a257c4af", size = 3641632 },
+    { url = "https://files.pythonhosted.org/packages/32/ea/15670cea95745bba3f0352341db55f506a820b21c619ee66b7d12ea7867d/asyncpg-0.30.0-cp312-cp312-win32.whl", hash = "sha256:68d71a1be3d83d0570049cd1654a9bdfe506e794ecc98ad0873304a9f35e411e", size = 560186 },
+    { url = "https://files.pythonhosted.org/packages/7e/6b/fe1fad5cee79ca5f5c27aed7bd95baee529c1bf8a387435c8ba4fe53d5c1/asyncpg-0.30.0-cp312-cp312-win_amd64.whl", hash = "sha256:9a0292c6af5c500523949155ec17b7fe01a00ace33b68a476d6b5059f9630305", size = 621064 },
+    { url = "https://files.pythonhosted.org/packages/3a/22/e20602e1218dc07692acf70d5b902be820168d6282e69ef0d3cb920dc36f/asyncpg-0.30.0-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:05b185ebb8083c8568ea8a40e896d5f7af4b8554b64d7719c0eaa1eb5a5c3a70", size = 670373 },
+    { url = "https://files.pythonhosted.org/packages/3d/b3/0cf269a9d647852a95c06eb00b815d0b95a4eb4b55aa2d6ba680971733b9/asyncpg-0.30.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:c47806b1a8cbb0a0db896f4cd34d89942effe353a5035c62734ab13b9f938da3", size = 634745 },
+    { url = "https://files.pythonhosted.org/packages/8e/6d/a4f31bf358ce8491d2a31bfe0d7bcf25269e80481e49de4d8616c4295a34/asyncpg-0.30.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:9b6fde867a74e8c76c71e2f64f80c64c0f3163e687f1763cfaf21633ec24ec33", size = 3512103 },
+    { url = "https://files.pythonhosted.org/packages/96/19/139227a6e67f407b9c386cb594d9628c6c78c9024f26df87c912fabd4368/asyncpg-0.30.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:46973045b567972128a27d40001124fbc821c87a6cade040cfcd4fa8a30bcdc4", size = 3592471 },
+    { url = "https://files.pythonhosted.org/packages/67/e4/ab3ca38f628f53f0fd28d3ff20edff1c975dd1cb22482e0061916b4b9a74/asyncpg-0.30.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:9110df111cabc2ed81aad2f35394a00cadf4f2e0635603db6ebbd0fc896f46a4", size = 3496253 },
+    { url = "https://files.pythonhosted.org/packages/ef/5f/0bf65511d4eeac3a1f41c54034a492515a707c6edbc642174ae79034d3ba/asyncpg-0.30.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:04ff0785ae7eed6cc138e73fc67b8e51d54ee7a3ce9b63666ce55a0bf095f7ba", size = 3662720 },
+    { url = "https://files.pythonhosted.org/packages/e7/31/1513d5a6412b98052c3ed9158d783b1e09d0910f51fbe0e05f56cc370bc4/asyncpg-0.30.0-cp313-cp313-win32.whl", hash = "sha256:ae374585f51c2b444510cdf3595b97ece4f233fde739aa14b50e0d64e8a7a590", size = 560404 },
+    { url = "https://files.pythonhosted.org/packages/c8/a4/cec76b3389c4c5ff66301cd100fe88c318563ec8a520e0b2e792b5b84972/asyncpg-0.30.0-cp313-cp313-win_amd64.whl", hash = "sha256:f59b430b8e27557c3fb9869222559f7417ced18688375825f8f12302c34e915e", size = 621623 },
+]
+
+[[package]]
+name = "asyncpg-stubs"
+version = "0.30.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "asyncpg" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a3/e5/1a06ecec2a77a75974ba6b22d3bed697193177c0ed7595cce4dd2362735d/asyncpg_stubs-0.30.2.tar.gz", hash = "sha256:b8a1b7cb790a7b8a0e4e64e438a97c3fac77ea02441b563b1975748f18af33ab", size = 20250 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a4/22/77a4a08cc9ef4f8bbb5e7ffbf4be008e596b535a3533a28c3465e9400d75/asyncpg_stubs-0.30.2-py3-none-any.whl", hash = "sha256:e57818bbaf10945a60ff3219da3c5ce97e1b424503b6a6f0a18db99797397cbb", size = 26929 },
 ]
 
 [[package]]
@@ -200,6 +247,22 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/8c/9839225320046ed279c6e839d51f028342eb77c91c89b8ef2549f951f3ec/charset_normalizer-3.4.3-cp314-cp314-win32.whl", hash = "sha256:c6dbd0ccdda3a2ba7c2ecd9d77b37f3b5831687d8dc1b6ca5f56a4880cc7b7ce", size = 100086 },
     { url = "https://files.pythonhosted.org/packages/ee/7a/36fbcf646e41f710ce0a563c1c9a343c6edf9be80786edeb15b6f62e17db/charset_normalizer-3.4.3-cp314-cp314-win_amd64.whl", hash = "sha256:73dc19b562516fc9bcf6e5d6e596df0b4eb98d87e4f79f3ae71840e6ed21361c", size = 107400 },
     { url = "https://files.pythonhosted.org/packages/8a/1f/f041989e93b001bc4e44bb1669ccdcf54d3f00e628229a85b08d330615c5/charset_normalizer-3.4.3-py3-none-any.whl", hash = "sha256:ce571ab16d890d23b5c278547ba694193a45011ff86a9162a71307ed9f86759a", size = 53175 },
+]
+
+[[package]]
+name = "clerk-backend-api"
+version = "3.1.9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "httpcore" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pyjwt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/59/1f/7bd5ad4d3d110b558dcbf596dfd56608fc7d6b220893660d99300374afab/clerk_backend_api-3.1.9.tar.gz", hash = "sha256:aa6058ffe45a85067af9371ef5e61e8e704ead84f51e0a070a26404ca0ab4f39", size = 178001 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/83/6c/c9ed949ae435e4f52670e6e4bc2006b2a222a85cc49af08ff3c35d711f95/clerk_backend_api-3.1.9-py3-none-any.whl", hash = "sha256:b30ebaa6ae6227db9d5c6a5548ebb788326f2a9e6e17e66e49aa7687ea32cef4", size = 369127 },
 ]
 
 [[package]]
@@ -391,6 +454,21 @@ wheels = [
 ]
 
 [[package]]
+name = "fastapi"
+version = "0.120.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "annotated-doc" },
+    { name = "pydantic" },
+    { name = "starlette" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f7/0e/7f29e8f7219e4526747db182e1afb5a4b6abc3201768fb38d81fa2536241/fastapi-0.120.0.tar.gz", hash = "sha256:6ce2c1cfb7000ac14ffd8ddb2bc12e62d023a36c20ec3710d09d8e36fab177a0", size = 337603 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1d/60/7a639ceaba54aec4e1d5676498c568abc654b95762d456095b6cb529b1ca/fastapi-0.120.0-py3-none-any.whl", hash = "sha256:84009182e530c47648da2f07eb380b44b69889a4acfd9e9035ee4605c5cfc469", size = 108243 },
+]
+
+[[package]]
 name = "forbiddenfruit"
 version = "0.1.4"
 source = { registry = "https://pypi.org/simple" }
@@ -497,6 +575,9 @@ name = "h10s"
 version = "1.0.0"
 source = { editable = "services/agents" }
 dependencies = [
+    { name = "asyncpg" },
+    { name = "fastapi" },
+    { name = "httpx" },
     { name = "langchain-anthropic" },
     { name = "langchain-core" },
     { name = "langchain-mcp-adapters" },
@@ -504,6 +585,10 @@ dependencies = [
     { name = "langgraph-cli", extra = ["inmem"] },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "pyjwt", extra = ["crypto"] },
+    { name = "python-multipart" },
+    { name = "sse-starlette" },
+    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.optional-dependencies]
@@ -519,6 +604,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "asyncpg", specifier = ">=0.29.0" },
+    { name = "fastapi", specifier = ">=0.115.0" },
+    { name = "httpx", specifier = ">=0.28.0" },
     { name = "langchain-anthropic", specifier = ">=0.2.10" },
     { name = "langchain-core", specifier = ">=0.3.30" },
     { name = "langchain-mcp-adapters", specifier = ">=0.1.0" },
@@ -528,11 +616,15 @@ requires-dist = [
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10.0" },
     { name = "pydantic", specifier = ">=2.12.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.1.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0.0" },
     { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.12.0" },
+    { name = "python-multipart", specifier = ">=0.0.20" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.0" },
+    { name = "sse-starlette", specifier = ">=2.1.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0" },
 ]
 
 [[package]]
@@ -635,8 +727,10 @@ version = "1.0.0"
 source = { editable = "services/mcp/motherduck" }
 dependencies = [
     { name = "anyio" },
+    { name = "clerk-backend-api" },
     { name = "click" },
     { name = "duckdb" },
+    { name = "httpx" },
     { name = "mcp" },
     { name = "pyarrow" },
     { name = "pytz" },
@@ -659,8 +753,10 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anyio", specifier = ">=4.4.0" },
+    { name = "clerk-backend-api", specifier = ">=1.8.5" },
     { name = "click", specifier = ">=8.1.8" },
     { name = "duckdb", specifier = "==1.3.1" },
+    { name = "httpx", specifier = ">=0.27.0" },
     { name = "mcp", specifier = ">=1.17.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10.0" },
     { name = "pyarrow", specifier = ">=21.0.0" },

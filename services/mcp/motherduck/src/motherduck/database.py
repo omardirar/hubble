@@ -8,7 +8,7 @@ import duckdb
 from tabulate import tabulate
 
 if TYPE_CHECKING:  # pragma: no cover - import only needed for typing
-    import pyarrow as pa
+    import pyarrow as pa  # type: ignore[import-untyped]
 
 from .auth import MotherDuckAuthContext
 from .configs import SERVER_VERSION, resolve_motherduck_token
@@ -25,9 +25,7 @@ class DatabaseClient:
         motherduck_token: str | None = None,
         saas_mode: bool = False,
     ) -> None:
-        self._default_connection = (
-            db_path if db_path and db_path.startswith("md:") else None
-        )
+        self._default_connection = db_path if db_path and db_path.startswith("md:") else None
         self._default_token = motherduck_token
         self._saas_mode = saas_mode
 
@@ -35,9 +33,13 @@ class DatabaseClient:
         if not self._default_connection:
             return None
         token = self._default_token or resolve_motherduck_token()
+        # Extract org_id from default connection (format: md:md_org_123)
+        db_name = self._default_connection.replace("md:", "", 1)
+        org_id = db_name[3:] if db_name.startswith("md_") else "unknown"
         return MotherDuckAuthContext(
+            org_id=org_id,
+            user_id="system",
             service_secret=token,
-            connection_uri=self._default_connection,
         )
 
     @staticmethod
@@ -73,9 +75,7 @@ class DatabaseClient:
             raise ValueError("MotherDuck credentials were not provided")
 
         dsn = self._build_remote_dsn(creds)
-        logger.info(
-            "Executing query against MotherDuck target %s", creds.display_target
-        )
+        logger.info("Executing query against MotherDuck target %s", creds.display_target)
         conn = duckdb.connect(
             dsn,
             config={"custom_user_agent": f"mcp-server-motherduck/{SERVER_VERSION}"},

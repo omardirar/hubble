@@ -15,7 +15,6 @@ from .configs import (
     SERVER_LOCALHOST,
     SERVER_VERSION,
     UVICORN_LOGGING_CONFIG,
-    resolve_http_auth_headers,
     validate_http_env_or_raise,
 )
 from .server import configure_runtime_context, get_motherduck_server
@@ -69,24 +68,6 @@ _configure_root_logger()
     ),
 )
 @click.option(
-    "--http-service-secret",
-    default=None,
-    envvar="MOTHERDUCK_HTTP_SERVICE_SECRET",
-    help=(
-        "Optional MotherDuck service secret to forward via HTTP headers "
-        "(env: MOTHERDUCK_HTTP_SERVICE_SECRET)"
-    ),
-)
-@click.option(
-    "--http-connection",
-    default=None,
-    envvar="MOTHERDUCK_HTTP_CONNECTION",
-    help=(
-        "Optional MotherDuck connection identifier to forward via HTTP headers "
-        "(env: MOTHERDUCK_HTTP_CONNECTION)"
-    ),
-)
-@click.option(
     "--saas-mode",
     is_flag=True,
     help="Flag for connecting to MotherDuck in SaaS mode",
@@ -105,8 +86,6 @@ def main(
     transport: str,
     default_connection: str | None,
     motherduck_token: str | None,
-    http_service_secret: str | None,
-    http_connection: str | None,
     saas_mode: bool,
     json_response: bool,
 ) -> None:
@@ -127,16 +106,6 @@ def main(
     # Fail fast on missing envs in HTTP/SSE mode
     validate_http_env_or_raise(transport)
 
-    default_headers = resolve_http_auth_headers(
-        service_secret_override=http_service_secret,
-        connection_override=http_connection,
-    )
-    if default_headers:
-        logger.info(
-            "Configured default HTTP auth headers: %s",
-            ", ".join(default_headers.keys()),
-        )
-
     configure_runtime_context(
         db_path=default_connection,
         motherduck_token=motherduck_token,
@@ -156,7 +125,7 @@ def main(
     # Mount FastMCP's streamable HTTP app at root
     stream_app = HeaderCaptureApp(
         server.streamable_http_app(),
-        default_headers=default_headers or None,
+        default_headers=None,
     )
 
     async def health_endpoint(request: Any) -> JSONResponse:

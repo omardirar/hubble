@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import base64
+import json
+import os
 from dataclasses import dataclass
 
-from .configs import (
-    DB_NAME_ALLOWLIST_REGEX,
-    MOTHERDUCK_CONNECTION_HEADERS,
-    MOTHERDUCK_CONNECTION_REGEX,
-    MOTHERDUCK_SERVICE_SECRET_HEADERS,
-)
+import httpx
+from clerk_backend_api import Clerk
+from clerk_backend_api.security.types import AuthenticateRequestOptions
+
+from .configs import MOTHERDUCK_SERVICE_SECRET_HEADERS
 
 
 class AuthError(Exception):
@@ -16,16 +18,22 @@ class AuthError(Exception):
 
 @dataclass(slots=True)
 class MotherDuckAuthContext:
+    org_id: str
+    user_id: str
     service_secret: str
-    connection_uri: str
+
+    @property
+    def connection_uri(self) -> str:
+        """Build org-scoped MotherDuck connection string."""
+        return f"md:md_{self.org_id}"
 
     @property
     def display_target(self) -> str:
-        base = self.connection_uri.split("?", 1)[0]
-        return base or "md:"
+        return f"md:md_{self.org_id}"
 
 
 def _extract_bearer_token(authorization_header: str | None) -> str:
+    """Extract JWT token from Authorization header."""
     if not authorization_header:
         raise AuthError("Missing Authorization header")
     parts = authorization_header.split()
@@ -35,6 +43,7 @@ def _extract_bearer_token(authorization_header: str | None) -> str:
 
 
 def _first_header(headers: dict[str, str], candidates: tuple[str, ...]) -> str | None:
+    """Get first matching header from candidates."""
     for key in candidates:
         value = headers.get(key)
         if value:
@@ -42,37 +51,100 @@ def _first_header(headers: dict[str, str], candidates: tuple[str, ...]) -> str |
     return None
 
 
-def verify_and_extract(headers: dict[str, str]) -> MotherDuckAuthContext:
-    """Extract MotherDuck credentials from request headers."""
+def _verify_clerk_jwt(jwt_token: str) -> dict[str, str]:
+    """Verify Clerk JWT and extract claims.
 
-    service_secret = _first_header(headers, MOTHERDUCK_SERVICE_SECRET_HEADERS)
-    connection_uri = _first_header(headers, MOTHERDUCK_CONNECTION_HEADERS)
+    Returns:
+        dict with org_id and user_id
 
-    if service_secret or connection_uri:
-        if not service_secret:
-            raise AuthError("Missing MotherDuck service secret header")
-        if not connection_uri:
-            raise AuthError("Missing MotherDuck connection header")
-        if not MOTHERDUCK_CONNECTION_REGEX.match(connection_uri):
-            raise AuthError("Invalid MotherDuck connection string")
-        return MotherDuckAuthContext(
-            service_secret=service_secret,
-            connection_uri=connection_uri,
+    Raises:
+        AuthError: If JWT is invalid or missing required claims
+    """
+    clerk_secret_key = os.getenv("CLERK_SECRET_KEY")
+    if not clerk_secret_key:
+        raise AuthError("CLERK_SECRET_KEY not configured")
+
+    try:
+        clerk = Clerk(bearer_auth=clerk_secret_key)
+
+        # Create a minimal httpx.Request for verification
+        request = httpx.Request(
+            method="POST",
+            url="http://localhost",
+            headers={"authorization": f"Bearer {jwt_token}"},
         )
 
-    # Backwards compatibility: fall back to legacy Authorization/X-Db-Name headers.
+        # Authenticate request with Clerk
+        request_state = clerk.authenticate_request(
+            request,
+            AuthenticateRequestOptions(),
+        )
+
+        if not request_state.is_signed_in:
+            raise AuthError("Invalid or expired JWT")
+
+        # The token itself contains the claims - decode it
+        # Clerk JWTs follow standard JWT format with base64-encoded payload
+
+        # Split JWT into parts
+        parts = jwt_token.split(".")
+        if len(parts) != 3:
+            raise AuthError("Invalid JWT format")
+
+        # Decode payload (add padding if needed)
+        payload = parts[1]
+        padding = 4 - (len(payload) % 4)
+        if padding != 4:
+            payload += "=" * padding
+
+        decoded = base64.urlsafe_b64decode(payload)
+        claims = json.loads(decoded)
+
+        # Extract org_id from claims
+        org_id = claims.get("org_id")
+        if not org_id:
+            raise AuthError("Missing org_id in JWT claims")
+
+        # Extract user_id (sub claim)
+        user_id = claims.get("sub")
+        if not user_id:
+            raise AuthError("Missing user_id (sub) in JWT")
+
+        return {
+            "org_id": org_id,
+            "user_id": user_id,
+        }
+    except AuthError:
+        raise
+    except Exception as e:
+        raise AuthError(f"JWT verification failed: {e}") from e
+
+
+def verify_and_extract(headers: dict[str, str]) -> MotherDuckAuthContext:
+    """Verify Clerk JWT and extract MotherDuck credentials from request headers.
+
+    Requires:
+    - Authorization header with Clerk JWT
+    - MotherDuck service secret header (X-MotherDuck-Service-Secret or X-MD-Service-Secret)
+
+    Returns:
+        MotherDuckAuthContext with org-scoped connection
+
+    Raises:
+        AuthError: If authentication fails or required headers are missing
+    """
+    # Extract and verify Clerk JWT
     authz = headers.get("authorization")
-    x_db = headers.get("x-db-name")
+    jwt_token = _extract_bearer_token(authz)
+    jwt_claims = _verify_clerk_jwt(jwt_token)
 
-    token = _extract_bearer_token(authz)
-
-    if not x_db:
-        raise AuthError("Missing X-Db-Name header")
-
-    if not DB_NAME_ALLOWLIST_REGEX.match(x_db):
-        raise AuthError("Invalid db name")
+    # Get MotherDuck service secret from headers
+    service_secret = _first_header(headers, MOTHERDUCK_SERVICE_SECRET_HEADERS)
+    if not service_secret:
+        raise AuthError("Missing MotherDuck service secret header")
 
     return MotherDuckAuthContext(
-        service_secret=token,
-        connection_uri=f"md:{x_db}",
+        org_id=jwt_claims["org_id"],
+        user_id=jwt_claims["user_id"],
+        service_secret=service_secret,
     )
