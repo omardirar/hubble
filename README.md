@@ -534,7 +534,3 @@ Set environment variables in Vercel project settings.
 ## 📄 License
 
 MIT
-
----
-
-Built with ❤️ by the Hubble team
